@@ -1,0 +1,9 @@
+This is basically just the test for Go's webapp capabilities.
+
+Make sure you're in the "gowiki" directory in whatever terminal you're executing this test from.
+
+Use "go build wiki.go" to compile and "./wiki" to initialize it.
+
+Go to "http://localhost:8080/view/test" to view the webapp from your machine.
+
+Source (read it, it's good stuff): https://go.dev/doc/articles/wiki/
