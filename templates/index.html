@@ -1,0 +1,16 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Home</title>
+</head>
+<body>
+{{ if .Username }}
+  <p>Hello, {{ .Username }}!</p>
+  <a href="/logout">Logout</a>
+{{ else }}
+  <p>Not logged in</p>
+  <a href="/login">Login</a> | <a href="/register">Register</a>
+{{ end }}
+</body>
+</html>
