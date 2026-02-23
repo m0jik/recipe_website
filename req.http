@@ -1,0 +1,4 @@
+GET http://admin:secret@localhost:8080/resource
+Accept: application/json
+
+###
