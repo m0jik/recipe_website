@@ -8,4 +8,4 @@ Go to "http://localhost:8080/view/test" to view the webapp from your machine.
 
 Source (read it, it's good stuff): 
 
-Tutorial used for setting up the HTTP auth stuff: https://www.jetbrains.com/guide/go/tutorials/authentication-for-go-apps/auth/
+Tutorial used for setting up the HTTP auth stuff (very basic, no longer used): https://www.jetbrains.com/guide/go/tutorials/authentication-for-go-apps/auth/
