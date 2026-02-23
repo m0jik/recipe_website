@@ -6,4 +6,6 @@ Use "go build wiki.go" to compile and "./wiki" to initialize it.
 
 Go to "http://localhost:8080/view/test" to view the webapp from your machine.
 
-Source (read it, it's good stuff): https://go.dev/doc/articles/wiki/
+Source (read it, it's good stuff): 
+
+Tutorial used for setting up the HTTP auth stuff: https://www.jetbrains.com/guide/go/tutorials/authentication-for-go-apps/auth/
