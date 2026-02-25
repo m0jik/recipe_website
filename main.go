@@ -33,7 +33,9 @@ func main() {
 	}
 
 	app := &App{DB: db}
-
+	// router := http.NewServeMux()
+	// router.HandleFunc("POST /user", newUserLoginFunction("stuff"))
+	// router.HandleFunc("GET /user/{id}", )
 	http.HandleFunc("/", app.handleIndex)
 	http.HandleFunc("/register", app.handleRegister)
 	http.HandleFunc("/login", app.handleLogin)
@@ -42,9 +44,15 @@ func main() {
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
 
+func newUserLoginFunction(stuffTheFunctionNeeds string) http.HandlerFunc {
+	return func(httpResponseWriter http.ResponseWriter, httpRequest *http.Request) {
+
+	}
+}
+
 func initDB(db *sql.DB) error {
 	queries := []string{
-		`CREATE TABLE IF NOT EXISTS users (
+		`CREATE TABLE IF NOT EXISTS usersV1 (
 			id INTEGER PRIMARY KEY AUTOINCREMENT,
 			username TEXT NOT NULL UNIQUE,
 			password_hash TEXT NOT NULL,
