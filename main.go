@@ -36,7 +36,7 @@ func main() {
 	// router := http.NewServeMux()
 	// router.HandleFunc("POST /user", newUserLoginFunction("stuff"))
 	// router.HandleFunc("GET /user/{id}", )
-	http.HandleFunc("/", app.handleIndex)
+	http.HandleFunc("/v1", app.handleIndex) // Implement versioning
 	http.HandleFunc("/register", app.handleRegister)
 	http.HandleFunc("/login", app.handleLogin)
 	http.HandleFunc("/logout", app.handleLogout)
