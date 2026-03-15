@@ -1,12 +1,16 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"database/sql"
 	"encoding/hex"
 	"html/template"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
@@ -24,24 +28,45 @@ type App struct {
 func main() {
 	db, err := sql.Open("sqlite3", "./app.db")
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("db open error: %v", err)
+		return
 	}
 	defer db.Close()
 
 	if err := initDB(db); err != nil {
-		log.Fatal(err)
+		log.Printf("db init error: %v", err)
+		return
 	}
 
 	app := &App{DB: db}
-	// router := http.NewServeMux()
-	// router.HandleFunc("POST /user", newUserLoginFunction("stuff"))
-	// router.HandleFunc("GET /user/{id}", )
-	http.HandleFunc("/v1", app.handleIndex) // Implement versioning
-	http.HandleFunc("/register", app.handleRegister)
-	http.HandleFunc("/login", app.handleLogin)
-	http.HandleFunc("/logout", app.handleLogout)
-	log.Println("Listening on :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
+	
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1", app.handleIndex) // Implement versioning
+	mux.HandleFunc("/users/v1/register", app.handleRegister)
+	mux.HandleFunc("/users/v1/login", app.handleLogin)
+	mux.HandleFunc("/users/v1/logout", app.handleLogout)
+	
+	srv := &http.Server {
+		Addr: ":8080",
+		Handler: mux,
+	}
+
+	go func() {
+		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
+			log.Printf("server error: %v", err)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
+	<-quit
+	
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(ctx); err != nil {
+		log.Printf("server shutdown error: %v", err)
+	}
 }
 
 func newUserLoginFunction(stuffTheFunctionNeeds string) http.HandlerFunc {
