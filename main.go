@@ -13,6 +13,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/m0jik/recipe_website/internal/config"
 	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/bcrypt"
 )
@@ -22,11 +23,19 @@ var tpl = template.Must(template.ParseGlob("templates/*.html"))
 const cookieName = "session_id"
 
 type App struct {
-	DB *sql.DB
+	DB  *sql.DB
+	Cfg *config.Config
 }
 
 func main() {
-	db, err := sql.Open("sqlite3", "./app.db")
+	cfg, err := config.Load("config.json")
+	if err != nil {
+		log.Printf("config load error: %v", err)
+		return
+	}
+
+	db, err := sql.Open("sqlite3", cfg.DatabasePath)
+
 	if err != nil {
 		log.Printf("db open error: %v", err)
 		return
@@ -38,16 +47,19 @@ func main() {
 		return
 	}
 
-	app := &App{DB: db}
-	
+	app := &App{
+		DB:  db,
+		Cfg: cfg,
+	}
+
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1", app.handleIndex) // Implement versioning
 	mux.HandleFunc("/users/v1/register", app.handleRegister)
 	mux.HandleFunc("/users/v1/login", app.handleLogin)
 	mux.HandleFunc("/users/v1/logout", app.handleLogout)
-	
-	srv := &http.Server {
-		Addr: ":8080",
+
+	srv := &http.Server{
+		Addr:    ":8080",
 		Handler: mux,
 	}
 
@@ -60,7 +72,7 @@ func main() {
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
 	<-quit
-	
+
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
@@ -169,7 +181,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		expires := time.Now().Add(24 * time.Hour)
+		expires := time.Now().Add(time.Duration(a.Cfg.SessionLifetimeHours) * time.Hour)
 		_, err = a.DB.Exec("INSERT INTO sessions(id, user_id, expires_at) VALUES (?, ?, ?)", sessionID, id, expires.Format(time.RFC3339))
 		if err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)

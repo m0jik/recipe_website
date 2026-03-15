@@ -1,0 +1,8 @@
+{
+    "server_address": ":8080",
+    "database_path": "./app.db",
+    "session_lifetime_hours": 24,
+    "tls_enabled": false,
+    "tls_cert_file": "",
+    "tls_key_file": ""
+}
