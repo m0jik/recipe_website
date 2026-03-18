@@ -3,19 +3,23 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"database/sql"
+	"crypto/subtle"
+	"encoding/base64"
 	"encoding/hex"
 	"html/template"
 	"log"
 	"net/http"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 	"time"
 
+	"github.com/jmoiron/sqlx"
 	"github.com/m0jik/recipe_website/internal/config"
+	"github.com/m0jik/recipe_website/internal/sqlite"
 	_ "github.com/mattn/go-sqlite3"
-	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/crypto/argon2"
 )
 
 var tpl = template.Must(template.ParseGlob("templates/*.html"))
@@ -23,7 +27,7 @@ var tpl = template.Must(template.ParseGlob("templates/*.html"))
 const cookieName = "session_id"
 
 type App struct {
-	DB  *sql.DB
+	DB  *sqlx.DB
 	Cfg *config.Config
 }
 
@@ -34,7 +38,7 @@ func main() {
 		return
 	}
 
-	db, err := sql.Open("sqlite3", cfg.DatabasePath)
+	db, err := sqlite.New(cfg.DatabasePath)
 
 	if err != nil {
 		log.Printf("db open error: %v", err)
@@ -42,7 +46,7 @@ func main() {
 	}
 	defer db.Close()
 
-	if err := initDB(db); err != nil {
+	if err := sqlite.Migrate(db); err != nil {
 		log.Printf("db init error: %v", err)
 		return
 	}
@@ -87,6 +91,51 @@ func newUserLoginFunction(stuffTheFunctionNeeds string) http.HandlerFunc {
 	}
 }
 
+func hashPasswordArgon2id(password string) (string, error) {
+	salt := make([]byte, 16)
+	if _, err := rand.Read(salt); err != nil {
+		return "", err
+	}
+
+	memory := uint32(64 * 1024)
+	iterations := uint32(3)
+	parallelism := uint8(2)
+	keyLen := uint32(32)
+
+	hash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, keyLen)
+
+	encoded := base64.RawStdEncoding.EncodeToString(salt) + "$" + base64.RawURLEncoding.EncodeToString(hash)
+
+	return encoded, nil
+}
+
+func verifyPasswordArgon2id(password, encoded string) bool {
+	parts := strings.Split(encoded, "$")
+	if len(parts) != 2 {
+		return false
+	}
+
+	salt, err := base64.RawStdEncoding.DecodeString(parts[0])
+	if err != nil {
+		return false
+	}
+
+	expectedHash, err := base64.RawStdEncoding.DecodeString(parts[1])
+	if err != nil {
+		return false
+	}
+
+	memory := uint32(64 * 1024)
+	iterations := uint32(3)
+	parallelism := uint8(2)
+	keyLen := uint32(32)
+
+	actualHash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, keyLen)
+
+	return subtle.ConstantTimeCompare(actualHash, expectedHash) == 1
+}
+
+/*
 func initDB(db *sql.DB) error {
 	queries := []string{
 		`CREATE TABLE IF NOT EXISTS usersV1 (
@@ -109,6 +158,7 @@ func initDB(db *sql.DB) error {
 	}
 	return nil
 }
+*/
 
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	username := ""
@@ -137,7 +187,7 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "username and password required", http.StatusBadRequest)
 			return
 		}
-		hash, err := bcrypt.GenerateFromPassword([]byte(pass), bcrypt.DefaultCost)
+		hash, err := hashPasswordArgon2id(pass)
 		if err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
@@ -172,7 +222,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
-		if err := bcrypt.CompareHashAndPassword([]byte(hash), []byte(pass)); err != nil {
+		if !verifyPasswordArgon2id(pass, hash) {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
