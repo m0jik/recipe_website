@@ -7,10 +7,10 @@
 <body>
 {{ if .Username }}
   <p>Hello, {{ .Username }}!</p>
-  <a href="/logout">Logout</a>
+  <a href="/users/v1/logout">Logout</a>
 {{ else }}
   <p>Not logged in</p>
-  <a href="/login">Login</a> | <a href="/register">Register</a>
+  <a href="/users/v1/login">Login</a> | <a href="/users/v1/register">Register</a>
 {{ end }}
 </body>
 </html>

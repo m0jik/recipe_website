@@ -18,7 +18,6 @@ import (
 	"github.com/jmoiron/sqlx"
 	"github.com/m0jik/recipe_website/internal/config"
 	"github.com/m0jik/recipe_website/internal/sqlite"
-	_ "github.com/mattn/go-sqlite3"
 	"golang.org/x/crypto/argon2"
 )
 
@@ -32,13 +31,17 @@ type App struct {
 }
 
 func main() {
+	log.Println("Loading config...")
 	cfg, err := config.Load("config.json")
+	log.Println("Config loaded.")
 	if err != nil {
 		log.Printf("config load error: %v", err)
 		return
 	}
 
+	log.Println("Opening DB...")
 	db, err := sqlite.New(cfg.DatabasePath)
+	log.Println("DB opened.")
 
 	if err != nil {
 		log.Printf("db open error: %v", err)
@@ -46,32 +49,40 @@ func main() {
 	}
 	defer db.Close()
 
+	log.Println("Running migrations...")
 	if err := sqlite.Migrate(db); err != nil {
 		log.Printf("db init error: %v", err)
 		return
 	}
+	log.Println("Migrations complete.")
 
 	app := &App{
 		DB:  db,
 		Cfg: cfg,
 	}
 
+	log.Println("Setting up handlers...")
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1", app.handleIndex) // Implement versioning
 	mux.HandleFunc("/users/v1/register", app.handleRegister)
 	mux.HandleFunc("/users/v1/login", app.handleLogin)
 	mux.HandleFunc("/users/v1/logout", app.handleLogout)
+	log.Println("Handlers set up.")
 
 	srv := &http.Server{
 		Addr:    ":8080",
 		Handler: mux,
 	}
 
+	log.Println("Starting server goroutine...")
 	go func() {
+		log.Println("Calling ListenAndServe...")
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			log.Printf("server error: %v", err)
 		}
+		log.Println("ListenAndServe successfully called.")
 	}()
+	log.Println("Server goroutine started.")
 
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, os.Interrupt, syscall.SIGTERM)
@@ -80,6 +91,7 @@ func main() {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
+	log.Println("Waiting for shutdown signal...")
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("server shutdown error: %v", err)
 	}
@@ -104,7 +116,7 @@ func hashPasswordArgon2id(password string) (string, error) {
 
 	hash := argon2.IDKey([]byte(password), salt, iterations, memory, parallelism, keyLen)
 
-	encoded := base64.RawStdEncoding.EncodeToString(salt) + "$" + base64.RawURLEncoding.EncodeToString(hash)
+	encoded := base64.RawStdEncoding.EncodeToString(salt) + "$" + base64.RawStdEncoding.EncodeToString(hash)
 
 	return encoded, nil
 }
@@ -163,8 +175,10 @@ func initDB(db *sql.DB) error {
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	username := ""
 	if uid, ok := a.getUserIDFromSession(r); ok {
-		row := a.DB.QueryRow("SELECT username FROM users WHERE id = ?", uid)
-		_ = row.Scan(&username)
+		row := a.DB.QueryRow("SELECT username FROM usersV1 WHERE id = ?", uid)
+		if err := row.Scan(&username); err != nil {
+			username = ""
+		}
 	}
 	tpl.ExecuteTemplate(w, "index.html", map[string]interface{}{
 		"Username": username,
@@ -192,12 +206,12 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		_, err = a.DB.Exec("INSERT INTO users(username, password_hash) VALUES (?, ?)", username, string(hash))
+		_, err = a.DB.Exec("INSERT INTO usersV1(username, password_hash) VALUES (?, ?)", username, string(hash))
 		if err != nil {
 			http.Error(w, "could not create user", http.StatusInternalServerError)
 			return
 		}
-		http.Redirect(w, r, "/login", http.StatusSeeOther)
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -217,7 +231,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		pass := r.FormValue("password")
 		var id int
 		var hash string
-		row := a.DB.QueryRow("SELECT id, password_hash FROM users WHERE username = ?", username)
+		row := a.DB.QueryRow("SELECT id, password_hash FROM usersV1 WHERE username = ?", username)
 		if err := row.Scan(&id, &hash); err != nil {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
@@ -231,8 +245,8 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		expires := time.Now().Add(time.Duration(a.Cfg.SessionLifetimeHours) * time.Hour)
-		_, err = a.DB.Exec("INSERT INTO sessions(id, user_id, expires_at) VALUES (?, ?, ?)", sessionID, id, expires.Format(time.RFC3339))
+		expires := time.Now().Add(time.Duration(a.Cfg.SessionLifetimeHours) * time.Hour) // Uses session lifetime set in config.go
+		_, err = a.DB.Exec("INSERT INTO sessionsV1(id, user_id, expires_at) VALUES (?, ?, ?)", sessionID, id, expires.Format(time.RFC3339))
 		if err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
@@ -246,7 +260,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 			Expires:  expires,
 		}
 		http.SetCookie(w, c)
-		http.Redirect(w, r, "/", http.StatusSeeOther)
+		http.Redirect(w, r, "/v1", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -255,7 +269,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie(cookieName)
 	if err == nil {
-		a.DB.Exec("DELETE FROM sessions WHERE id = ?", c.Value)
+		a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
 		http.SetCookie(w, &http.Cookie{
 			Name:     cookieName,
 			Value:    "",
@@ -264,7 +278,7 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 			MaxAge:   -1,
 		})
 	}
-	http.Redirect(w, r, "/", http.StatusSeeOther)
+	http.Redirect(w, r, "/v1", http.StatusSeeOther)
 }
 
 func (a *App) getUserIDFromSession(r *http.Request) (int, bool) {
@@ -274,18 +288,26 @@ func (a *App) getUserIDFromSession(r *http.Request) (int, bool) {
 	}
 	var userID int
 	var expiresStr string
-	row := a.DB.QueryRow("SELECT user_id, expires_at FROM sessions WHERE id = ?", c.Value)
-	if err := row.Scan(&userID, &expiresStr); err != nil {
+	err = a.DB.QueryRow(
+		"SELECT user_id, expires_at FROM sessionsV1 WHERE id = ?",
+		c.Value,
+	).Scan(&userID, &expiresStr)
+
+	if err != nil {
 		return 0, false
 	}
+
 	exp, err := time.Parse(time.RFC3339, expiresStr)
 	if err != nil {
-		return userID, true
-	}
-	if time.Now().After(exp) {
-		a.DB.Exec("DELETE FROM sessions WHERE id = ?", c.Value)
+		a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
 		return 0, false
 	}
+
+	if time.Now().After(exp) {
+		a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		return 0, false
+	}
+
 	return userID, true
 }
 
