@@ -17,6 +17,7 @@ import (
 
 	"github.com/jmoiron/sqlx"
 	"github.com/m0jik/recipe_website/internal/config"
+	"github.com/m0jik/recipe_website/internal/services"
 	"github.com/m0jik/recipe_website/internal/sqlite"
 	"golang.org/x/crypto/argon2"
 )
@@ -26,8 +27,9 @@ var tpl = template.Must(template.ParseGlob("templates/*.html"))
 const cookieName = "session_id"
 
 type App struct {
-	DB  *sqlx.DB
-	Cfg *config.Config
+	DB    *sqlx.DB
+	Cfg   *config.Config
+	Users *services.UserService
 }
 
 func main() {
@@ -57,8 +59,9 @@ func main() {
 	log.Println("Migrations complete.")
 
 	app := &App{
-		DB:  db,
-		Cfg: cfg,
+		DB:    db,
+		Cfg:   cfg,
+		Users: services.NewUserService(db),
 	}
 
 	log.Println("Setting up handlers...")
@@ -206,8 +209,8 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		_, err = a.DB.Exec("INSERT INTO usersV1(username, password_hash) VALUES (?, ?)", username, string(hash))
-		if err != nil {
+		// _, err = a.DB.Exec("INSERT INTO usersV1(username, password_hash) VALUES (?, ?)", username, string(hash))
+		if err := a.Users.CreateUser(username, hash); err != nil {
 			http.Error(w, "could not create user", http.StatusInternalServerError)
 			return
 		}
