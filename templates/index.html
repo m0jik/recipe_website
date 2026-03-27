@@ -12,5 +12,31 @@
   <p>Not logged in</p>
   <a href="/users/v1/login">Login</a> | <a href="/users/v1/register">Register</a>
 {{ end }}
+
+<!-- needs fixing -->
+
+<form method="POST" action="/users/v1/recipe-submit">
+  <label>Recipe Name: <input name="title" type="text" required></label><br>
+  <!--Image-->
+  <div>
+    <label>Image: <input type="file" name="myfile"><label>
+  </div>
+  <!--Ingredients-->
+  <div>
+    <label>Ingredients:<input name="ingredient" type="text" required></label>
+    <label>Amount: <input name="amount" type="number" required>
+    <button type="submit">Add Ingredients</button><br>
+  </div>
+  <!--Steps and Instructions -->
+  <div>
+    <label>Step: <input name="step" type="text" required></label>
+    <label>Notes: <input name="note" type="text"></label>
+    <button type="button">Add Step</button><br>
+  </div>
+  <button type="submit"> submit</button>
+</form>
+
+
+
 </body>
 </html>

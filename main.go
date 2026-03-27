@@ -67,6 +67,7 @@ func main() {
 	mux.HandleFunc("/users/v1/register", app.handleRegister)
 	mux.HandleFunc("/users/v1/login", app.handleLogin)
 	mux.HandleFunc("/users/v1/logout", app.handleLogout)
+	mux.HandleFunc("/", app.handleIndex)
 	log.Println("Handlers set up.")
 
 	srv := &http.Server{
