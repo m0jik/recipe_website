@@ -55,8 +55,8 @@ func Migrate(db *sqlx.DB) error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		recipe_version_id INTEGER NOT NULL,
 		name TEXT NOT NULL, 
-		amount REAL NOT NULL, 
-		UNIT TEXT NOT NULL,
+		quantity REAL NOT NULL, 
+		unit TEXT NOT NULL,
 		FOREIGN KEY(recipe_version_id) REFERENCES recipe_versionsV1(id)
 	);
 

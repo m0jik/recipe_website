@@ -319,3 +319,5 @@ func generateSessionID() (string, error) {
 	}
 	return hex.EncodeToString(b), nil
 }
+
+// Implement handlign for submitting recipe

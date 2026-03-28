@@ -14,29 +14,71 @@
 {{ end }}
 
 <!-- needs fixing -->
-
-<form method="POST" action="/users/v1/recipe-submit">
-  <label>Recipe Name: <input name="title" type="text" required></label><br>
-  <!--Image-->
-  <div>
-    <label>Image: <input type="file" name="myfile"><label>
-  </div>
-  <!--Ingredients-->
-  <div>
-    <label>Ingredients:<input name="ingredient" type="text" required></label>
-    <label>Amount: <input name="amount" type="number" required>
-    <button type="submit">Add Ingredients</button><br>
-  </div>
-  <!--Steps and Instructions -->
-  <div>
-    <label>Step: <input name="step" type="text" required></label>
-    <label>Notes: <input name="note" type="text"></label>
-    <button type="button">Add Step</button><br>
-  </div>
-  <button type="submit"> submit</button>
+<form method="POST" action="/users/v1/addTitle">
+  <label>Recipe Name: <input name="name" type="text" required></label><br>
+  <label>Image: <input type="file" name="myfile"></label>
+  <button type="submit">Save title</button>
 </form>
 
+{{if .Title}}
+  <p>Title: {{.Title}}</p>
+{{end}}
 
+<form method="POST" action="/users/v1/addIngredients">
+  <label>Ingredient:<input name="ingredient" type="text" required></label>
+  <label>Quantity: <input name="quantity" type="text" min="0" required></label>
+  <select name="unit">
+    <option value="" disabled selected>Unit</option>
+    <optgroup label="US">
+      <option value="cup">cup</option>
+      <option value="tbsp">tbsp</option>
+      <option value="tsp">tsp</option>
+      <option value="oz">oz</option>
+      <option value="lb">lb</option>
+    </optgroup>
+    <optgroup label="Metric">
+      <option value="ml">mL</option>
+      <option value="liter">liter</option>
+      <option value="grams">grams</option>
+      <option value="kg">kg</option>
+    </optgroup>
+    <optgroup label="Other">
+      <option value="piece">Piece</option>
+      <option value="pinch">Pinch</option>
+      <option value="whole">Whole</option>
+    </optgroup>
+  </select>
+  <button type="submit">Add Ingredient</button><br>
+</form>
+
+{{if.Ingredients}}
+<ul>
+  {{range .Ingredients}}
+  <li>{{.Quantity}} {{.Unit}} {{.Name}}</li>
+  {{end}}
+</ul>
+{{end}}
+
+</form method="POST" action="/users/v1/addSteps">
+    <label>Step: <input name="step" type="text" required></label>
+    <label>Note: <input name="note" type="text"></label>
+    <button type="button">Add Step</button><br>
+</form>
+
+{{if .Step}}
+<ol>
+  {{range .Step}}
+  <li>{{.Instructions}} <em> {{.Notes}}</em></li>
+  {{end}}
+
+</ol>
+{{end}}
+
+<hr> 
+
+</form method ="POST" action="/users/v1/submit">
+  <button type="submit">Submit Recipe</button>
+</form>
 
 </body>
 </html>
