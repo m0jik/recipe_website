@@ -67,6 +67,8 @@ func main() {
 	mux.HandleFunc("/users/v1/register", app.handleRegister)
 	mux.HandleFunc("/users/v1/login", app.handleLogin)
 	mux.HandleFunc("/users/v1/logout", app.handleLogout)
+	mux.HandleFunc("/users/v1/request_reset", app.handleRequestReset)
+	mux.HandleFunc("/users/v1/reset", app.handleReset)
 	log.Println("Handlers set up.")
 
 	srv := &http.Server{
@@ -279,6 +281,87 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 		})
 	}
 	http.Redirect(w, r, "/v1", http.StatusSeeOther)
+}
+
+func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		tpl.ExecuteTemplate(w, "request_reset.html", nil)
+		return
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		username := r.FormValue("username")
+		var id int
+		row := a.DB.QueryRow("SELECT id FROM usersV1 WHERE username = ?", username)
+		if err := row.Scan(&id); err != nil {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		token, err := generateSessionID()
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		expires := time.Now().Add(15 * time.Minute)
+		_, err = a.DB.Exec("INSERT INTO passResetV1(user_id, token, expires_at) VALUES (?, ?, ?)", id, token, expires.Format(time.RFC3339))
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		resetLink := "/users/v1/reset?token=" + token
+		w.Write([]byte("Reset link: " + resetLink))
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		token := r.URL.Query().Get("token")
+		tpl.ExecuteTemplate(w, "reset.html", map[string]string{"Token": token})
+		return
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+		token := r.FormValue("token")
+		newPassword := r.FormValue("password")
+		var id int
+		var expiresStr string
+		row := a.DB.QueryRow("SELECT user_id, expires_at FROM passResetV1 WHERE token = ?", token)
+		if err := row.Scan(&id, &expiresStr); err != nil {
+			http.Error(w, "user not found", http.StatusNotFound)
+			return
+		}
+		exp, err := time.Parse(time.RFC3339, expiresStr)
+		if err != nil || time.Now().After(exp) {
+			http.Error(w, "token expired", http.StatusUnauthorized)
+			return
+		}
+		hash, err := hashPasswordArgon2id(newPassword)
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		_, err = a.DB.Exec("UPDATE usersV1 SET password_hash = ? WHERE id = ?", hash, id)
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		_, err = a.DB.Exec("DELETE FROM passResetV1 WHERE token = ?", token)
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
 }
 
 func (a *App) getUserIDFromSession(r *http.Request) (int, bool) {

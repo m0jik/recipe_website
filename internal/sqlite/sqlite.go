@@ -28,6 +28,13 @@ func Migrate(db *sqlx.DB) error {
 		expires_at DATETIME NOT NULL,
 		FOREIGN KEY(user_id) REFERENCES users(id)
 	);
+
+	CREATE TABLE IF NOT EXISTS passResetV1 (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTERGER NOT NULL,
+		token TEXT NOT NULL,
+		expires_at DATETIME NOT NULL
+	);
 	`
 	_, err := db.Exec(schema)
 	return err
