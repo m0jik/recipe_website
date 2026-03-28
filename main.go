@@ -178,10 +178,16 @@ func initDB(db *sql.DB) error {
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	username := ""
 	if uid, ok := a.getUserIDFromSession(r); ok {
-		row := a.DB.QueryRow("SELECT username FROM usersV1 WHERE id = ?", uid)
-		if err := row.Scan(&username); err != nil {
-			username = ""
+		//row := a.DB.QueryRow("SELECT username FROM usersV1 WHERE id = ?", uid)
+		//if err := row.Scan(&username); err != nil {
+		//	username = ""
+		//}
+		u, err := a.Users.GetUsernameByID(uid)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
 		}
+		username = u
 	}
 	tpl.ExecuteTemplate(w, "index.html", map[string]interface{}{
 		"Username": username,
@@ -234,26 +240,39 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		pass := r.FormValue("password")
 		var id int
 		var hash string
-		row := a.DB.QueryRow("SELECT id, password_hash FROM usersV1 WHERE username = ?", username)
-		if err := row.Scan(&id, &hash); err != nil {
-			http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		//row := a.DB.QueryRow("SELECT id, password_hash FROM usersV1 WHERE username = ?", username)
+
+		id, hash, err := a.Users.GetUserCredentials(username)
+		if err != nil {
+			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
 		}
+
+		//if err := row.Scan(&id, &hash); err != nil {
+		//	http.Error(w, "invalid credentials", http.StatusUnauthorized)
+		//	return
+		//}
 		if !verifyPasswordArgon2id(pass, hash) {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
 		sessionID, err := generateSessionID()
 		if err != nil {
-			http.Error(w, "server error", http.StatusInternalServerError)
+			http.Error(w, "could not generate session ID", http.StatusInternalServerError)
 			return
 		}
 		expires := time.Now().Add(time.Duration(a.Cfg.SessionLifetimeHours) * time.Hour) // Uses session lifetime set in config.go
-		_, err = a.DB.Exec("INSERT INTO sessionsV1(id, user_id, expires_at) VALUES (?, ?, ?)", sessionID, id, expires.Format(time.RFC3339))
-		if err != nil {
-			http.Error(w, "server error", http.StatusInternalServerError)
+		//_, err = a.DB.Exec("INSERT INTO sessionsV1(id, user_id, expires_at) VALUES (?, ?, ?)", sessionID, id, expires.Format(time.RFC3339))
+
+		if err := a.Users.CreateSession(sessionID, id, expires.Format(time.RFC3339)); err != nil {
+			http.Error(w, "could not create session", http.StatusInternalServerError)
 			return
 		}
+
+		//if err != nil {
+		//	http.Error(w, "server error", http.StatusInternalServerError)
+		//	return
+		//}
 		c := &http.Cookie{
 			Name:     cookieName,
 			Value:    sessionID,
@@ -272,7 +291,13 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie(cookieName)
 	if err == nil {
-		a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		//a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+
+		if err := a.Users.DeleteSession(c.Value); err != nil {
+			http.Error(w, "could not delete session", http.StatusInternalServerError)
+			return
+		}
+
 		http.SetCookie(w, &http.Cookie{
 			Name:     cookieName,
 			Value:    "",
@@ -289,25 +314,29 @@ func (a *App) getUserIDFromSession(r *http.Request) (int, bool) {
 	if err != nil {
 		return 0, false
 	}
+
 	var userID int
 	var expiresStr string
-	err = a.DB.QueryRow(
-		"SELECT user_id, expires_at FROM sessionsV1 WHERE id = ?",
-		c.Value,
-	).Scan(&userID, &expiresStr)
+	//err = a.DB.QueryRow(
+	//	"SELECT user_id, expires_at FROM sessionsV1 WHERE id = ?",
+	//	c.Value,
+	//).Scan(&userID, &expiresStr)
 
+	userID, expiresStr, err = a.Users.GetUserID(c.Value)
 	if err != nil {
 		return 0, false
 	}
 
 	exp, err := time.Parse(time.RFC3339, expiresStr)
 	if err != nil {
-		a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		//a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		a.Users.DeleteSession(c.Value)
 		return 0, false
 	}
 
 	if time.Now().After(exp) {
-		a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		//a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		a.Users.DeleteSession(c.Value)
 		return 0, false
 	}
 
