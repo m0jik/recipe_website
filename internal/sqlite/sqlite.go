@@ -26,16 +26,16 @@ func Migrate(db *sqlx.DB) error {
 		id TEXT PRIMARY KEY,
 		user_id INTEGER NOT NULL,
 		expires_at DATETIME NOT NULL,
-		FOREIGN KEY(user_id) REFERENCES users(id)
+		FOREIGN KEY(user_id) REFERENCES usersV1(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS recipesV1 (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		user_id INTEGER NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		is_public NUMERIC NOT NULL CHECK(is_public IN (0,1)),
 		title TEXT NOT NULL,
 		image_url TEXT,
+		description TEXT,
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
 
@@ -44,9 +44,6 @@ func Migrate(db *sqlx.DB) error {
 		recipe_id INTEGER NOT NULL,
 		version_number INTEGER NOT NULL,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		is_current NUMERIC NOT NULL,
-		servings INTEGER,
-		prep_time INTEGER,
 		UNIQUE(recipe_id, version_number),
 		FOREIGN KEY (recipe_id) REFERENCES recipesV1(id)
 	);
@@ -60,7 +57,7 @@ func Migrate(db *sqlx.DB) error {
 		FOREIGN KEY(recipe_version_id) REFERENCES recipe_versionsV1(id)
 	);
 
-	CREATE TABLE IF NOT EXISTS instructions (
+	CREATE TABLE IF NOT EXISTS instructionsV1 (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		recipe_version_id INTEGER NOT NULL,
 		step_number INTEGER NOT NULL,
