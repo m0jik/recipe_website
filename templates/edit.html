@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Edit - {{ .Recipe.Title }}</title>
+</head>
+<body>
+
+<div class="card">
+
+    <div class="card-header">
+        <h2>{{ .Recipe.Title }}</h2>
+        <p>Add ingredients and steps - each button saves immediately</p>
+    </div>
+
+    <div class="card-body">
+
+        <!-- INGREDIENTS -->
+        <div class="section-block">
+            <div class="section-title">Ingredients</div>
+
+            {{ if .Ingredients }}
+            <div class="item-list">
+                {{ range .Ingredients }}
+                <div class="item-row">
+                    <span>{{ .Quantity }} {{ .Unit }} - {{ .Name }}</span>
+                    <form method="POST" action="/recipes/v1/ingredient/delete">
+                        <input type="hidden" name="ingredient_id"      value="{{ .ID }}">
+                        <input type="hidden" name="recipe_version_id"  value="{{ $.Recipe.VersionID}}">
+                        <button type="submit" class="btn-danger">Remove</button>
+                    </form>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+
+            <form method="POST" action="/recipes/v1/addIngredient">
+                <input type="hidden" name="recipe_version_id" value="{{ .Recipe.VersionID }}">
+                <input type="hidden" name="recipe_id" value="{{ .Recipe.ID }}">
+                <div class="add-row">
+                    <input type="text" name="quantity" placeholder="2" class="qty">
+                    <select name="unit">
+                        <option value="" disabled selected>Unit</option>
+                        <optgroup label="US">
+                            <option value="cup">cup</option>
+                            <option value="tbsp">tbsp</option>
+                            <option value="tsp">tsp</option>
+                            <option value="oz">oz</option>
+                            <option value="lb">lb</option>
+                        </optgroup>
+                        <optgroup label="Metric">
+                            <option value="ml">mL</option>
+                            <option value="liter">liter</option>
+                            <option value="grams">grams</option>
+                            <option value="kg">kg</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="piece">piece</option>
+                            <option value="pinch">pinch</option>
+                            <option value="whole">whole</option>
+                        </optgroup>
+                    </select>
+                    <input type="text" name="ingredient" placeholder="Ingredient name" required>
+                    <button type="submit" class="btn-secondary">+ Add</button>
+                </div>
+            </form>
+        </div>
+
+        <!-- STEPS -->
+        <div class="section-block">
+            <div class="section-title">Steps</div>
+
+            {{ if .Steps }}
+            <div class="item-list">
+                {{ range .Steps }}
+                <div class="item-row">
+                    <div class="step-num">Step {{ .StepNumber }}</div>
+                    <span>{{ .Instruction }}</span>
+                    {{ if .Notes }}<em>- {{ .Notes }}</em>{{ end }}
+                    <form method="POST" action="/recipes/v1/step/delete">
+                        <input type="hidden" name="step_id"            value="{{ .ID }}">
+                        <input type="hidden" name="recipe_version_id"  value="{{ $.Recipe.VersionID }}">
+                        <button type="submit" class="btn-danger">Remove</button>
+                    </form>
+                </div>
+                {{ end }}
+            </div>
+            {{ end }}
+
+            <form method="POST" action="/recipes/v1/addStep">
+                <input type="hidden" name="recipe_version_id" value="{{ .Recipe.VersionID }}">
+                <input type="hidden" name="recipe_id" value="{{ .Recipe.ID }}">
+                <div class="step-add-row">
+                    <textarea name="step"  placeholder="Describe this step..." required></textarea>
+                    <input type="text" name="note" placeholder="Note (optional)">
+                    <button type="submit" class="btn-secondary">+ Add</button>
+                </div>
+            </form>
+        </div>
+
+    </div>
+
+    <div class="card-footer">
+        <form method="POST" action="/recipes/v1/submit">
+            <input type="hidden" name="recipe_version_id" value="{{ .Recipe.VersionID}}">
+            <button type="submit" class="btn-primary">Submit recipe</button>
+        </form>
+    </div>
+
+</div>
+
+</body>
+</html>

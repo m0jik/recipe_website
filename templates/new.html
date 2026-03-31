@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title> New Recipe </title>
+    <!-- Link CSS -->
+
+</head>
+<body>
+    <div class="card">
+        <div class="card-header">
+            <h2> New Recipe</h2>
+        </div>
+        <form action="/recipes/v1/new" method="POST" enctype="multipart/form-data">
+            <div class="card-body">
+                <div class="field">
+                    <label for="title">Title</label>
+                    <input type="text" id="title" name="title" required placeholder="e.g Chicken Pasta">
+                </div>
+                <!-- Needs fixing for image: does not display yet (only accept text for now)-->
+                <div class="field">
+                    <label for="myfile"> Image </label>
+                    <input type="text" id="myfile" name="myfile"> <!--User can pick all image files: accept="image/*" -->
+                </div>
+
+                <div class="field">
+                    <label for="description"> Notes </label>
+                    <textarea id="description" name="description" placeholder="Describe the dish (optional)"></textarea>
+                </div>
+            </div>
+
+            <div class="card-footer">
+                <button type="submit">Next: add ingredients</button>
+            </div>
+        </form>
+    </div>
+
+</body>
+</html>

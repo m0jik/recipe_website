@@ -6,79 +6,20 @@
 </head>
 <body>
 {{ if .Username }}
-  <p>Hello, {{ .Username }}!</p>
-  <a href="/users/v1/logout">Logout</a>
+<p>Hello, {{ .Username }}!</p>
+
+
+<a href="/recipes/v1/new">
+    <button>Create a recipe</button>
+</a>
+
+
+<a href="/users/v1/logout">Logout</a>
+
 {{ else }}
   <p>Not logged in</p>
   <a href="/users/v1/login">Login</a> | <a href="/users/v1/register">Register</a>
 {{ end }}
-
-<!-- needs fixing -->
-<form method="POST" action="/users/v1/addTitle">
-  <label>Recipe Name: <input name="name" type="text" required></label><br>
-  <label>Image: <input type="file" name="myfile"></label>
-  <button type="submit">Save title</button>
-</form>
-
-{{if .Title}}
-  <p>Title: {{.Title}}</p>
-{{end}}
-
-<form method="POST" action="/users/v1/addIngredients">
-  <label>Ingredient:<input name="ingredient" type="text" required></label>
-  <label>Quantity: <input name="quantity" type="text" min="0" required></label>
-  <select name="unit">
-    <option value="" disabled selected>Unit</option>
-    <optgroup label="US">
-      <option value="cup">cup</option>
-      <option value="tbsp">tbsp</option>
-      <option value="tsp">tsp</option>
-      <option value="oz">oz</option>
-      <option value="lb">lb</option>
-    </optgroup>
-    <optgroup label="Metric">
-      <option value="ml">mL</option>
-      <option value="liter">liter</option>
-      <option value="grams">grams</option>
-      <option value="kg">kg</option>
-    </optgroup>
-    <optgroup label="Other">
-      <option value="piece">Piece</option>
-      <option value="pinch">Pinch</option>
-      <option value="whole">Whole</option>
-    </optgroup>
-  </select>
-  <button type="submit">Add Ingredient</button><br>
-</form>
-
-{{if.Ingredients}}
-<ul>
-  {{range .Ingredients}}
-  <li>{{.Quantity}} {{.Unit}} {{.Name}}</li>
-  {{end}}
-</ul>
-{{end}}
-
-</form method="POST" action="/users/v1/addSteps">
-    <label>Step: <input name="step" type="text" required></label>
-    <label>Note: <input name="note" type="text"></label>
-    <button type="button">Add Step</button><br>
-</form>
-
-{{if .Step}}
-<ol>
-  {{range .Step}}
-  <li>{{.Instructions}} <em> {{.Notes}}</em></li>
-  {{end}}
-
-</ol>
-{{end}}
-
-<hr> 
-
-</form method ="POST" action="/users/v1/submit">
-  <button type="submit">Submit Recipe</button>
-</form>
 
 </body>
 </html>
