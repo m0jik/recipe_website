@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -27,9 +28,10 @@ var tpl = template.Must(template.ParseGlob("templates/*.html"))
 const cookieName = "session_id"
 
 type App struct {
-	DB    *sqlx.DB
-	Cfg   *config.Config
-	Users *services.UserService
+	DB      *sqlx.DB
+	Cfg     *config.Config
+	Users   *services.UserService
+	Recipes *services.RecipeService
 }
 
 func main() {
@@ -59,9 +61,10 @@ func main() {
 	log.Println("Migrations complete.")
 
 	app := &App{
-		DB:    db,
-		Cfg:   cfg,
-		Users: services.NewUserService(db),
+		DB:      db,
+		Cfg:     cfg,
+		Users:   services.NewUserService(db),
+		Recipes: services.NewRecipeService(db),
 	}
 
 	log.Println("Setting up handlers...")
@@ -72,6 +75,13 @@ func main() {
 	mux.HandleFunc("/users/v1/logout", app.handleLogout)
 	mux.HandleFunc("/users/v1/request_reset", app.handleRequestReset)
 	mux.HandleFunc("/users/v1/reset", app.handleReset)
+	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
+	mux.HandleFunc("/recipes/v1/edit", app.handleEditRecipe)
+	mux.HandleFunc("/recipes/v1/addIngredient", app.handleAddIngredient)
+	mux.HandleFunc("/recipes/v1/addStep", app.handleAddStepAndNote)
+	// mux.HandleFunc("/recipe/v1/deleteIngredient", app.handleDeleteIngredient)
+	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+	mux.HandleFunc("/", app.handleIndex)
 	log.Println("Handlers set up.")
 
 	srv := &http.Server{
@@ -180,10 +190,10 @@ func initDB(db *sql.DB) error {
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	username := ""
 	if uid, ok := a.getUserIDFromSession(r); ok {
-		//row := a.DB.QueryRow("SELECT username FROM usersV1 WHERE id = ?", uid)
-		//if err := row.Scan(&username); err != nil {
-		//	username = ""
-		//}
+		// row := a.DB.QueryRow("SELECT username FROM usersV1 WHERE id = ?", uid)
+		// if err := row.Scan(&username); err != nil {
+		// 	username = ""
+		// }
 		u, err := a.Users.GetUsernameByID(uid)
 		if err != nil {
 			http.Error(w, "Invalid session", http.StatusInternalServerError)
@@ -191,7 +201,7 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		}
 		username = u
 	}
-	tpl.ExecuteTemplate(w, "index.html", map[string]interface{}{
+	tpl.ExecuteTemplate(w, "index.html", map[string]any{
 		"Username": username,
 	})
 }
@@ -455,3 +465,173 @@ func generateSessionID() (string, error) {
 	}
 	return hex.EncodeToString(b), nil
 }
+
+func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		a.handleNewRecipeGet(w, r)
+	case http.MethodPost:
+		a.handleNewRecipePost(w, r)
+	}
+}
+
+func (a *App) handleNewRecipeGet(w http.ResponseWriter, r *http.Request) {
+	idStr := r.URL.Query().Get("id")
+	if idStr == "" {
+		tpl.ExecuteTemplate(w, "new.html", nil)
+		return
+	}
+	recipeID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid recipe id", http.StatusBadRequest)
+		return
+	}
+	title, imageURL, description, err := a.Recipes.GetRecipeDetails(recipeID)
+	if err != nil {
+		http.Error(w, "recipe not found", http.StatusNotFound)
+		return
+	}
+	tpl.ExecuteTemplate(w, "new.html", map[string]any{
+		"RecipeID":    recipeID,
+		"Title":       title,
+		"ImageURL":    imageURL,
+		"Description": description,
+	})
+}
+
+func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseMultipartForm(10 << 20); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
+		return
+	}
+
+	title := r.FormValue("title")
+	description := r.FormValue("description")
+	imageURL := r.FormValue("myfile")
+
+	if file, header, err := r.FormFile("image"); err == nil {
+		defer file.Close()
+		imageURL = "/uploads/" + header.Filename
+	}
+
+	if idStr := r.FormValue("recipe_id"); idStr != "" {
+		a.handleUpdateRecipe(w, r, idStr, title, imageURL, description)
+		return
+	}
+
+	a.handleCreateRecipe(w, r, title, imageURL, description)
+}
+
+func (a *App) handleUpdateRecipe(w http.ResponseWriter, r *http.Request, idStr, title, imageURL, description string) {
+	recipeID, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.Error(w, "invalid recipe id", http.StatusBadRequest)
+		return
+	}
+	if err := a.Recipes.UpdateRecipe(recipeID, title, imageURL, description); err != nil {
+		http.Error(w, "could not update recipe", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/recipes/v1/edit?id="+strconv.FormatInt(recipeID, 10), http.StatusSeeOther)
+}
+
+func (a *App) handleCreateRecipe(w http.ResponseWriter, r *http.Request, title, imageURL, description string) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Error(w, "not logged in", http.StatusUnauthorized)
+		return
+	}
+	recipeID, err := a.Recipes.CreateRecipe(userID, title, imageURL, description)
+	if err != nil {
+		http.Error(w, "could not create recipe", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/recipes/v1/edit?id="+strconv.FormatInt(recipeID, 10), http.StatusSeeOther)
+}
+
+func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		idStr := r.URL.Query().Get("id")
+		id, err := strconv.ParseInt(idStr, 10, 64)
+		if err != nil {
+			http.Error(w, "invalid recipe id", http.StatusBadRequest)
+			return
+		}
+
+		data, err := a.Recipes.GetRecipeForEdit(id)
+		if err != nil {
+			http.Error(w, "recipe not found", http.StatusNotFound)
+			return
+		}
+
+		tpl.ExecuteTemplate(w, "edit.html", data)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *App) handleAddIngredient(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+
+		recipeVersionID, err := strconv.ParseInt(r.FormValue("recipe_version_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid version id", http.StatusBadRequest)
+			return
+		}
+		recipeID := r.FormValue("recipe_id")
+		quantity, err := strconv.ParseFloat(r.FormValue("quantity"), 64)
+		if err != nil {
+			quantity = 0
+		}
+		name := r.FormValue("ingredient")
+		unit := r.FormValue("unit")
+
+		if err := a.Recipes.AddIngredient(recipeVersionID, name, quantity, unit); err != nil {
+			http.Error(w, "could not add ingredient", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeID, http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *App) handleAddStepAndNote(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+
+		recipeVersionID, err := strconv.ParseInt(r.FormValue("recipe_version_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid version id", http.StatusBadRequest)
+			return
+		}
+		recipeID := r.FormValue("recipe_id")
+		instruction := r.FormValue("step")
+		notes := r.FormValue("note")
+
+		if err := a.Recipes.AddInstruction(recipeVersionID, instruction, notes); err != nil {
+			http.Error(w, "could not add step", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeID, http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+// func(a *App) handleDeleteIngredient(wvhttpResponseWriter, r *http.Request) {
+
+// }
+// // Display the recipe i currently have
