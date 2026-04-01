@@ -89,3 +89,63 @@ func (s *UserService) GetUserID(val string) (int, string, error) {
 
 	return id, expires, nil
 }
+
+func (s *UserService) GetUserIDByUsername(username string) (int, error) {
+	var id int
+
+	row := s.DB.QueryRow(
+		"SELECT id FROM usersV1 WHERE username = ?",
+		username,
+	)
+
+	if err := row.Scan(&id); err != nil {
+		return -1, err
+	}
+
+	return id, nil
+}
+
+func (s *UserService) CreatePasswordReset(userID int, token, expires string) error {
+	_, err := s.DB.Exec(
+		"INSERT INTO passResetV1(user_id, token, expires_at) VALUES (?, ?, ?)",
+		userID,
+		token,
+		expires,
+	)
+	return err
+}
+
+func (s *UserService) GetPasswordReset(token string) (int, string, error) {
+	var (
+		userID  int
+		expires string
+	)
+
+	row := s.DB.QueryRow(
+		"SELECT user_id, expires_at FROM passResetV1 WHERE token = ?",
+		token,
+	)
+
+	if err := row.Scan(&userID, &expires); err != nil {
+		return -1, "", err
+	}
+
+	return userID, expires, nil
+}
+
+func (s *UserService) UpdatePassword(userID int, hash string) error {
+	_, err := s.DB.Exec(
+		"UPDATE usersV1 SET password_hash = ? WHERE id = ?",
+		hash,
+		userID,
+	)
+	return err
+}
+
+func (s *UserService) DeletePasswordReset(token string) error {
+	_, err := s.DB.Exec(
+		"DELETE FROM passResetV1 WHERE token = ?",
+		token,
+	)
+	return err
+}

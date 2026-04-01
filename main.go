@@ -322,9 +322,14 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		username := r.FormValue("username")
-		var id int
-		row := a.DB.QueryRow("SELECT id FROM usersV1 WHERE username = ?", username)
-		if err := row.Scan(&id); err != nil {
+		// var id int
+		// row := a.DB.QueryRow("SELECT id FROM usersV1 WHERE username = ?", username)
+		// if err := row.Scan(&id); err != nil {
+		//  	http.Error(w, "user not found", http.StatusNotFound)
+		//  	return
+		// }
+		id, err := a.Users.GetUserIDByUsername(username)
+		if err != nil {
 			http.Error(w, "user not found", http.StatusNotFound)
 			return
 		}
@@ -334,8 +339,12 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		expires := time.Now().Add(15 * time.Minute)
-		_, err = a.DB.Exec("INSERT INTO passResetV1(user_id, token, expires_at) VALUES (?, ?, ?)", id, token, expires.Format(time.RFC3339))
-		if err != nil {
+		// _, err = a.DB.Exec("INSERT INTO passResetV1(user_id, token, expires_at) VALUES (?, ?, ?)", id, token, expires.Format(time.RFC3339))
+		// if err != nil {
+		//	  http.Error(w, "server error", http.StatusInternalServerError)
+		//	  return
+		// }
+		if err := a.Users.CreatePasswordReset(id, token, expires.Format(time.RFC3339)); err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
@@ -359,11 +368,16 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 		}
 		token := r.FormValue("token")
 		newPassword := r.FormValue("password")
-		var id int
-		var expiresStr string
-		row := a.DB.QueryRow("SELECT user_id, expires_at FROM passResetV1 WHERE token = ?", token)
-		if err := row.Scan(&id, &expiresStr); err != nil {
-			http.Error(w, "user not found", http.StatusNotFound)
+		// var id int
+		// var expiresStr string
+		// row := a.DB.QueryRow("SELECT user_id, expires_at FROM passResetV1 WHERE token = ?", token)
+		// if err := row.Scan(&id, &expiresStr); err != nil {
+		// 	http.Error(w, "user not found", http.StatusNotFound)
+		// 	return
+		// }
+		id, expiresStr, err := a.Users.GetPasswordReset(token)
+		if err != nil {
+			http.Error(w, "invalid token", http.StatusNotFound)
 			return
 		}
 		exp, err := time.Parse(time.RFC3339, expiresStr)
@@ -376,13 +390,21 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		_, err = a.DB.Exec("UPDATE usersV1 SET password_hash = ? WHERE id = ?", hash, id)
-		if err != nil {
+		// _, err = a.DB.Exec("UPDATE usersV1 SET password_hash = ? WHERE id = ?", hash, id)
+		// if err != nil {
+		//  	http.Error(w, "server error", http.StatusInternalServerError)
+		//  	return
+		// }
+		if err := a.Users.UpdatePassword(id, hash); err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		_, err = a.DB.Exec("DELETE FROM passResetV1 WHERE token = ?", token)
-		if err != nil {
+		// _, err = a.DB.Exec("DELETE FROM passResetV1 WHERE token = ?", token)
+		// if err != nil {
+		//  	http.Error(w, "server error", http.StatusInternalServerError)
+		//  	return
+		// }
+		if err := a.Users.DeletePasswordReset(token); err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
