@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>Edit - {{ .Recipe.Title }}</title>
+    <link rel="stylesheet" href="/static/edit.css">
 </head>
 <body>
 
@@ -38,7 +39,7 @@
                 <input type="hidden" name="recipe_version_id" value="{{ .Recipe.VersionID }}">
                 <input type="hidden" name="recipe_id" value="{{ .Recipe.ID }}">
                 <div class="add-row">
-                    <input type="text" name="quantity" placeholder="2" class="qty">
+                    <input type="text" name="quantity" placeholder="2" class="qty" >
                     <select name="unit">
                         <option value="" disabled selected>Unit</option>
                         <optgroup label="US">
@@ -101,6 +102,7 @@
     </div>
 
     <div class="card-footer">
+        <a href="/recipes/v1/new?id={{ .Recipe.ID }}" class="btn-secondary">Back: edit details</a>
         <form method="POST" action="/recipes/v1/submit">
             <input type="hidden" name="recipe_version_id" value="{{ .Recipe.VersionID}}">
             <button type="submit" class="btn-primary">Submit recipe</button>

@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title> New Recipe </title>
-    <!-- Link CSS -->
-
+    <link rel="stylesheet" href="/static/main.css">
 </head>
 <body>
     <div class="card">
@@ -12,20 +11,21 @@
             <h2> New Recipe</h2>
         </div>
         <form action="/recipes/v1/new" method="POST" enctype="multipart/form-data">
+            {{ if .RecipeID }}<input type="hidden" name="recipe_id" value="{{ .RecipeID }}">{{ end }}
             <div class="card-body">
                 <div class="field">
                     <label for="title">Title</label>
-                    <input type="text" id="title" name="title" required placeholder="e.g Chicken Pasta">
+                    <input type="text" id="title" name="title" required placeholder="e.g Chicken Pasta" value="{{ .Title }}">
                 </div>
                 <!-- Needs fixing for image: does not display yet (only accept text for now)-->
                 <div class="field">
                     <label for="myfile"> Image </label>
-                    <input type="text" id="myfile" name="myfile"> <!--User can pick all image files: accept="image/*" -->
+                    <input type="text" id="myfile" name="myfile" placeholder="Still needs fixing" value="{{ .ImageURL }}"> <!--User can pick all image files: accept="image/*" -->
                 </div>
 
                 <div class="field">
-                    <label for="description"> Notes </label>
-                    <textarea id="description" name="description" placeholder="Describe the dish (optional)"></textarea>
+                    <label for="description"> Description </label>
+                    <textarea id="description" name="description" placeholder="Describe the dish (optional)">{{ .Description }}</textarea>
                 </div>
             </div>
 
