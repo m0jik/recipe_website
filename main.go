@@ -77,7 +77,7 @@ func main() {
 	mux.HandleFunc("/recipes/v1/edit", app.handleEditRecipe)
 	mux.HandleFunc("/recipes/v1/addIngredient", app.handleAddIngredient)
 	mux.HandleFunc("/recipes/v1/addStep", app.handleAddStepAndNote)
-	// mux.HandleFunc("/recipe/v1/deleteIngredient", app.handleDeleteIngredient)
+	mux.HandleFunc("/recipes/v1/delete", app.handleDeleteIngredient)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	mux.HandleFunc("/", app.handleIndex)
 	log.Println("Handlers set up.")
@@ -526,7 +526,35 @@ func (a *App) handleAddStepAndNote(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func(a *App) handleDeleteIngredient(wvhttpResponseWriter, r *http.Request) {
+func (a *App) handleDeleteIngredient(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
 
-// }
-// // Display the recipe i currently have
+		ingredientId, err := strconv.ParseInt(r.FormValue("ingredient_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid ingredient id", http.StatusBadRequest)
+			return
+		}
+
+		recipeVersionId, err := strconv.ParseInt(r.FormValue("recipe_version_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid recipe version id", http.StatusBadRequest)
+			return
+		}
+
+		recipeId := r.FormValue("recipe_id") // for redirect
+
+		if err := a.Recipes.DeleteIngredient(recipeVersionId, ingredientId); err != nil {
+			http.Error(w, "Could not delete ingredient", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeId, http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}

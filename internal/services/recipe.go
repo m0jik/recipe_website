@@ -209,10 +209,13 @@ func (s *RecipeService) GetSteps(recipeVersionID int64) ([]Step, error) {
 	return steps, nil
 }
 
-// func (s *RecipeService) DeleteIngredient([]Ingredient, error) {
-// 	var ingredient []Ingredient
-// 	rows, err := s.DB.Query()
-// }
+func (s *RecipeService) DeleteIngredient(recipeVersionID, ingredientID int64) error {
+	_, err := s.DB.Exec(
+		"DELETE FROM ingredientsV1 WHERE id = ? AND recipe_version_id = ?",
+		ingredientID, recipeVersionID,
+	)
+	return err
+}
 
 // Can wait
 // func(s *RecipeService) DeleteInstruction() {
