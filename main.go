@@ -77,7 +77,8 @@ func main() {
 	mux.HandleFunc("/recipes/v1/edit", app.handleEditRecipe)
 	mux.HandleFunc("/recipes/v1/addIngredient", app.handleAddIngredient)
 	mux.HandleFunc("/recipes/v1/addStep", app.handleAddStepAndNote)
-	mux.HandleFunc("/recipes/v1/delete", app.handleDeleteIngredient)
+	mux.HandleFunc("/recipes/v1/delete-ingredient", app.handleDeleteIngredient)
+	mux.HandleFunc("/recipes/v1/delete-instruction", app.handleDeleteInstruction)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	mux.HandleFunc("/", app.handleIndex)
 	log.Println("Handlers set up.")
@@ -550,6 +551,44 @@ func (a *App) handleDeleteIngredient(w http.ResponseWriter, r *http.Request) {
 
 		if err := a.Recipes.DeleteIngredient(recipeVersionId, ingredientId); err != nil {
 			http.Error(w, "Could not delete ingredient", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeId, http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *App) handleDeleteInstruction(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodPost:
+		if err := r.ParseForm(); err != nil {
+			http.Error(w, "invalid form", http.StatusBadRequest)
+			return
+		}
+
+		instructionId, err := strconv.ParseInt(r.FormValue("instruction_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid instruction id", http.StatusBadRequest)
+			return
+		}
+
+		recipeVersionId, err := strconv.ParseInt(r.FormValue("recipe_version_id"), 10, 64)
+		if err != nil {
+			http.Error(w, "invalid recipe version id", http.StatusBadRequest)
+			return
+		}
+
+		recipeId := r.FormValue("recipe_id")
+
+		if err := a.Recipes.DeleteInstruction(recipeVersionId, instructionId); err != nil {
+			http.Error(w, "Could not delete instruction", http.StatusInternalServerError)
+			return
+		}
+
+		if err := a.Recipes.ReorderSteps(recipeVersionId); err != nil {
+			http.Error(w, "Could not reorder instructions", http.StatusInternalServerError)
 			return
 		}
 

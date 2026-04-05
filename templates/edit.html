@@ -25,7 +25,7 @@
                 {{ range .Ingredients }}
                 <div class="item-row">
                     <span>{{ .Quantity }} {{ .Unit }} - {{ .Name }}</span>
-                    <form method="POST" action="/recipes/v1/delete">
+                    <form method="POST" action="/recipes/v1/delete-ingredient">
                         <input type="hidden" name="ingredient_id"      value="{{ .ID }}">
                         <input type="hidden" name="recipe_version_id"  value="{{ $.Recipe.VersionID}}">
                         <input type="hidden" name="recipe_id" value="{{$.Recipe.ID}}">
@@ -79,9 +79,10 @@
                     <div class="step-num">Step {{ .StepNumber }}</div>
                     <span>{{ .Instruction }}</span>
                     {{ if .Notes }}<em>- {{ .Notes }}</em>{{ end }}
-                    <form method="POST" action="/recipes/v1/step/delete">
-                        <input type="hidden" name="step_id"            value="{{ .ID }}">
+                    <form method="POST" action="/recipes/v1/delete-instruction">
+                        <input type="hidden" name="instruction_id" value="{{ .ID }}">
                         <input type="hidden" name="recipe_version_id"  value="{{ $.Recipe.VersionID }}">
+                        <input type="hidden" name="recipe_id" value ="{{$.Recipe.ID}}">
                         <button type="submit" class="btn-danger">Remove</button>
                     </form>
                 </div>
