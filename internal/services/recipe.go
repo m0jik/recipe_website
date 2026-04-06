@@ -209,19 +209,53 @@ func (s *RecipeService) GetSteps(recipeVersionID int64) ([]Step, error) {
 	return steps, nil
 }
 
-// func (s *RecipeService) DeleteIngredient([]Ingredient, error) {
-// 	var ingredient []Ingredient
-// 	rows, err := s.DB.Query()
-// }
+func (s *RecipeService) DeleteIngredient(recipeVersionID, ingredientID int64) error {
+	_, err := s.DB.Exec(
+		"DELETE FROM ingredientsV1 WHERE id = ? AND recipe_version_id = ?",
+		ingredientID, recipeVersionID,
+	)
+	return err
+}
+
+func (s *RecipeService) DeleteInstruction(recipeVersionID, instructionID int64) error {
+	_, err := s.DB.Exec(
+		"DELETE FROM instructionsV1 WHERE id = ? AND recipe_version_id = ?",
+		instructionID, recipeVersionID,
+	)
+	return err
+}
+
+func (s *RecipeService) ReorderSteps(recipeVersionID int64) error {
+	rows, err := s.DB.Query(
+		"SELECT id FROM instructionsV1 WHERE recipe_version_id = ? ORDER BY step_number",
+		recipeVersionID,
+	)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+
+	var ids []int64
+	for rows.Next() {
+		var id int64
+		if err := rows.Scan(&id); err != nil {
+			return err
+		}
+		ids = append(ids, id)
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	for i, id := range ids {
+		if _, err := s.DB.Exec("UPDATE instructionsV1 SET step_number = ? WHERE id = ?", i+1, id); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // Can wait
-// func(s *RecipeService) DeleteInstruction() {
-
-// }
-
-// func (s *RecipeService) DeleteIngredient() {
-
-// }
 
 // func (s *RecipeService) GetLatestVersion() {
 
