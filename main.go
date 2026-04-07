@@ -32,6 +32,7 @@ type App struct {
 	Cfg     *config.Config
 	Users   *services.UserService
 	Recipes *services.RecipeService
+	Email   services.EmailSender
 }
 
 func main() {
@@ -60,11 +61,19 @@ func main() {
 	}
 	log.Println("Migrations complete.")
 
+	email := services.NewSMTPEmail(
+		cfg.Email.Host,
+		cfg.Email.Port,
+		cfg.Email.From,
+		cfg.Email.Password,
+	)
+
 	app := &App{
 		DB:      db,
 		Cfg:     cfg,
 		Users:   services.NewUserService(db),
 		Recipes: services.NewRecipeService(db),
+		Email:   email,
 	}
 
 	log.Println("Setting up handlers...")
@@ -81,6 +90,7 @@ func main() {
 	mux.HandleFunc("/recipes/v1/addStep", app.handleAddStepAndNote)
 	mux.HandleFunc("/recipes/v1/delete-ingredient", app.handleDeleteIngredient)
 	mux.HandleFunc("/recipes/v1/delete-instruction", app.handleDeleteInstruction)
+	mux.HandleFunc("/users/v1/verify", app.handleVerifyEmail)
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
 	mux.HandleFunc("/", app.handleIndex)
 	log.Println("Handlers set up.")
@@ -218,6 +228,7 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		username := r.FormValue("username")
+		email := r.FormValue("email")
 		pass := r.FormValue("password")
 		if username == "" || pass == "" {
 			http.Error(w, "username and password required", http.StatusBadRequest)
@@ -229,10 +240,41 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// _, err = a.DB.Exec("INSERT INTO usersV1(username, password_hash) VALUES (?, ?)", username, string(hash))
-		if err := a.Users.CreateUser(username, hash); err != nil {
+		// if err := a.Users.CreateUser(username, email, hash); err != nil {
+		// 	http.Error(w, "could not create user", http.StatusInternalServerError)
+		// 	return
+		// }
+
+		userID, err := a.Users.CreateUser(username, email, hash)
+		if err != nil {
 			http.Error(w, "could not create user", http.StatusInternalServerError)
 			return
 		}
+
+		token, err := generateSessionID()
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+
+		expires := time.Now().Add(24 * time.Hour)
+
+		err = a.Users.CreateEmailVerification(userID, token, expires.Format(time.RFC3339))
+		if err != nil {
+			http.Error(w, "could not create email verification", http.StatusInternalServerError)
+			return
+		}
+
+		verifyLink := "http://localhost:8080/users/v1/verify?token=" + token
+
+		err = a.Email.Send(email, "Verify your account", `<a href="`+verifyLink+`">Click to verify</a>`)
+
+		if err != nil {
+			log.Println("EMAIL SEND ERROR:", err)
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
 		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -269,6 +311,13 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid credentials", http.StatusUnauthorized)
 			return
 		}
+
+		verified, _ := a.Users.IsUserVerified(id)
+		if !verified {
+			http.Error(w, "please verify your email", http.StatusForbidden)
+			return
+		}
+
 		sessionID, err := generateSessionID()
 		if err != nil {
 			http.Error(w, "could not generate session ID", http.StatusInternalServerError)
@@ -344,6 +393,11 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "user not found", http.StatusNotFound)
 			return
 		}
+		email, err := a.Users.GetEmailByUsername(username)
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
 		token, err := generateSessionID()
 		if err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
@@ -359,8 +413,14 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		resetLink := "/users/v1/reset?token=" + token
-		w.Write([]byte("Reset link: " + resetLink))
+		resetLink := "http://localhost:8080/users/v1/reset?token=" + token
+		// w.Write([]byte("Reset link: " + resetLink))
+		err = a.Email.Send(email, "Password Reset Request", `<a href=`+resetLink+`>Click to reset your password</a>`)
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
+		w.Write([]byte("reset email send"))
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -698,6 +758,25 @@ func (a *App) handleDeleteInstruction(w http.ResponseWriter, r *http.Request) {
 		}
 
 		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeId, http.StatusSeeOther)
+	default:
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *App) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		token := r.URL.Query().Get("token")
+		if token == "" {
+			http.Error(w, "token required", http.StatusBadRequest)
+			return
+		}
+		err := a.Users.VerifyEmail(token)
+		if err != nil {
+			http.Error(w, "invalid or expired token", http.StatusBadRequest)
+			return
+		}
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}

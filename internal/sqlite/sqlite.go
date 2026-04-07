@@ -19,6 +19,8 @@ func Migrate(db *sqlx.DB) error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		username TEXT NOT NULL UNIQUE,
 		password_hash TEXT NOT NULL,
+		email TEXT NOT NULL UNIQUE,
+		is_verified BOOLEAN NOT NULL DEFAULT FALSE,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 	);
 	
@@ -71,7 +73,16 @@ func Migrate(db *sqlx.DB) error {
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		user_id INTERGER NOT NULL,
 		token TEXT NOT NULL,
-		expires_at DATETIME NOT NULL
+		expires_at DATETIME NOT NULL,
+		FOREIGN KEY (user_id) REFERENCES usersV1(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS emailVerifyV1 (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTERGER NOT NULL,
+		token TEXT NOT NULL,
+		expires_at DATETIME NOT NULL,
+		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
 	`
 	_, err := db.Exec(schema)

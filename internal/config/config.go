@@ -5,13 +5,21 @@ import (
 	"os"
 )
 
+type EmailConfig struct {
+	Host     string `json:"host"`
+	Port     string `json:"port"`
+	From     string `json:"from"`
+	Password string `json:"password"`
+}
+
 type Config struct {
-	ServerAddress        string `json:"server_address"`
-	DatabasePath         string `json:"database_path"`
-	SessionLifetimeHours int    `json:"session_lifetime_hours"`
-	TLSEnabled           bool   `json:"tls_enabled"`
-	TLSCertFile          string `json:"tls_cert_file"`
-	TLSKeyFile           string `json:"tls_key_file"`
+	ServerAddress        string      `json:"server_address"`
+	DatabasePath         string      `json:"database_path"`
+	SessionLifetimeHours int         `json:"session_lifetime_hours"`
+	TLSEnabled           bool        `json:"tls_enabled"`
+	TLSCertFile          string      `json:"tls_cert_file"`
+	TLSKeyFile           string      `json:"tls_key_file"`
+	Email                EmailConfig `json:"email"`
 }
 
 func Load(path string) (*Config, error) {

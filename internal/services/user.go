@@ -12,13 +12,30 @@ func NewUserService(db *sqlx.DB) *UserService {
 	return &UserService{DB: db}
 }
 
-func (s *UserService) CreateUser(username, passwordHash string) error {
-	_, err := s.DB.Exec(
-		"INSERT INTO usersV1(username, password_hash) VALUES (?, ?)",
+func (s *UserService) CreateUser(username, email, passwordHash string) (int, error) {
+	// _, err := s.DB.Exec(
+	// 	"INSERT INTO usersV1(username, email, password_hash) VALUES (?, ?, ?)",
+	// 	username,
+	// 	email,
+	// 	passwordHash,
+	// )
+	// return err
+	result, err := s.DB.Exec(
+		"INSERT INTO usersV1(username, email, password_hash) VALUES (?, ?, ?)",
 		username,
+		email,
 		passwordHash,
 	)
-	return err
+	if err != nil {
+		return 0, err
+	}
+
+	id, err := result.LastInsertId()
+	if err != nil {
+		return 0, err
+	}
+
+	return int(id), nil
 }
 
 func (s *UserService) GetUserCredentials(username string) (int, string, error) {
@@ -148,4 +165,92 @@ func (s *UserService) DeletePasswordReset(token string) error {
 		token,
 	)
 	return err
+}
+
+func (s *UserService) GetEmailByUsername(username string) (string, error) {
+	var email string
+
+	row := s.DB.QueryRow(
+		"SELECT email FROM usersV1 WHERE username = ?",
+		username,
+	)
+
+	if err := row.Scan(&email); err != nil {
+		return "", err
+	}
+
+	return email, nil
+}
+
+func (s *UserService) CreateEmailVerification(userID int, token, expires string) error {
+	_, err := s.DB.Exec(
+		"INSERT INTO emailVerifyV1(user_id, token, expires_at) VALUES (?, ?, ?)",
+		userID,
+		token,
+		expires,
+	)
+
+	return err
+}
+
+func (s *UserService) GetEmailVerification(token string) (int, string, error) {
+	var (
+		userID  int
+		expires string
+	)
+
+	row := s.DB.QueryRow(
+		"SELECT user_id, expires_at FROM emailVerifyV1 WHERE token = ?",
+		token,
+	)
+
+	if err := row.Scan(&userID, &expires); err != nil {
+		return -1, "", err
+	}
+
+	return userID, expires, nil
+}
+
+func (s *UserService) DeleteEmailVerification(token string) error {
+	_, err := s.DB.Exec(
+		"DELETE FROM emailVerifyV1 WHERE token = ?",
+		token,
+	)
+
+	return err
+}
+
+func (s *UserService) MarkEmailVerified(userID int) error {
+	_, err := s.DB.Exec(
+		"UPDATE usersV1 SET is_verified = TRUE WHERE id = ?",
+		userID,
+	)
+
+	return err
+}
+
+func (s *UserService) IsUserVerified(userID int) (bool, error) {
+	var isVerified bool
+
+	row := s.DB.QueryRow(
+		"SELECT is_verified FROM usersV1 WHERE id = ?",
+		userID,
+	)
+
+	if err := row.Scan(&isVerified); err != nil {
+		return false, err
+	}
+
+	return isVerified, nil
+}
+
+func (s *UserService) VerifyEmail(token string) error {
+	userID, _, err := s.GetEmailVerification(token)
+	if err != nil {
+		return err
+	}
+	if err := s.MarkEmailVerified(userID); err != nil {
+		return err
+	}
+	return s.DeleteEmailVerification(token)
 }
