@@ -7,12 +7,12 @@ import (
 
 type SMTPEmail struct {
 	Host     string
-	Port     string
+	Port     int
 	From     string
 	Password string
 }
 
-func NewSMTPEmail(host, port, from, password string) *SMTPEmail {
+func NewSMTPEmail(host string, port int, from, password string) *SMTPEmail {
 	return &SMTPEmail{
 		Host:     host,
 		Port:     port,
@@ -22,9 +22,14 @@ func NewSMTPEmail(host, port, from, password string) *SMTPEmail {
 }
 
 func (e *SMTPEmail) Send(to, subject, body string) error {
-	addr := fmt.Sprintf("%s:%s", e.Host, e.Port)
+	addr := fmt.Sprintf("%s:%d", e.Host, e.Port)
 
-	msg := "From: " + e.From + "\r\n" + "To: " + to + "\r\n" + "Subject: " + subject + "\r\n" + "MIME-version: 1.0;\r\nContent-Type: text/html; charset=\"UTF-8\";\r\n\r\n" + body
+	msg := fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s",
+		e.From,
+		to,
+		subject,
+		body,
+	)
 
 	auth := smtp.PlainAuth("", e.From, e.Password, e.Host)
 

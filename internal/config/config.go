@@ -7,7 +7,7 @@ import (
 
 type EmailConfig struct {
 	Host     string `json:"host"`
-	Port     string `json:"port"`
+	Port     int    `json:"port"`
 	From     string `json:"from"`
 	Password string `json:"password"`
 }
@@ -19,6 +19,7 @@ type Config struct {
 	TLSEnabled           bool        `json:"tls_enabled"`
 	TLSCertFile          string      `json:"tls_cert_file"`
 	TLSKeyFile           string      `json:"tls_key_file"`
+	BaseURL              string      `json:"base_url"`
 	Email                EmailConfig `json:"email"`
 }
 

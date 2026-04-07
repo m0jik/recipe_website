@@ -61,19 +61,17 @@ func main() {
 	}
 	log.Println("Migrations complete.")
 
-	email := services.NewSMTPEmail(
-		cfg.Email.Host,
-		cfg.Email.Port,
-		cfg.Email.From,
-		cfg.Email.Password,
-	)
-
 	app := &App{
 		DB:      db,
 		Cfg:     cfg,
 		Users:   services.NewUserService(db),
 		Recipes: services.NewRecipeService(db),
-		Email:   email,
+		Email: services.NewSMTPEmail(
+			cfg.Email.Host,
+			cfg.Email.Port,
+			cfg.Email.From,
+			cfg.Email.Password,
+		),
 	}
 
 	log.Println("Setting up handlers...")
@@ -230,8 +228,12 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		email := r.FormValue("email")
 		pass := r.FormValue("password")
-		if username == "" || pass == "" {
-			http.Error(w, "username and password required", http.StatusBadRequest)
+		if username == "" || pass == "" || email == "" {
+			http.Error(w, "username, email, and password required", http.StatusBadRequest)
+			return
+		}
+		if !strings.Contains(email, "@") {
+			http.Error(w, "invalid email", http.StatusBadRequest)
 			return
 		}
 		hash, err := hashPasswordArgon2id(pass)
@@ -265,15 +267,14 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		verifyLink := "http://localhost:8080/users/v1/verify?token=" + token
+		verifyLink := a.Cfg.BaseURL + "/users/v1/verify?token=" + token
 
-		err = a.Email.Send(email, "Verify your account", `<a href="`+verifyLink+`">Click to verify</a>`)
-
-		if err != nil {
-			log.Println("EMAIL SEND ERROR:", err)
-			http.Error(w, err.Error(), http.StatusInternalServerError)
-			return
-		}
+		go func() {
+			err := a.Email.Send(email, "Verify your account", emailLink(verifyLink, "Click to verify"))
+			if err != nil {
+				log.Printf("email send failed to %s: %v", email, err)
+			}
+		}()
 
 		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
 	default:
@@ -398,7 +399,7 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		token, err := generateSessionID()
+		token, err := generateToken()
 		if err != nil {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
@@ -413,14 +414,15 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
-		resetLink := "http://localhost:8080/users/v1/reset?token=" + token
+		resetLink := a.Cfg.BaseURL + "/users/v1/reset?token=" + token
 		// w.Write([]byte("Reset link: " + resetLink))
-		err = a.Email.Send(email, "Password Reset Request", `<a href=`+resetLink+`>Click to reset your password</a>`)
-		if err != nil {
-			http.Error(w, "server error", http.StatusInternalServerError)
-			return
-		}
-		w.Write([]byte("reset email send"))
+		go func() {
+			err := a.Email.Send(email, "Password Reset Request", emailLink(resetLink, "Click to reset your password"))
+			if err != nil {
+				log.Printf("email send failed to %s: %v", email, err)
+			}
+		}()
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
@@ -519,7 +521,7 @@ func (a *App) getUserIDFromSession(r *http.Request) (int, bool) {
 	return userID, true
 }
 
-func generateSessionID() (string, error) {
+func generateSessionID() (string, error) { // sessions only
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
 		return "", err
@@ -776,8 +778,25 @@ func (a *App) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid or expired token", http.StatusBadRequest)
 			return
 		}
+		err = a.Users.DeleteEmailVerification(token)
+		if err != nil {
+			http.Error(w, "server error", http.StatusInternalServerError)
+			return
+		}
 		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
+}
+
+func generateToken() (string, error) { // email/reset tokens
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.RawURLEncoding.EncodeToString(b), nil
+}
+
+func emailLink(url, text string) string {
+	return `<a href="` + url + `">` + text + `</a>`
 }
