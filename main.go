@@ -9,7 +9,6 @@ import (
 	"html/template"
 	"log"
 	"net/http"
-	"net/url"
 	"os"
 	"os/signal"
 	"strings"
@@ -76,11 +75,13 @@ func main() {
 
 	// Recipe
 	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
-	mux.HandleFunc("/recipes/v1/ingredients", app.handleIngredientsPage)
 	mux.HandleFunc("/recipes/v1/ingredient-row", app.handleIngredientRows)
 	mux.HandleFunc("/recipes/v1/step-row", app.handleStepRow)
-	mux.HandleFunc("/recipes/v1/remove-row", app.handleRemoveRow)
+	// mux.HandleFunc("/recipes/v1/remove-row", app.handleRemoveRow)
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
+
+	// path
+	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
 	// Css
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
@@ -377,27 +378,15 @@ func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseForm(); err != nil {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, "could not parse form", http.StatusBadRequest)
 		return
 	}
 
-	title := r.FormValue("title")
-	description := r.FormValue("description")
-	imageURL := r.FormValue("myfile")
-
-	params := url.Values{}
-	params.Set("title", title)
-	params.Set("image", imageURL)
-	params.Set("description", description)
-	http.Redirect(w, r, "/recipes/v1/ingredients?"+params.Encode(), http.StatusSeeOther)
-}
-
-func (a *App) handleIngredientsPage(w http.ResponseWriter, r *http.Request) {
 	tpl.ExecuteTemplate(w, "pageTwo.html", map[string]any{
-		"Title":       r.URL.Query().Get("title"),
-		"Description": r.URL.Query().Get("description"),
-		"Image":       r.URL.Query().Get("image"),
+		"Title":       r.FormValue("title"),
+		"Description": r.FormValue("description"),
+		"Image":       r.FormValue("myfile"),
 	})
 }
 
@@ -414,10 +403,6 @@ func (a *App) handleStepRow(w http.ResponseWriter, r *http.Request) {
 		"Instruction": r.URL.Query().Get("step"),
 		"Note":        r.URL.Query().Get("note"),
 	})
-}
-
-func (a *App) handleRemoveRow(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 }
 
 func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {

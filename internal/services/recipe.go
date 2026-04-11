@@ -131,7 +131,6 @@ func (s *RecipeService) NewVersion(recipeID int64) (int64, error) {
 	return result.LastInsertId()
 }
 
-// update soon
 func (s *RecipeService) GetRecipeForEdit(recipeID int64) (*RecipeEditPageData, error) {
 	var title string
 	row := s.DB.QueryRow("SELECT title FROM recipesV1 WHERE id = ?", recipeID)
