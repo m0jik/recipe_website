@@ -68,6 +68,50 @@ func (s *RecipeService) CreateRecipe(userID int, title, imageURL string, descrip
 	return recipeID, nil
 }
 
+func (s *RecipeService) BatchSaveIngredients(versionID int64, names, quantities, units []string) error {
+	for i, name := range names {
+		if name == "" {
+			continue
+		}
+		qty := ""
+		if i < len(quantities) {
+			qty = quantities[i]
+		}
+		unit := ""
+		if i < len(units) {
+			unit = units[i]
+		}
+		_, err := s.DB.Exec(
+			"INSERT INTO ingredientsV1 (recipe_version_id, name, quantity, unit) VALUES (?, ?, ?, ?)",
+			versionID, name, qty, unit,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes []string) error {
+	for i, instruction := range instructions {
+		if instruction == "" {
+			continue
+		}
+		note := ""
+		if i < len(notes) {
+			note = notes[i]
+		}
+		_, err := s.DB.Exec(
+			"INSERT INTO instructionsV1 (recipe_version_id, step_number, instruction, notes) VALUES (?, ?, ?, ?)",
+			versionID, i+1, instruction, note,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func (s *RecipeService) NewVersion(recipeID int64) (int64, error) {
 	var maxVersion int
 	if err := s.DB.QueryRow(
@@ -87,53 +131,7 @@ func (s *RecipeService) NewVersion(recipeID int64) (int64, error) {
 	return result.LastInsertId()
 }
 
-func (s *RecipeService) AddIngredient(recipeVersionID int64, name string, quantity float64, unit string) error {
-	_, err := s.DB.Exec(
-		"INSERT INTO ingredientsV1 (recipe_version_id, name, quantity, unit) VALUES (?, ?, ?, ?)",
-		recipeVersionID,
-		name,
-		quantity,
-		unit,
-	)
-	return err
-}
-
-func (s *RecipeService) AddInstruction(recipeVersionID int64, instruction string, notes string) error {
-	var maxStep int
-	if err := s.DB.QueryRow(
-		"SELECT COALESCE(MAX(step_number), 0) FROM instructionsV1 WHERE recipe_version_id = ?",
-		recipeVersionID,
-	).Scan(&maxStep); err != nil {
-		return err
-	}
-
-	_, err := s.DB.Exec(
-		"INSERT INTO instructionsV1 (recipe_version_id, step_number, instruction, notes) VALUES (?, ?, ?, ?)",
-		recipeVersionID,
-		maxStep+1,
-		instruction,
-		notes,
-	)
-	return err
-}
-
-// u;sed for going back to form 1
-func (s *RecipeService) GetRecipeDetails(recipeID int64) (title, imageURL, description string, err error) {
-	err = s.DB.QueryRow(
-		"SELECT title, COALESCE(image_url,''), COALESCE(description,'') FROM recipesV1 WHERE id = ?", recipeID,
-	).Scan(&title, &imageURL, &description)
-	return
-}
-
-// used for creating a recipe form 1
-func (s *RecipeService) UpdateRecipe(recipeID int64, title, imageURL, description string) error {
-	_, err := s.DB.Exec(
-		"UPDATE recipesV1 SET title = ?, image_url = ?, description = ? WHERE id = ?",
-		title, imageURL, description, recipeID,
-	)
-	return err
-}
-
+// update soon
 func (s *RecipeService) GetRecipeForEdit(recipeID int64) (*RecipeEditPageData, error) {
 	var title string
 	row := s.DB.QueryRow("SELECT title FROM recipesV1 WHERE id = ?", recipeID)
@@ -209,79 +207,14 @@ func (s *RecipeService) GetSteps(recipeVersionID int64) ([]Step, error) {
 	return steps, nil
 }
 
-func (s *RecipeService) DeleteIngredient(recipeVersionID, ingredientID int64) error {
-	_, err := s.DB.Exec(
-		"DELETE FROM ingredientsV1 WHERE id = ? AND recipe_version_id = ?",
-		ingredientID, recipeVersionID,
-	)
-	return err
-}
-
-func (s *RecipeService) DeleteInstruction(recipeVersionID, instructionID int64) error {
-	_, err := s.DB.Exec(
-		"DELETE FROM instructionsV1 WHERE id = ? AND recipe_version_id = ?",
-		instructionID, recipeVersionID,
-	)
-	return err
-}
-
-func (s *RecipeService) ReorderSteps(recipeVersionID int64) error {
-	rows, err := s.DB.Query(
-		"SELECT id FROM instructionsV1 WHERE recipe_version_id = ? ORDER BY step_number",
-		recipeVersionID,
-	)
+func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
+	var versionID int64
+	err := s.DB.QueryRow(
+		"SELECT id FROM recipe_versionsV1 WHERE recipe_id = ? ORDER BY version_number DESC LIMIT 1",
+		recipeID,
+	).Scan(&versionID)
 	if err != nil {
-		return err
+		return 0, err
 	}
-	defer rows.Close()
-
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			return err
-		}
-		ids = append(ids, id)
-	}
-	if err := rows.Err(); err != nil {
-		return err
-	}
-
-	for i, id := range ids {
-		if _, err := s.DB.Exec("UPDATE instructionsV1 SET step_number = ? WHERE id = ?", i+1, id); err != nil {
-			return err
-		}
-	}
-	return nil
+	return versionID, nil
 }
-
-// Can wait
-
-// func (s *RecipeService) GetLatestVersion() {
-
-// }
-
-// NEeded
-// func (s *RecipeService) EditInstruction() {
-
-// }
-
-// func (s *RecipeService) GetRecipeByID() {
-
-// }
-
-// }
-
-// func (s *RecipeService) PublishRecipe() {
-
-// }
-
-// Versioning when making changes
-// func (s *RecipeService) CopyVersionIngredients {
-
-// }
-
-// func (s *RecipeService)CopyVersionInstructions {
-// }
-
-// RevertVersion

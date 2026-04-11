@@ -1,2 +1,4 @@
 *.swp
 app.db
+
+/uploads/*

@@ -1,0 +1,11 @@
+{{ define "ingredient-row" }}
+<div class="item-row">
+
+    <input type="hidden" name="ingredient_name" value="{{ .Name }}">
+    <input type="hidden" name="ingredient_qty"  value="{{ .Qty }}">
+    <input type="hidden" name="ingredient_unit" value="{{ .Unit }}">
+
+    <span>{{ .Qty }} {{ .Unit }} - {{ .Name }}</span>
+
+</div>
+{{ end }}

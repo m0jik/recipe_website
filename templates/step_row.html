@@ -1,0 +1,11 @@
+{{ define "step-row" }}
+<div class="item-row">
+
+    <input type="hidden" name="step_instruction" value="{{ .Instruction }}">
+    <input type="hidden" name="step_note"        value="{{ .Note }}">
+
+    <span>{{ .Instruction }}</span>
+    {{ if .Note }}<em>- {{ .Note }}</em>{{ end }}
+
+</div>
+{{ end }}

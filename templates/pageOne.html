@@ -10,8 +10,7 @@
         <div class="card-header">
             <h2> New Recipe</h2>
         </div>
-        <form action="/recipes/v1/new" method="POST" enctype="multipart/form-data">
-            {{ if .RecipeID }}<input type="hidden" name="recipe_id" value="{{ .RecipeID }}">{{ end }}
+        <form action="/recipes/v1/new" method="POST">
             <div class="card-body">
                 <div class="field">
                     <label for="title">Title</label>

@@ -9,9 +9,9 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
-	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -73,13 +73,18 @@ func main() {
 	mux.HandleFunc("/users/v1/register", app.handleRegister)
 	mux.HandleFunc("/users/v1/login", app.handleLogin)
 	mux.HandleFunc("/users/v1/logout", app.handleLogout)
+
+	// Recipe
 	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
-	mux.HandleFunc("/recipes/v1/edit", app.handleEditRecipe)
-	mux.HandleFunc("/recipes/v1/addIngredient", app.handleAddIngredient)
-	mux.HandleFunc("/recipes/v1/addStep", app.handleAddStepAndNote)
-	mux.HandleFunc("/recipes/v1/delete-ingredient", app.handleDeleteIngredient)
-	mux.HandleFunc("/recipes/v1/delete-instruction", app.handleDeleteInstruction)
+	mux.HandleFunc("/recipes/v1/ingredients", app.handleIngredientsPage)
+	mux.HandleFunc("/recipes/v1/ingredient-row", app.handleIngredientRows)
+	mux.HandleFunc("/recipes/v1/step-row", app.handleStepRow)
+	mux.HandleFunc("/recipes/v1/remove-row", app.handleRemoveRow)
+	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
+
+	// Css
 	mux.Handle("/static/", http.StripPrefix("/static/", http.FileServer(http.Dir("static"))))
+
 	mux.HandleFunc("/", app.handleIndex)
 	log.Println("Handlers set up.")
 
@@ -365,38 +370,14 @@ func generateSessionID() (string, error) {
 func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		a.handleNewRecipeGet(w, r)
+		tpl.ExecuteTemplate(w, "pageOne.html", nil)
 	case http.MethodPost:
 		a.handleNewRecipePost(w, r)
 	}
 }
 
-func (a *App) handleNewRecipeGet(w http.ResponseWriter, r *http.Request) {
-	idStr := r.URL.Query().Get("id")
-	if idStr == "" {
-		tpl.ExecuteTemplate(w, "new.html", nil)
-		return
-	}
-	recipeID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		http.Error(w, "invalid recipe id", http.StatusBadRequest)
-		return
-	}
-	title, imageURL, description, err := a.Recipes.GetRecipeDetails(recipeID)
-	if err != nil {
-		http.Error(w, "recipe not found", http.StatusNotFound)
-		return
-	}
-	tpl.ExecuteTemplate(w, "new.html", map[string]any{
-		"RecipeID":    recipeID,
-		"Title":       title,
-		"ImageURL":    imageURL,
-		"Description": description,
-	})
-}
-
 func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
-	if err := r.ParseMultipartForm(10 << 20); err != nil {
+	if err := r.ParseForm(); err != nil {
 		http.Error(w, "could not parse form", http.StatusBadRequest)
 		return
 	}
@@ -405,195 +386,82 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 	description := r.FormValue("description")
 	imageURL := r.FormValue("myfile")
 
-	if file, header, err := r.FormFile("image"); err == nil {
-		defer file.Close()
-		imageURL = "/uploads/" + header.Filename
-	}
-
-	if idStr := r.FormValue("recipe_id"); idStr != "" {
-		a.handleUpdateRecipe(w, r, idStr, title, imageURL, description)
-		return
-	}
-
-	a.handleCreateRecipe(w, r, title, imageURL, description)
+	params := url.Values{}
+	params.Set("title", title)
+	params.Set("image", imageURL)
+	params.Set("description", description)
+	http.Redirect(w, r, "/recipes/v1/ingredients?"+params.Encode(), http.StatusSeeOther)
 }
 
-func (a *App) handleUpdateRecipe(w http.ResponseWriter, r *http.Request, idStr, title, imageURL, description string) {
-	recipeID, err := strconv.ParseInt(idStr, 10, 64)
-	if err != nil {
-		http.Error(w, "invalid recipe id", http.StatusBadRequest)
-		return
-	}
-	if err := a.Recipes.UpdateRecipe(recipeID, title, imageURL, description); err != nil {
-		http.Error(w, "could not update recipe", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/recipes/v1/edit?id="+strconv.FormatInt(recipeID, 10), http.StatusSeeOther)
+func (a *App) handleIngredientsPage(w http.ResponseWriter, r *http.Request) {
+	tpl.ExecuteTemplate(w, "pageTwo.html", map[string]any{
+		"Title":       r.URL.Query().Get("title"),
+		"Description": r.URL.Query().Get("description"),
+		"Image":       r.URL.Query().Get("image"),
+	})
 }
 
-func (a *App) handleCreateRecipe(w http.ResponseWriter, r *http.Request, title, imageURL, description string) {
-	userID, ok := a.getUserIDFromSession(r)
-	if !ok {
-		http.Error(w, "not logged in", http.StatusUnauthorized)
-		return
-	}
-	recipeID, err := a.Recipes.CreateRecipe(userID, title, imageURL, description)
-	if err != nil {
-		http.Error(w, "could not create recipe", http.StatusInternalServerError)
-		return
-	}
-	http.Redirect(w, r, "/recipes/v1/edit?id="+strconv.FormatInt(recipeID, 10), http.StatusSeeOther)
+func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
+	tpl.ExecuteTemplate(w, "ingredient-row", map[string]string{
+		"Qty":  r.URL.Query().Get("qty"),
+		"Unit": r.URL.Query().Get("unit"),
+		"Name": r.URL.Query().Get("name"),
+	})
 }
 
-func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		idStr := r.URL.Query().Get("id")
-		id, err := strconv.ParseInt(idStr, 10, 64)
-		if err != nil {
-			http.Error(w, "invalid recipe id", http.StatusBadRequest)
-			return
-		}
-
-		data, err := a.Recipes.GetRecipeForEdit(id)
-		if err != nil {
-			http.Error(w, "recipe not found", http.StatusNotFound)
-			return
-		}
-
-		tpl.ExecuteTemplate(w, "edit.html", data)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
+func (a *App) handleStepRow(w http.ResponseWriter, r *http.Request) {
+	tpl.ExecuteTemplate(w, "step-row", map[string]string{
+		"Instruction": r.URL.Query().Get("step"),
+		"Note":        r.URL.Query().Get("note"),
+	})
 }
 
-func (a *App) handleAddIngredient(w http.ResponseWriter, r *http.Request) {
+func (a *App) handleRemoveRow(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
+
+func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
+		if r.Method != http.MethodPost {
+			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
 		if err := r.ParseForm(); err != nil {
-			http.Error(w, "invalid form", http.StatusBadRequest)
+			http.Error(w, "could not parse form", http.StatusBadRequest)
 			return
 		}
 
-		recipeVersionID, err := strconv.ParseInt(r.FormValue("recipe_version_id"), 10, 64)
+		userID, ok := a.getUserIDFromSession(r)
+		if !ok {
+			http.Error(w, "not logged in", http.StatusUnauthorized)
+			return
+		}
+
+		recipeID, err := a.Recipes.CreateRecipe(userID, r.FormValue("title"), r.FormValue("image"), r.FormValue("description"))
 		if err != nil {
-			http.Error(w, "invalid version id", http.StatusBadRequest)
+			http.Error(w, "could not create recipe", http.StatusInternalServerError)
 			return
 		}
-		recipeID := r.FormValue("recipe_id")
-		quantity, err := strconv.ParseFloat(r.FormValue("quantity"), 64)
+
+		versionID, err := a.Recipes.GetLatestVersionID(recipeID)
 		if err != nil {
-			quantity = 0
-		}
-		name := r.FormValue("ingredient")
-		unit := r.FormValue("unit")
-
-		if err := a.Recipes.AddIngredient(recipeVersionID, name, quantity, unit); err != nil {
-			http.Error(w, "could not add ingredient", http.StatusInternalServerError)
+			http.Error(w, "could not get version", http.StatusInternalServerError)
 			return
 		}
 
-		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeID, http.StatusSeeOther)
+		if err := a.Recipes.BatchSaveIngredients(versionID, r.Form["ingredient_name"], r.Form["ingredient_qty"], r.Form["ingredient_unit"]); err != nil {
+			http.Error(w, "could not save ingredients", http.StatusInternalServerError)
+			return
+		}
+		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"]); err != nil {
+			http.Error(w, "could not save steps", http.StatusInternalServerError)
+			return
+		}
+
+		http.Redirect(w, r, "/v1", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-}
 
-func (a *App) handleAddStepAndNote(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "invalid form", http.StatusBadRequest)
-			return
-		}
-
-		recipeVersionID, err := strconv.ParseInt(r.FormValue("recipe_version_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "invalid version id", http.StatusBadRequest)
-			return
-		}
-		recipeID := r.FormValue("recipe_id")
-		instruction := r.FormValue("step")
-		notes := r.FormValue("note")
-
-		if err := a.Recipes.AddInstruction(recipeVersionID, instruction, notes); err != nil {
-			http.Error(w, "could not add step", http.StatusInternalServerError)
-			return
-		}
-
-		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeID, http.StatusSeeOther)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func (a *App) handleDeleteIngredient(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "invalid form", http.StatusBadRequest)
-			return
-		}
-
-		ingredientId, err := strconv.ParseInt(r.FormValue("ingredient_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "invalid ingredient id", http.StatusBadRequest)
-			return
-		}
-
-		recipeVersionId, err := strconv.ParseInt(r.FormValue("recipe_version_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "invalid recipe version id", http.StatusBadRequest)
-			return
-		}
-
-		recipeId := r.FormValue("recipe_id") // for redirect
-
-		if err := a.Recipes.DeleteIngredient(recipeVersionId, ingredientId); err != nil {
-			http.Error(w, "Could not delete ingredient", http.StatusInternalServerError)
-			return
-		}
-
-		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeId, http.StatusSeeOther)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
-}
-
-func (a *App) handleDeleteInstruction(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodPost:
-		if err := r.ParseForm(); err != nil {
-			http.Error(w, "invalid form", http.StatusBadRequest)
-			return
-		}
-
-		instructionId, err := strconv.ParseInt(r.FormValue("instruction_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "invalid instruction id", http.StatusBadRequest)
-			return
-		}
-
-		recipeVersionId, err := strconv.ParseInt(r.FormValue("recipe_version_id"), 10, 64)
-		if err != nil {
-			http.Error(w, "invalid recipe version id", http.StatusBadRequest)
-			return
-		}
-
-		recipeId := r.FormValue("recipe_id")
-
-		if err := a.Recipes.DeleteInstruction(recipeVersionId, instructionId); err != nil {
-			http.Error(w, "Could not delete instruction", http.StatusInternalServerError)
-			return
-		}
-
-		if err := a.Recipes.ReorderSteps(recipeVersionId); err != nil {
-			http.Error(w, "Could not reorder instructions", http.StatusInternalServerError)
-			return
-		}
-
-		http.Redirect(w, r, "/recipes/v1/edit?id="+recipeId, http.StatusSeeOther)
-	default:
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-	}
 }
