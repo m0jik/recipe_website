@@ -11,16 +11,14 @@
             <h2> New Recipe</h2>
         </div>
         <form action="/recipes/v1/new" method="POST" enctype="multipart/form-data">
-            {{ if .RecipeID }}<input type="hidden" name="recipe_id" value="{{ .RecipeID }}">{{ end }}
             <div class="card-body">
                 <div class="field">
                     <label for="title">Title</label>
                     <input type="text" id="title" name="title" required placeholder="e.g Chicken Pasta" value="{{ .Title }}">
                 </div>
-                <!-- Needs fixing for image: does not display yet (only accept text for now)-->
                 <div class="field">
-                    <label for="myfile"> Image </label>
-                    <input type="text" id="myfile" name="myfile" placeholder="Still needs fixing" value="{{ .ImageURL }}"> <!--User can pick all image files: accept="image/*" -->
+                    <label for="myfile">Image</label>
+                    <input type="file" id="myfile" name="myfile" accept="image/jpeg,image/png">
                 </div>
 
                 <div class="field">
@@ -30,7 +28,7 @@
             </div>
 
             <div class="card-footer">
-                <button type="submit">Next: add ingredients</button>
+                <button type="submit">Next</button>
             </div>
         </form>
     </div>

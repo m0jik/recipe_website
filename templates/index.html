@@ -6,14 +6,17 @@
 </head>
 <body>
 {{ if .Username }}
-
+<!--  Add navigation bar ? -->
 <p>Hello, {{ .Username }}!</p>
 
 
 <a href="/recipes/v1/new">
     <button>Create a recipe</button>
 </a>
-
+<!-- clicking this link well lead to the user recipes. -->
+<a href="/recipes/v1/myRecipe">
+    <button>My recipes</button>
+</a>
 
 <a href="/users/v1/logout">Logout</a>
 
