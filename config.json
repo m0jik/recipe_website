@@ -4,5 +4,12 @@
     "session_lifetime_hours": 24,
     "tls_enabled": false,
     "tls_cert_file": "",
-    "tls_key_file": ""
+    "tls_key_file": "",
+    "base_url": "http://localhost:8080",
+    "email": {
+        "host": "smtp.gmail.com",
+        "port": 587,
+        "from": "cs425recipewebsite@gmail.com",
+        "password": "jfty yzts cpds flqw"
+    }
 }
