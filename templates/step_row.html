@@ -6,6 +6,7 @@
 
     <span>{{ .Instruction }}</span>
     {{ if .Note }}<em>- {{ .Note }}</em>{{ end }}
+    <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">X</button>
 
 </div>
 {{ end }}

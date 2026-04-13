@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>My Recipes</title>
+</head>
+<body>
+<h1>My Recipes</h1>
+{{ if .Recipes }}
+<ul>
+    <!-- Turn this to a link later on and list only 10; maybe add a filter -->
+    {{ range .Recipes }}
+    <li>{{ .Title }}</li>
+    {{ end }}
+</ul>
+{{ else }}
+<p>You haven't created any recipes yet. <a href="/recipes/v1/new">Create one!</a></p>
+
+{{ end }}
+</body>
+</html>

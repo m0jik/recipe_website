@@ -31,6 +31,7 @@ type App struct {
 	Cfg     *config.Config
 	Users   *services.UserService
 	Recipes *services.RecipeService
+	Images  *services.ImageService
 }
 
 func main() {
@@ -64,6 +65,7 @@ func main() {
 		Cfg:     cfg,
 		Users:   services.NewUserService(db),
 		Recipes: services.NewRecipeService(db),
+		Images:  services.NewImageService(&services.LocalStore{Dir: "uploads"}),
 	}
 
 	log.Println("Setting up handlers...")
@@ -77,8 +79,8 @@ func main() {
 	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
 	mux.HandleFunc("/recipes/v1/ingredient-row", app.handleIngredientRows)
 	mux.HandleFunc("/recipes/v1/step-row", app.handleStepRow)
-	// mux.HandleFunc("/recipes/v1/remove-row", app.handleRemoveRow)
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
+	mux.HandleFunc("/recipes/v1/myRecipe", app.handleMyRecipes)
 
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
@@ -368,6 +370,22 @@ func generateSessionID() (string, error) {
 	return hex.EncodeToString(b), nil
 }
 
+func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+	recipes, err := a.Recipes.GetRecipesByUser(userID)
+	if err != nil {
+		http.Error(w, "could not load recipes", http.StatusInternalServerError)
+		return
+	}
+	tpl.ExecuteTemplate(w, "myRecipes.html", map[string]any{
+		"Recipes": recipes,
+	})
+}
+
 func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
@@ -383,10 +401,24 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	var imagePath string
+
+	file, header, err := r.FormFile("myfile")
+	if err == nil {
+		defer file.Close()
+		imagePath, err = a.Images.Process(file, header)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+	}
+
 	tpl.ExecuteTemplate(w, "pageTwo.html", map[string]any{
 		"Title":       r.FormValue("title"),
 		"Description": r.FormValue("description"),
-		"Image":       r.FormValue("myfile"),
+		"Image":       imagePath,
+		// add servings
+		// prep time
 	})
 }
 

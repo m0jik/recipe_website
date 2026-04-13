@@ -10,6 +10,9 @@
 
 <div class="card">
     <div class="card-header">
+        {{ if .Image }}
+        <img src="{{ .Image }}" alt="Recipe image" class="recipe-preview-img">
+        {{ end }}
         <h2>{{ .Title }}</h2>
         <p>Add ingredients and steps, then submit when ready</p>
     </div>
@@ -53,7 +56,14 @@
                             hx-include="#ing-qty, #ing-unit, #ing-name"
                             hx-target="#ingredients-list"
                             hx-swap="beforeend"
-                            hx-on::after-request="document.getElementById('ing-qty').value=''; document.getElementById('ing-unit').selectedIndex=0; document.getElementById('ing-name').value='';"
+                            hx-on::before-request="
+                                var qty = document.getElementById('ing-qty');
+                                var name = document.getElementById('ing-name');
+                                var valid = true;
+                                if (!qty.value.trim()) { qty.classList.add('input-error'); valid = false; } else { qty.classList.remove('input-error'); }
+                                if (!name.value.trim()) { name.classList.add('input-error'); valid = false; } else { name.classList.remove('input-error'); }
+                                if (!valid) { event.preventDefault(); }"
+                            hx-on::after-request="document.getElementById('ing-qty').value=''; document.getElementById('ing-unit').selectedIndex=0; document.getElementById('ing-name').value=''; document.getElementById('ing-qty').classList.remove('input-error'); document.getElementById('ing-name').classList.remove('input-error'); document.getElementById('ing-qty').focus();"
                             class="btn-secondary">+ Add</button>
                 </div>
             </div>
@@ -72,7 +82,10 @@
                                 hx-include="#step-text, #step-note"
                                 hx-target="#steps-list"
                                 hx-swap="beforeend"
-                                hx-on::after-request="document.getElementById('step-text').value=''; document.getElementById('step-note').value='';"
+                                hx-on::before-request="
+                                    var step = document.getElementById('step-text');
+                                    if (!step.value.trim()) { step.classList.add('input-error'); event.preventDefault(); } else { step.classList.remove('input-error'); }"
+                                hx-on::after-request="document.getElementById('step-text').value=''; document.getElementById('step-note').value=''; document.getElementById('step-text').classList.remove('input-error');"
                                 class="btn-secondary">+ Add</button>
                     </div>
                 </div>

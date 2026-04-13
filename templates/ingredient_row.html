@@ -6,6 +6,7 @@
     <input type="hidden" name="ingredient_unit" value="{{ .Unit }}">
 
     <span>{{ .Qty }} {{ .Unit }} - {{ .Name }}</span>
+    <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">✕</button>
 
 </div>
 {{ end }}

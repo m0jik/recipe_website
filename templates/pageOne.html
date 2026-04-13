@@ -16,10 +16,9 @@
                     <label for="title">Title</label>
                     <input type="text" id="title" name="title" required placeholder="e.g Chicken Pasta" value="{{ .Title }}">
                 </div>
-                <!-- Needs fixing for image: does not display yet (only accept text for now)-->
                 <div class="field">
-                    <label for="myfile"> Image </label>
-                    <input type="text" id="myfile" name="myfile" placeholder="Still needs fixing" value="{{ .ImageURL }}"> <!--User can pick all image files: accept="image/*" -->
+                    <label for="myfile">Image</label>
+                    <input type="file" id="myfile" name="myfile" accept="image/jpeg,image/png">
                 </div>
 
                 <div class="field">
