@@ -6,6 +6,7 @@ import (
 	"crypto/subtle"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"html/template"
 	"log"
 	"net/http"
@@ -240,6 +241,10 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "username, email, and password required", http.StatusBadRequest)
 			return
 		}
+		if !a.Users.ValidPassword(pass) {
+			http.Error(w, "password must be at least 8 characters and contain a number, uppercase letter, and lowercase letter", http.StatusBadRequest)
+			return
+		}
 		if !strings.Contains(email, "@") {
 			http.Error(w, "invalid email", http.StatusBadRequest)
 			return
@@ -257,6 +262,10 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 
 		userID, err := a.Users.CreateUser(username, email, hash)
 		if err != nil {
+			if errors.Is(err, services.ErrUserExists) {
+				http.Error(w, "username already taken", http.StatusBadRequest)
+				return
+			}
 			http.Error(w, "could not create user", http.StatusInternalServerError)
 			return
 		}
@@ -449,6 +458,14 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 		}
 		token := r.FormValue("token")
 		newPassword := r.FormValue("password")
+		if token == "" || newPassword == "" {
+			http.Error(w, "token and new password required", http.StatusBadRequest)
+			return
+		}
+		if !a.Users.ValidPassword(newPassword) {
+			http.Error(w, "password must be at least 8 characters and contain a number, uppercase letter, and lowercase letter", http.StatusBadRequest)
+			return
+		}
 		// var id int
 		// var expiresStr string
 		// row := a.DB.QueryRow("SELECT user_id, expires_at FROM passResetV1 WHERE token = ?", token)

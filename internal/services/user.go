@@ -1,7 +1,14 @@
 package services
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/jmoiron/sqlx"
+)
+
+var (
+	ErrUserExists = errors.New("user already exists")
 )
 
 type UserService struct {
@@ -27,6 +34,9 @@ func (s *UserService) CreateUser(username, email, passwordHash string) (int, err
 		passwordHash,
 	)
 	if err != nil {
+		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+			return 0, ErrUserExists
+		}
 		return 0, err
 	}
 
@@ -253,4 +263,20 @@ func (s *UserService) VerifyEmail(token string) error {
 		return err
 	}
 	return s.DeleteEmailVerification(token)
+}
+
+func (s *UserService) ValidPassword(p string) bool {
+	if len(p) < 8 {
+		return false
+	}
+	if !strings.ContainsAny(p, "0123456789") {
+		return false
+	}
+	if !strings.ContainsAny(p, "ABCDEFGHIJKLMNOPQRSTUVWXYZ") {
+		return false
+	}
+	if !strings.ContainsAny(p, "abcdefghijklmnopqrstuvwxyz") {
+		return false
+	}
+	return true
 }
