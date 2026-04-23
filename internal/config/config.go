@@ -3,14 +3,24 @@ package config
 import (
 	"encoding/json"
 	"os"
+	"strconv"
 )
 
 type EmailConfig struct {
-	Provider            string `json:"provider"`
-	Host                string `json:"host"`
-	Port                int    `json:"port"`
+	Provider string      `json:"provider"`
+	SES      *SESConfig  `json:"ses"`
+	SMTP     *SMTPConfig `json:"smtp"`
+}
+
+type SMTPConfig struct {
+	Host     string `json:"host"`
+	Port     int    `json:"port"`
+	From     string `json:"from"`
+	Password string `json:"password"`
+}
+
+type SESConfig struct {
 	From                string `json:"from"`
-	Password            string `json:"password"`
 	AWSRegion           string `json:"aws_region"`
 	AWSConfigurationSet string `json:"aws_configuration_set"`
 }
@@ -61,18 +71,37 @@ func applyEnvOverrides(cfg *Config) {
 		cfg.Email.Provider = v
 	}
 	if v := os.Getenv("EMAIL_HOST"); v != "" {
-		cfg.Email.Host = v
+		if cfg.Email.Provider == "smtp" {
+			cfg.Email.SMTP.Host = v
+		}
 	}
 	if v := os.Getenv("EMAIL_FROM"); v != "" {
-		cfg.Email.From = v
+		if cfg.Email.Provider == "smtp" {
+			cfg.Email.SMTP.From = v
+		} else if cfg.Email.Provider == "ses" {
+			cfg.Email.SES.From = v
+		}
 	}
 	if v := os.Getenv("EMAIL_PASSWORD"); v != "" {
-		cfg.Email.Password = v
+		if cfg.Email.Provider == "smtp" {
+			cfg.Email.SMTP.Password = v
+		}
 	}
 	if v := os.Getenv("AWS_REGION"); v != "" {
-		cfg.Email.AWSRegion = v
+		if cfg.Email.Provider == "ses" {
+			cfg.Email.SES.AWSRegion = v
+		}
 	}
 	if v := os.Getenv("AWS_SES_CONFIGURATION_SET"); v != "" {
-		cfg.Email.AWSConfigurationSet = v
+		if cfg.Email.Provider == "ses" {
+			cfg.Email.SES.AWSConfigurationSet = v
+		}
+	}
+	if v := os.Getenv("EMAIL_PORT"); v != "" {
+		if p, err := strconv.Atoi(v); err == nil && p > 0 {
+			if cfg.Email.Provider == "smtp" {
+				cfg.Email.SMTP.Port = p
+			}
+		}
 	}
 }

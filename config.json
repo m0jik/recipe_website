@@ -7,7 +7,7 @@
     "tls_key_file": "",
     "base_url": "http://localhost:8080",
     "email": {
-        "provider": "ses",
+        "provider": "smtp",
 
         "ses": {
             "host": "email-smtp.us-east-1.amazonaws.com",
@@ -21,8 +21,8 @@
         "smtp": {
             "host": "smtp.gmail.com",
             "port": 587,
-            "from": "your@gmail.com",
-            "password": "GMAIL_APP_PASSWORD"
+            "from": "cs425recipewebsite@gmail.com",
+            "password": "jfty yzts cpds flqw"
         }
     }
 }

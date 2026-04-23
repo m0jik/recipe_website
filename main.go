@@ -135,17 +135,17 @@ func buildEmailSender(cfg *config.Config) (services.EmailSender, error) {
 	switch strings.ToLower(cfg.Email.Provider) {
 	case "", "smtp":
 		return services.NewSMTPEmail(
-			cfg.Email.Host,
-			cfg.Email.Port,
-			cfg.Email.From,
-			cfg.Email.Password,
+			cfg.Email.SMTP.Host,
+			cfg.Email.SMTP.Port,
+			cfg.Email.SMTP.From,
+			cfg.Email.SMTP.Password,
 		), nil
 	case "ses":
 		return services.NewSESEmail(
 			context.Background(),
-			cfg.Email.AWSRegion,
-			cfg.Email.From,
-			cfg.Email.AWSConfigurationSet,
+			cfg.Email.SES.AWSRegion,
+			cfg.Email.SES.From,
+			cfg.Email.SES.AWSConfigurationSet,
 		)
 	default:
 		return nil, errors.New("unsupported email provider: " + cfg.Email.Provider)
