@@ -259,8 +259,13 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 		username := r.FormValue("username")
 		email := r.FormValue("email")
 		pass := r.FormValue("password")
-		if username == "" || pass == "" || email == "" {
-			http.Error(w, "username, email, and password required", http.StatusBadRequest)
+		confirmPass := r.FormValue("confirm_password")
+		if pass != confirmPass {
+			http.Error(w, "passwords do not match", http.StatusBadRequest)
+			return
+		}
+		if username == "" || pass == "" || email == "" || confirmPass == "" {
+			http.Error(w, "username, email, password, and confirm password required", http.StatusBadRequest)
 			return
 		}
 		if !a.Users.ValidPassword(pass) {
@@ -331,13 +336,13 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
 		}
-		username := r.FormValue("username")
+		email := strings.ToLower(r.FormValue("email"))
 		pass := r.FormValue("password")
 		var id int
 		var hash string
 		//row := a.DB.QueryRow("SELECT id, password_hash FROM usersV1 WHERE username = ?", username)
 
-		id, hash, err := a.Users.GetUserCredentials(username)
+		id, hash, err := a.Users.GetUserCredentials(email)
 		if err != nil {
 			http.Error(w, "Invalid credentials", http.StatusUnauthorized)
 			return
@@ -421,21 +426,16 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
 		}
-		username := r.FormValue("username")
+		email := r.FormValue("email")
 		// var id int
 		// row := a.DB.QueryRow("SELECT id FROM usersV1 WHERE username = ?", username)
 		// if err := row.Scan(&id); err != nil {
 		//  	http.Error(w, "user not found", http.StatusNotFound)
 		//  	return
 		// }
-		id, err := a.Users.GetUserIDByUsername(username)
+		id, err := a.Users.GetUserIDByEmail(email)
 		if err != nil {
 			http.Error(w, "user not found", http.StatusNotFound)
-			return
-		}
-		email, err := a.Users.GetEmailByUsername(username)
-		if err != nil {
-			http.Error(w, "server error", http.StatusInternalServerError)
 			return
 		}
 		token, err := generateToken()
@@ -480,8 +480,13 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 		}
 		token := r.FormValue("token")
 		newPassword := r.FormValue("password")
-		if token == "" || newPassword == "" {
+		confirmPassword := r.FormValue("confirm_password")
+		if token == "" || newPassword == "" || confirmPassword == "" {
 			http.Error(w, "token and new password required", http.StatusBadRequest)
+			return
+		}
+		if newPassword != confirmPassword {
+			http.Error(w, "passwords do not match", http.StatusBadRequest)
 			return
 		}
 		if !a.Users.ValidPassword(newPassword) {

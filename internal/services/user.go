@@ -48,15 +48,15 @@ func (s *UserService) CreateUser(username, email, passwordHash string) (int, err
 	return int(id), nil
 }
 
-func (s *UserService) GetUserCredentials(username string) (int, string, error) {
+func (s *UserService) GetUserCredentials(email string) (int, string, error) {
 	var (
 		id   int
 		hash string
 	)
 
 	row := s.DB.QueryRow(
-		"SELECT id, password_hash FROM usersV1 WHERE username = ?",
-		username,
+		"SELECT id, password_hash FROM usersV1 WHERE email = ?",
+		email,
 	)
 
 	if err := row.Scan(&id, &hash); err != nil {
@@ -117,12 +117,12 @@ func (s *UserService) GetUserID(val string) (int, string, error) {
 	return id, expires, nil
 }
 
-func (s *UserService) GetUserIDByUsername(username string) (int, error) {
+func (s *UserService) GetUserIDByEmail(email string) (int, error) {
 	var id int
 
 	row := s.DB.QueryRow(
-		"SELECT id FROM usersV1 WHERE username = ?",
-		username,
+		"SELECT id FROM usersV1 WHERE email = ?",
+		email,
 	)
 
 	if err := row.Scan(&id); err != nil {
