@@ -62,18 +62,19 @@ func main() {
 	}
 	log.Println("Migrations complete.")
 
+	emailSender, err := buildEmailSender(cfg)
+	if err != nil {
+		log.Printf("email setup error: %v", err)
+		return
+	}
+
 	app := &App{
 		DB:      db,
 		Cfg:     cfg,
 		Users:   services.NewUserService(db),
 		Recipes: services.NewRecipeService(db),
-		Email: services.NewSMTPEmail(
-			cfg.Email.Host,
-			cfg.Email.Port,
-			cfg.Email.From,
-			cfg.Email.Password,
-		),
-		Images: services.NewImageService(&services.LocalStore{Dir: "uploads"}),
+		Email:   emailSender,
+		Images:  services.NewImageService(&services.LocalStore{Dir: "uploads"}),
 	}
 
 	log.Println("Setting up handlers...")
@@ -127,6 +128,27 @@ func main() {
 	log.Println("Waiting for shutdown signal...")
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("server shutdown error: %v", err)
+	}
+}
+
+func buildEmailSender(cfg *config.Config) (services.EmailSender, error) {
+	switch strings.ToLower(cfg.Email.Provider) {
+	case "", "smtp":
+		return services.NewSMTPEmail(
+			cfg.Email.Host,
+			cfg.Email.Port,
+			cfg.Email.From,
+			cfg.Email.Password,
+		), nil
+	case "ses":
+		return services.NewSESEmail(
+			context.Background(),
+			cfg.Email.AWSRegion,
+			cfg.Email.From,
+			cfg.Email.AWSConfigurationSet,
+		)
+	default:
+		return nil, errors.New("unsupported email provider: " + cfg.Email.Provider)
 	}
 }
 
