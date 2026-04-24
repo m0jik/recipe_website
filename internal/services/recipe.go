@@ -242,3 +242,49 @@ func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
 	}
 	return versionID, nil
 }
+
+func (r *RecipeService) Search(query string) ([]RecipeInfo, error) {
+	rows, err := r.DB.Query(
+		`SELECT id, title FROM recipesV1 WHERE title LIKE ? ORDER BY created_at DESC`,
+		"%"+query+"%",
+	)
+
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var recipes []RecipeInfo
+
+	for rows.Next() {
+		var ri RecipeInfo
+		if err := rows.Scan(&ri.ID, &ri.Title); err != nil {
+			return nil, err
+		}
+		recipes = append(recipes, ri)
+	}
+
+	return recipes, nil
+}
+
+func (r *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
+	rows, err := r.DB.Query(
+		`SELECT id, title FROM recipesV1 ORDER BY created_at DESC`,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var recipes []RecipeInfo
+
+	for rows.Next() {
+		var ri RecipeInfo
+		if err := rows.Scan(&ri.ID, &ri.Title); err != nil {
+			return nil, err
+		}
+		recipes = append(recipes, ri)
+	}
+
+	return recipes, nil
+}

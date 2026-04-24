@@ -241,8 +241,28 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		}
 		username = u
 	}
+
+	query := r.URL.Query().Get("query")
+
+	var recipes []services.RecipeInfo
+	var err error
+
+	if query != "" {
+		recipes, err = a.Recipes.Search(query) // filtered results
+	} else {
+		recipes, err = a.Recipes.GetAllRecipes() // all recipes
+	}
+
+	if err != nil {
+		log.Printf("Error loading recipes: %v", err)
+		http.Error(w, "Failed to load recipes", http.StatusInternalServerError)
+		return
+	}
+
 	tpl.ExecuteTemplate(w, "index.html", map[string]any{
 		"Username": username,
+		"Recipes":  recipes,
+		"Query":    query,
 	})
 }
 
