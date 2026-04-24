@@ -5,9 +5,11 @@ import (
 )
 
 type RecipeInfo struct {
-	ID        int64 // recipe ID
-	VersionID int64 // current version ID
-	Title     string
+	ID          int64 // recipe ID
+	VersionID   int64 // current version ID
+	Title       string
+	Description string
+	ImageURL    string
 }
 
 type RecipeEditPageData struct {
@@ -245,7 +247,8 @@ func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
 
 func (r *RecipeService) Search(query string) ([]RecipeInfo, error) {
 	rows, err := r.DB.Query(
-		`SELECT id, title FROM recipesV1 WHERE title LIKE ? ORDER BY created_at DESC`,
+		`SELECT id, title, description, image_url FROM recipesV1 WHERE title LIKE ? OR description LIKE ? ORDER BY created_at DESC`,
+		"%"+query+"%",
 		"%"+query+"%",
 	)
 
@@ -258,9 +261,10 @@ func (r *RecipeService) Search(query string) ([]RecipeInfo, error) {
 
 	for rows.Next() {
 		var ri RecipeInfo
-		if err := rows.Scan(&ri.ID, &ri.Title); err != nil {
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL); err != nil {
 			return nil, err
 		}
+
 		recipes = append(recipes, ri)
 	}
 
@@ -269,7 +273,7 @@ func (r *RecipeService) Search(query string) ([]RecipeInfo, error) {
 
 func (r *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	rows, err := r.DB.Query(
-		`SELECT id, title FROM recipesV1 ORDER BY created_at DESC`,
+		`SELECT id, title, description, image_url FROM recipesV1 ORDER BY created_at DESC`,
 	)
 	if err != nil {
 		return nil, err
@@ -280,7 +284,7 @@ func (r *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 
 	for rows.Next() {
 		var ri RecipeInfo
-		if err := rows.Scan(&ri.ID, &ri.Title); err != nil {
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL); err != nil {
 			return nil, err
 		}
 		recipes = append(recipes, ri)

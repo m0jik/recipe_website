@@ -158,6 +158,9 @@ a {
 }
 
 .recipe-card {
+    display: flex;
+    gap: 15px;
+    align-items: flex-start;
     background: white;
     padding: 20px;
     border-radius: 10px;
@@ -179,4 +182,32 @@ a {
     margin-top: 10px;
     color: #4a90e2;
     text-decoration: none;
+}
+
+.recipe-card img {
+    width: 120px;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 8px;
+    flex-shrink: 0;
+}
+
+.recipe-info {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.recipe-info a {
+    margin-top: 5px;
+}
+
+.recipe-info h3 {
+    margin: 0;
+}
+
+.recipe-info p {
+    margin: 5px 0;
+    color: #666;
+    font-size: 14px;
 }
