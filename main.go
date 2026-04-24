@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -93,6 +94,7 @@ func main() {
 	mux.HandleFunc("/recipes/v1/step-row", app.handleStepRow)
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
 	mux.HandleFunc("/recipes/v1/myRecipe", app.handleMyRecipes)
+	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
 
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
@@ -735,6 +737,39 @@ func (a *App) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+	}
+}
+
+func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
+	idStr := strings.TrimPrefix(r.URL.Path, "/recipes/v1/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	data, userID, err := a.Recipes.GetRecipeForView(id)
+	if err != nil {
+		http.Error(w, "Recipe not found", http.StatusNotFound)
+		return
+	}
+
+	username, err := a.Users.GetUsernameByID(int(userID))
+	if err != nil {
+		username = "Unknown"
+	}
+
+	tpl.ExecuteTemplate(w, "recipe.html", map[string]any{
+		"Title":       data.Recipe.Title,
+		"Description": data.Recipe.Description,
+		"ImageURL":    data.Recipe.ImageURL,
+		"Ingredients": data.Ingredients,
+		"Steps":       data.Steps,
+		"Username":    username,
+	})
+
+	if err != nil {
+		http.Error(w, "Template error", http.StatusInternalServerError)
 	}
 }
 
