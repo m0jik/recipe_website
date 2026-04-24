@@ -5,7 +5,7 @@
     "tls_enabled": false,
     "tls_cert_file": "",
     "tls_key_file": "",
-    "base_url": "http://localhost:8080",
+    "base_url": "http://3.17.37.94:8080",
     "email": {
         "provider": "smtp",
 
