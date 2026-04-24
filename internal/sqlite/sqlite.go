@@ -53,8 +53,8 @@ func Migrate(db *sqlx.DB) error {
 	CREATE TABLE IF NOT EXISTS ingredientsV1 (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		recipe_version_id INTEGER NOT NULL,
-		name TEXT NOT NULL, 
-		quantity REAL NOT NULL, 
+		name TEXT NOT NULL,
+		quantity TEXT NOT NULL,
 		unit TEXT NOT NULL,
 		FOREIGN KEY(recipe_version_id) REFERENCES recipe_versionsV1(id)
 	);

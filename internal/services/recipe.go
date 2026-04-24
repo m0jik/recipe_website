@@ -23,7 +23,7 @@ type Ingredient struct {
 	ID              int64
 	RecipeVersionID int64
 	Name            string
-	Quantity        float64
+	Quantity        string
 	Unit            string
 }
 
