@@ -612,8 +612,12 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not load recipes", http.StatusInternalServerError)
 		return
 	}
+
+	username, _ := a.Users.GetUsernameByID(userID)
+
 	tpl.ExecuteTemplate(w, "myRecipes.html", map[string]any{
-		"Recipes": recipes,
+		"Username": username,
+		"Recipes":  recipes,
 	})
 }
 

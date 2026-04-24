@@ -210,12 +210,21 @@ func (s *RecipeService) GetSteps(recipeVersionID int64) ([]Step, error) {
 
 func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
 	rows, err := s.DB.Query(
-		`SELECT r.id, r.title, COALESCE(rv.id, 0)
-		 FROM recipesV1 r
-		 LEFT JOIN recipe_versionsV1 rv ON rv.recipe_id = r.id
-		   AND rv.version_number = (SELECT MAX(version_number) FROM recipe_versionsV1 WHERE recipe_id = r.id)
-		 WHERE r.user_id = ?
-		 ORDER BY r.created_at DESC`,
+		// `SELECT r.id, r.title, COALESCE(rv.id, 0)
+		//  FROM recipesV1 r
+		//  LEFT JOIN recipe_versionsV1 rv ON rv.recipe_id = r.id
+		//    AND rv.version_number = (SELECT MAX(version_number) FROM recipe_versionsV1 WHERE recipe_id = r.id)
+		//  WHERE r.user_id = ?
+		//  ORDER BY r.created_at DESC`,
+		`SELECT
+            r.id,
+            r.title,
+            0 AS version_id,
+            COALESCE(r.description, '') AS description,
+            COALESCE(r.image_url, '') AS image_url
+         FROM recipesV1 r
+         WHERE r.user_id = ?
+         ORDER BY r.created_at DESC`,
 		userID,
 	)
 	if err != nil {
@@ -225,10 +234,16 @@ func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
 	var recipes []RecipeInfo
 	for rows.Next() {
 		var ri RecipeInfo
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID); err != nil {
+		// if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID); err != nil {
+		// 	return nil, err
+		// }
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID, &ri.Description, &ri.ImageURL); err != nil {
 			return nil, err
 		}
 		recipes = append(recipes, ri)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 	return recipes, nil
 }
