@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+        <meta charset="utf-8">
+        <title>Home</title>
+        <link rel="stylesheet" href="/static/style.css">
+    </head>
+    <body>
+        <header class="navbar">
+            <div class="nav-left">
+                <div class="logo">
+                    <a href="/" style="color: rgb(255, 255, 255);">Recipe App</a>
+                </div>
+            </div>
+            <div class="nav-center">
+                <form method="GET" action="/" class="search-form">
+                    <input type="text" name="query" placeholder="Search recipes..."value="{{.Query}}">
+                </form>
+            </div>
+            <div class="nav-right">
+                {{ if .Username }}
+                    <span class="welcome">Hello, {{ .Username }}</span>
+                    <a href="/recipes/v1/new">Create Recipe</a>
+                    <a href="/recipes/v1/myRecipe">My Recipes</a>
+                    <a href="/users/v1/logout">Logout</a>
+                {{ else }}
+                    <a href="/users/v1/login">Login</a>
+                    <a href="/users/v1/register">Register</a>
+                {{ end }}
+            </div>
+        </header>
+        <main class="container">
+            <section class="recipes">
+                <h2>
+                    {{ if .Query }}
+                        Results for "{{ .Query }}"
+                    {{ else }}
+                        My Recipes
+                    {{ end }}
+                </h2>
+                {{ if .Recipes }}
+                <div class="recipe-grid">
+                    {{ range .Recipes }}
+                        <div class="recipe-card">
+                            <img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}" alt="{{.Title}}">
+                            <div class="recipe-info">
+                                <h3>{{ .Title }}</h3>
+                                <p>{{ .Description }}</p>
+                                <a href="/recipes/v1/{{ .ID }}">View Recipe</a>
+                            </div>
+                        </div>
+                    {{ else }}
+                        <p>No recipes found.</p>
+                    {{ end }}
+                </div>
+                {{ else }}
+                <p>You haven't created any recipes yet. <a href="/recipes/v1/new">Create one!</a></p>
+
+                {{ end }}
+            </section>
+        </main>
+    </body>
+</html>

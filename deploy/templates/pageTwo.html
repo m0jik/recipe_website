@@ -1,0 +1,100 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>New Recipe - Step 2</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <link rel="stylesheet" href="/static/pageTwo.css">
+</head>
+<body>
+
+<div class="card">
+    <div class="card-header">
+        {{ if .Image }}
+        <img src="{{ .Image }}" alt="Recipe image" class="recipe-preview-img">
+        {{ end }}
+        <h2>{{ .Title }}</h2>
+        <p>Add ingredients and steps, then submit when ready</p>
+    </div>
+    <form method="POST" action="/recipes/v1/submit">
+        <input type="hidden" name="title"       value="{{ .Title }}">
+        <input type="hidden" name="description" value="{{ .Description }}">
+        <input type="hidden" name="image"       value="{{ .Image }}">
+        <div class="card-body">
+
+            <!-- INGREDIENTS -->
+            <div class="section-block">
+                <div class="section-title">Ingredients</div>
+                <div id="ingredients-list" class="item-list"></div>
+                <div class="add-row">
+                    <input type="text"   id="ing-qty"  name="qty"  placeholder="2" class="qty">
+                    <select id="ing-unit" name="unit">
+                        <option value="" disabled selected>Unit</option>
+                        <optgroup label="US">
+                            <option value="cup">cup</option>
+                            <option value="tbsp">tbsp</option>
+                            <option value="tsp">tsp</option>
+                            <option value="oz">oz</option>
+                            <option value="lb">lb</option>
+                        </optgroup>
+                        <optgroup label="Metric">
+                            <option value="ml">mL</option>
+                            <option value="liter">liter</option>
+                            <option value="grams">grams</option>
+                            <option value="kg">kg</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="piece">piece</option>
+                            <option value="pinch">pinch</option>
+                            <option value="whole">whole</option>
+                        </optgroup>
+                    </select>
+                    <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
+                    <button id="ing-add" type="button"
+                            hx-get="/recipes/v1/ingredient-row"
+                            hx-include="#ing-qty, #ing-unit, #ing-name"
+                            hx-target="#ingredients-list"
+                            hx-swap="beforeend"
+                            hx-on::before-request="
+                                var qty = document.getElementById('ing-qty');
+                                var name = document.getElementById('ing-name');
+                                var valid = true;
+                                if (!qty.value.trim()) { qty.classList.add('input-error'); valid = false; } else { qty.classList.remove('input-error'); }
+                                if (!name.value.trim()) { name.classList.add('input-error'); valid = false; } else { name.classList.remove('input-error'); }
+                                if (!valid) { event.preventDefault(); }"
+                            hx-on::after-request="document.getElementById('ing-qty').value=''; document.getElementById('ing-unit').selectedIndex=0; document.getElementById('ing-name').value=''; document.getElementById('ing-qty').classList.remove('input-error'); document.getElementById('ing-name').classList.remove('input-error'); document.getElementById('ing-qty').focus();"
+                            class="btn-secondary">+ Add</button>
+                </div>
+            </div>
+
+            <!-- STEPS & Notes -->
+            <div class="section-block">
+                <div class="section-title">Steps</div>
+                <div id="steps-list" class="item-list"></div>
+                <div class="step-add-row">
+                    <textarea id="step-text" name="step" placeholder="Describe this step..."></textarea>
+                    <div class="step-add-bottom">
+                        <input type="text" id="step-note" name="note" placeholder="Note (optional)"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
+                        <button id="step-add" type="button"
+                                hx-get="/recipes/v1/step-row"
+                                hx-include="#step-text, #step-note"
+                                hx-target="#steps-list"
+                                hx-swap="beforeend"
+                                hx-on::before-request="
+                                    var step = document.getElementById('step-text');
+                                    if (!step.value.trim()) { step.classList.add('input-error'); event.preventDefault(); } else { step.classList.remove('input-error'); }"
+                                hx-on::after-request="document.getElementById('step-text').value=''; document.getElementById('step-note').value=''; document.getElementById('step-text').classList.remove('input-error');"
+                                class="btn-secondary">+ Add</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <button type="submit" class="btn-primary">Submit recipe</button>
+        </div>
+    </form>
+</div>
+</body>
+</html>

@@ -1,0 +1,15 @@
+body {
+    margin: 5;
+
+}
+
+.field {
+  flex: 1;
+  padding: 20px;
+}
+
+.field label 
+{
+  width: 100px;
+}
+
