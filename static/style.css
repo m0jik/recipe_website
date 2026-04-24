@@ -283,3 +283,195 @@ a {
 .recipe-section li {
     margin-bottom: 8px;
 }
+
+/* =========================
+   FORM SYSTEM (NEW RECIPE PAGES)
+========================= */
+
+.card {
+    max-width: 700px;
+    margin: 40px auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    overflow: hidden;
+}
+
+.card-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+}
+
+.card-header h2 {
+    margin: 0;
+}
+
+.card-body {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.card-footer {
+    padding: 20px;
+    border-top: 1px solid #eee;
+    text-align: right;
+}
+
+.field {
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
+}
+
+.field input,
+.field textarea,
+.field select {
+    padding: 10px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-family: inherit;
+    font-size: 14px;
+}
+
+.field textarea {
+    min-height: 100px;
+    resize: vertical;
+}
+
+button {
+    font-family: inherit;
+}
+
+button[type="submit"] {
+    background: #4a90e2;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+button[type="submit"]:hover {
+    background: #357bd8;
+}
+
+/* =========================
+   STEP 2 PAGE (INGREDIENTS + STEPS)
+========================= */
+
+.section-block {
+    margin-top: 20px;
+}
+
+.section-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+.item-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 10px;
+}
+
+/* ingredient / step row styling */
+.item-row {
+    background: #f9f9f9;
+    padding: 10px;
+    border-radius: 6px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+/* add row inputs */
+.add-row {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.add-row input,
+.add-row select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+/* step textarea block */
+.step-add-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.step-add-row textarea {
+    min-height: 80px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+.step-add-bottom {
+    display: flex;
+    gap: 8px;
+}
+
+.step-add-bottom input {
+    flex: 1;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+}
+
+/* =========================
+   BUTTON VARIANTS
+========================= */
+
+.btn-secondary {
+    background: #eee;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: #ddd;
+}
+
+.btn-primary {
+    background: #4a90e2;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background: #357bd8;
+}
+
+/* =========================
+   IMAGE PREVIEW
+========================= */
+
+.recipe-preview-img {
+    width: 100%;
+    max-height: 250px;
+    object-fit: cover;
+    border-bottom: 1px solid #eee;
+}
+
+/* =========================
+   INPUT STATES
+========================= */
+
+.input-error {
+    border: 1px solid red !important;
+    background: #fff5f5;
+}

@@ -1,0 +1,159 @@
+/* =========================
+   GLOBAL
+========================= */
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f6f8;
+    margin: 0;
+}
+
+/* =========================
+   CARD
+========================= */
+
+.card {
+    width: 700px;
+    margin: 40px auto;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 6px 18px rgba(0,0,0,0.08);
+    overflow: hidden;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+.card-header {
+    padding: 20px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+}
+
+.recipe-preview-img {
+    width: 100%;
+    max-height: 220px;
+    object-fit: cover;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
+
+/* =========================
+   BODY
+========================= */
+
+.card-body {
+    padding: 20px;
+}
+
+/* =========================
+   SECTIONS
+========================= */
+
+.section-block {
+    margin-bottom: 25px;
+}
+
+.section-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    font-size: 15px;
+}
+
+/* =========================
+   INGREDIENT ROW
+========================= */
+
+.add-row {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.add-row input,
+.add-row select {
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    font-size: 13px;
+}
+
+.qty {
+    width: 60px;
+}
+
+/* =========================
+   STEP AREA
+========================= */
+
+.step-add-row {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.step-add-row textarea {
+    height: 90px;
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    resize: none;
+}
+
+.step-add-bottom {
+    display: flex;
+    gap: 8px;
+}
+
+.step-add-bottom input {
+    flex: 1;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.btn-secondary {
+    background: #e9ecef;
+    border: none;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-secondary:hover {
+    background: #d6d8db;
+}
+
+.btn-primary {
+    background: #4a90e2;
+    color: white;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.btn-primary:hover {
+    background: #357bd8;
+}
+
+/* =========================
+   LIST PLACEHOLDERS
+========================= */
+
+.item-list {
+    margin-top: 10px;
+}
+
+/* =========================
+   ERROR STATE (YOU ALREADY USE THIS)
+========================= */
+
+.input-error {
+    border: 1px solid red !important;
+}
