@@ -466,12 +466,3 @@ button[type="submit"]:hover {
     object-fit: cover;
     border-bottom: 1px solid #eee;
 }
-
-/* =========================
-   INPUT STATES
-========================= */
-
-.input-error {
-    border: 1px solid red !important;
-    background: #fff5f5;
-}
