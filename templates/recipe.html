@@ -1,0 +1,60 @@
+<!doctype html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+
+<body>
+
+<div class="recipe-page">
+
+    <div class="recipe-header">
+        <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image">
+
+        <div class="recipe-info">
+            <h1>{{.Title}}</h1>
+            <p class="recipe-author">Created by: {{.Username}}</p>
+
+            <p class="recipe-description">
+                {{.Description}}
+            </p>
+        </div>
+    </div>
+
+    <div class="recipe-content">
+
+        <section class="recipe-section">
+            <h2>Ingredients</h2>
+            <ul>
+                {{range .Ingredients}}
+                    <li>{{.Quantity}} {{.Unit}} {{.Name}}</li>
+                {{else}}
+                    <li>No ingredients added</li>
+                {{end}}
+            </ul>
+        </section>
+
+        <section class="recipe-section">
+            <h2>Steps</h2>
+            <ol>
+                {{range .Steps}}
+                    <li>
+                        <p>{{.Instruction}}</p>
+                        {{if .Notes}}
+                            <small>{{.Notes}}</small>
+                        {{end}}
+                    </li>
+                {{else}}
+                    <li>No steps added</li>
+                {{end}}
+            </ol>
+        </section>
+
+    </div>
+
+</div>
+
+</body>
+</html>

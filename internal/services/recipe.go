@@ -10,6 +10,7 @@ type RecipeInfo struct {
 	Title       string
 	Description string
 	ImageURL    string
+	UserID      int64
 }
 
 type RecipeEditPageData struct {
@@ -262,7 +263,7 @@ func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
 
 func (r *RecipeService) Search(query string) ([]RecipeInfo, error) {
 	rows, err := r.DB.Query(
-		`SELECT id, title, description, image_url FROM recipesV1 WHERE title LIKE ? OR description LIKE ? ORDER BY created_at DESC`,
+		`SELECT id, title, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 WHERE title LIKE ? OR description LIKE ? ORDER BY created_at DESC`,
 		"%"+query+"%",
 		"%"+query+"%",
 	)
@@ -288,7 +289,7 @@ func (r *RecipeService) Search(query string) ([]RecipeInfo, error) {
 
 func (r *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	rows, err := r.DB.Query(
-		`SELECT id, title, description, image_url FROM recipesV1 ORDER BY created_at DESC`,
+		`SELECT id, title, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 ORDER BY created_at DESC`,
 	)
 	if err != nil {
 		return nil, err
@@ -306,4 +307,52 @@ func (r *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	}
 
 	return recipes, nil
+}
+
+func (r *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, int64, error) {
+	var title string
+	var userID int64
+	var description string
+	var imageURL string
+
+	err := r.DB.QueryRow(
+		"SELECT title, user_id, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 WHERE id = ?",
+		recipeID,
+	).Scan(&title, &userID, &description, &imageURL)
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	var versionID int64
+	err = r.DB.QueryRow(
+		"SELECT id FROM recipe_versionsV1 WHERE recipe_id = ? ORDER BY version_number DESC LIMIT 1",
+		recipeID,
+	).Scan(&versionID)
+
+	if err != nil {
+		return nil, 0, err
+	}
+
+	ingredients, err := r.GetIngredients(versionID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	steps, err := r.GetSteps(versionID)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return &RecipeEditPageData{
+		Recipe: RecipeInfo{
+			ID:          recipeID,
+			VersionID:   versionID,
+			Title:       title,
+			Description: description,
+			ImageURL:    imageURL,
+		},
+		Ingredients: ingredients,
+		Steps:       steps,
+	}, userID, nil
 }
