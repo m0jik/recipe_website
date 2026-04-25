@@ -154,11 +154,11 @@ func buildEmailSender(cfg *config.Config) (services.EmailSender, error) {
 	}
 }
 
-func newUserLoginFunction(stuffTheFunctionNeeds string) http.HandlerFunc {
-	return func(httpResponseWriter http.ResponseWriter, httpRequest *http.Request) {
+// func newUserLoginFunction(stuffTheFunctionNeeds string) http.HandlerFunc {
+// 	return func(httpResponseWriter http.ResponseWriter, httpRequest *http.Request) {
 
-	}
-}
+// 	}
+// }
 
 func hashPasswordArgon2id(password string) (string, error) {
 	salt := make([]byte, 16)
