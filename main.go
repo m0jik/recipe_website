@@ -54,7 +54,13 @@ func main() {
 		log.Printf("db open error: %v", err)
 		return
 	}
-	defer db.Close()
+
+	// defer db.Close()
+	defer func() {
+		if err := db.Close(); err != nil {
+			log.Println("Error closing DB:", err)
+		}
+	}()
 
 	log.Println("Running migrations...")
 	if err := sqlite.Migrate(db); err != nil {
@@ -261,17 +267,27 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tpl.ExecuteTemplate(w, "index.html", map[string]any{
+	err = tpl.ExecuteTemplate(w, "index.html", map[string]any{
 		"Username": username,
 		"Recipes":  recipes,
 		"Query":    query,
 	})
+	if err != nil {
+		log.Printf("Error rendering index template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		tpl.ExecuteTemplate(w, "register.html", nil)
+		err := tpl.ExecuteTemplate(w, "register.html", nil)
+		if err != nil {
+			log.Printf("Error rendering register template: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
@@ -351,7 +367,12 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		tpl.ExecuteTemplate(w, "login.html", nil)
+		err := tpl.ExecuteTemplate(w, "login.html", nil)
+		if err != nil {
+			log.Printf("Error rendering login template: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
@@ -362,7 +383,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		pass := r.FormValue("password")
 		var id int
 		var hash string
-		//row := a.DB.QueryRow("SELECT id, password_hash FROM usersV1 WHERE username = ?", username)
+		// row := a.DB.QueryRow("SELECT id, password_hash FROM usersV1 WHERE username = ?", username)
 
 		id, hash, err := a.Users.GetUserCredentials(email)
 		if err != nil {
@@ -420,7 +441,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie(cookieName)
 	if err == nil {
-		//a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		// a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
 
 		if err := a.Users.DeleteSession(c.Value); err != nil {
 			http.Error(w, "could not delete session", http.StatusInternalServerError)
@@ -441,7 +462,13 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		tpl.ExecuteTemplate(w, "request_reset.html", nil)
+		err := tpl.ExecuteTemplate(w, "request_reset.html", nil)
+		if err != nil {
+			log.Printf("Error rendering request_reset template: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
@@ -493,7 +520,13 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		token := r.URL.Query().Get("token")
-		tpl.ExecuteTemplate(w, "reset.html", map[string]string{"Token": token})
+		err := tpl.ExecuteTemplate(w, "reset.html", map[string]string{"Token": token})
+		if err != nil {
+			log.Printf("Error rendering reset template: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
 		return
 	case http.MethodPost:
 		if err := r.ParseForm(); err != nil {
@@ -581,14 +614,21 @@ func (a *App) getUserIDFromSession(r *http.Request) (int, bool) {
 
 	exp, err := time.Parse(time.RFC3339, expiresStr)
 	if err != nil {
-		//a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
-		a.Users.DeleteSession(c.Value)
+		// a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		log.Printf("Initial error: %v", err)
+		err = a.Users.DeleteSession(c.Value)
+		if err != nil {
+			log.Printf("Error deleting session: %v", err)
+		}
 		return 0, false
 	}
 
 	if time.Now().After(exp) {
-		//a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
-		a.Users.DeleteSession(c.Value)
+		// a.DB.Exec("DELETE FROM sessionsV1 WHERE id = ?", c.Value)
+		err := a.Users.DeleteSession(c.Value)
+		if err != nil {
+			log.Printf("Error deleting session: %v", err)
+		}
 		return 0, false
 	}
 
@@ -615,18 +655,33 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, _ := a.Users.GetUsernameByID(userID)
+	username, err := a.Users.GetUsernameByID(userID)
+	if err != nil {
+		log.Printf("Error getting username for user ID %d: %v", userID, err)
+		http.Error(w, "could not load user info", http.StatusInternalServerError)
+		return
+	}
 
-	tpl.ExecuteTemplate(w, "myRecipes.html", map[string]any{
+	err = tpl.ExecuteTemplate(w, "myRecipes.html", map[string]any{
 		"Username": username,
 		"Recipes":  recipes,
 	})
+	if err != nil {
+		log.Printf("Error rendering template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		tpl.ExecuteTemplate(w, "pageOne.html", nil)
+		err := tpl.ExecuteTemplate(w, "pageOne.html", nil)
+		if err != nil {
+			log.Printf("Error rendering pageOne template: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
 	case http.MethodPost:
 		a.handleNewRecipePost(w, r)
 	}
@@ -642,7 +697,11 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 
 	file, header, err := r.FormFile("myfile")
 	if err == nil {
-		defer file.Close()
+		defer func() {
+			if err := file.Close(); err != nil {
+				log.Println("Error closing file:", err)
+			}
+		}()
 		imagePath, err = a.Images.Process(file, header)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
@@ -650,28 +709,43 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	tpl.ExecuteTemplate(w, "pageTwo.html", map[string]any{
+	err = tpl.ExecuteTemplate(w, "pageTwo.html", map[string]any{
 		"Title":       r.FormValue("title"),
 		"Description": r.FormValue("description"),
 		"Image":       imagePath,
 		// add servings
 		// prep time
 	})
+	if err != nil {
+		log.Printf("Error rendering pageTwo template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
-	tpl.ExecuteTemplate(w, "ingredient-row", map[string]string{
+	err := tpl.ExecuteTemplate(w, "ingredient-row", map[string]string{
 		"Qty":  r.URL.Query().Get("qty"),
 		"Unit": r.URL.Query().Get("unit"),
 		"Name": r.URL.Query().Get("name"),
 	})
+	if err != nil {
+		log.Printf("Error rendering ingredient row: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *App) handleStepRow(w http.ResponseWriter, r *http.Request) {
-	tpl.ExecuteTemplate(w, "step-row", map[string]string{
+	err := tpl.ExecuteTemplate(w, "step-row", map[string]string{
 		"Instruction": r.URL.Query().Get("step"),
 		"Note":        r.URL.Query().Get("note"),
 	})
+	if err != nil {
+		log.Printf("Error rendering step row: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }
 
 func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
@@ -717,7 +791,6 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	default:
 		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
 	}
-
 }
 
 func (a *App) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
@@ -763,7 +836,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		username = "Unknown"
 	}
 
-	tpl.ExecuteTemplate(w, "recipe.html", map[string]any{
+	err = tpl.ExecuteTemplate(w, "recipe.html", map[string]any{
 		"Title":       data.Recipe.Title,
 		"Description": data.Recipe.Description,
 		"ImageURL":    data.Recipe.ImageURL,
@@ -771,9 +844,10 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		"Steps":       data.Steps,
 		"Username":    username,
 	})
-
 	if err != nil {
+		log.Printf("Error rendering recipe template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)
+		return
 	}
 }
 
