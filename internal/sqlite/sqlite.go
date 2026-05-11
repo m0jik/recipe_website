@@ -1,3 +1,4 @@
+// Package sqlite provides functions to interact with the SQLite database, including connection management and schema migration.
 package sqlite
 
 import (

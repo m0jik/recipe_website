@@ -1,6 +1,8 @@
 package services
 
 import (
+	"log"
+
 	"github.com/jmoiron/sqlx"
 )
 
@@ -179,7 +181,14 @@ func (s *RecipeService) GetIngredients(recipeVersionID int64) ([]Ingredient, err
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
+	// defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
+
 	for rows.Next() {
 		var i Ingredient
 		if err := rows.Scan(&i.ID, &i.RecipeVersionID, &i.Name, &i.Quantity, &i.Unit); err != nil {
@@ -198,7 +207,14 @@ func (s *RecipeService) GetSteps(recipeVersionID int64) ([]Step, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
+	// defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
+
 	for rows.Next() {
 		var st Step
 		if err := rows.Scan(&st.ID, &st.RecipeVersionID, &st.StepNumber, &st.Instruction, &st.Notes); err != nil {
@@ -231,7 +247,14 @@ func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
+	// defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
+
 	var recipes []RecipeInfo
 	for rows.Next() {
 		var ri RecipeInfo
@@ -261,17 +284,22 @@ func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
 	return versionID, nil
 }
 
-func (r *RecipeService) Search(query string) ([]RecipeInfo, error) {
-	rows, err := r.DB.Query(
+func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
+	rows, err := s.DB.Query(
 		`SELECT id, title, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 WHERE title LIKE ? OR description LIKE ? ORDER BY created_at DESC`,
 		"%"+query+"%",
 		"%"+query+"%",
 	)
-
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
+	// defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
 
 	var recipes []RecipeInfo
 
@@ -287,14 +315,20 @@ func (r *RecipeService) Search(query string) ([]RecipeInfo, error) {
 	return recipes, nil
 }
 
-func (r *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
-	rows, err := r.DB.Query(
+func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
+	rows, err := s.DB.Query(
 		`SELECT id, title, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 ORDER BY created_at DESC`,
 	)
 	if err != nil {
 		return nil, err
 	}
-	defer rows.Close()
+
+	// defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
 
 	var recipes []RecipeInfo
 
@@ -309,37 +343,35 @@ func (r *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	return recipes, nil
 }
 
-func (r *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, int64, error) {
+func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, int64, error) {
 	var title string
 	var userID int64
 	var description string
 	var imageURL string
 
-	err := r.DB.QueryRow(
+	err := s.DB.QueryRow(
 		"SELECT title, user_id, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 WHERE id = ?",
 		recipeID,
 	).Scan(&title, &userID, &description, &imageURL)
-
 	if err != nil {
 		return nil, 0, err
 	}
 
 	var versionID int64
-	err = r.DB.QueryRow(
+	err = s.DB.QueryRow(
 		"SELECT id FROM recipe_versionsV1 WHERE recipe_id = ? ORDER BY version_number DESC LIMIT 1",
 		recipeID,
 	).Scan(&versionID)
-
 	if err != nil {
 		return nil, 0, err
 	}
 
-	ingredients, err := r.GetIngredients(versionID)
+	ingredients, err := s.GetIngredients(versionID)
 	if err != nil {
 		return nil, 0, err
 	}
 
-	steps, err := r.GetSteps(versionID)
+	steps, err := s.GetSteps(versionID)
 	if err != nil {
 		return nil, 0, err
 	}

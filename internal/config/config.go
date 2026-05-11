@@ -1,7 +1,9 @@
+// Package config provides functionality for loading and managing application configuration from a JSON file and environment variables.
 package config
 
 import (
 	"encoding/json"
+	"log"
 	"os"
 	"strconv"
 )
@@ -41,7 +43,13 @@ func Load(path string) (*Config, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+
+	// f.Close()
+	defer func() {
+		if err := f.Close(); err != nil {
+			log.Println("Error closing config file:", err)
+		}
+	}()
 
 	var cfg Config
 	if err := json.NewDecoder(f).Decode(&cfg); err != nil {
@@ -76,10 +84,18 @@ func applyEnvOverrides(cfg *Config) {
 		}
 	}
 	if v := os.Getenv("EMAIL_FROM"); v != "" {
-		if cfg.Email.Provider == "smtp" {
+		// if cfg.Email.Provider == "smtp" {
+		// 	cfg.Email.SMTP.From = v
+		// } else if cfg.Email.Provider == "ses" {
+		// 	cfg.Email.SES.From = v
+		// }
+		switch cfg.Email.Provider {
+		case "smtp":
 			cfg.Email.SMTP.From = v
-		} else if cfg.Email.Provider == "ses" {
+		case "ses":
 			cfg.Email.SES.From = v
+		default:
+			log.Printf("Uknown email provider '%s', cannot set 'From' address from environment variable", cfg.Email.Provider)
 		}
 	}
 	if v := os.Getenv("EMAIL_PASSWORD"); v != "" {
