@@ -19,9 +19,11 @@ import (
 	"golang.org/x/image/draw"
 )
 
-// can be updated
-const MaxImageBytes = 2 << 20 // 2 MB
-const MaxImageWidth = 1280
+// MaxImageBytes and MaxImageWidth can be updated
+const (
+	MaxImageBytes = 2 << 20 // 2 MB
+	MaxImageWidth = 1280
+)
 
 // ImageCodec handles reading and saving one image format (e.g. JPEG or PNG)
 // Add a new format by calling RegisterCodec — no other code needs to change
@@ -54,9 +56,11 @@ type pngCodec struct{}
 func (pngCodec) Decode(r io.Reader) (image.Image, error) {
 	return png.Decode(r)
 }
+
 func (pngCodec) Encode(w io.Writer, img image.Image) error {
 	return png.Encode(w, img)
 }
+
 func (pngCodec) Ext() string {
 	return ".png"
 }
@@ -73,13 +77,14 @@ var codecs = map[string]ImageCodec{
 // RegisterCodec adds (or replaces) the codec for a MIME type.
 // Call this once at startup, e.g. in an init() in your webp package:
 
-// services.RegisterCodec("image/webp", webpCodec{})
+// RegisterCodec : services.RegisterCodec("image/webp", webpCodec{})
 func RegisterCodec(mimeType string, c ImageCodec) {
 	codecs[mimeType] = c
 }
 
 // ImageStore is the interface for persisting an image file.
 
+// ImageStore saves images.
 // LocalStore is the default; provide a different implementation by passing it to NewImageService.
 type ImageStore interface {
 	Save(filename string, data []byte) (string, error)
@@ -91,17 +96,17 @@ type LocalStore struct {
 }
 
 func (l *LocalStore) Save(filename string, data []byte) (string, error) {
-	if err := os.MkdirAll(l.Dir, 0755); err != nil {
+	if err := os.MkdirAll(l.Dir, 0o755); err != nil {
 		return "", fmt.Errorf("could not create upload dir: %w", err)
 	}
 	path := filepath.Join(l.Dir, filename)
-	if err := os.WriteFile(path, data, 0644); err != nil {
+	if err := os.WriteFile(path, data, 0o644); err != nil {
 		return "", fmt.Errorf("could not write file: %w", err)
 	}
 	return "/uploads/" + filename, nil
 }
 
-// ImageService
+// ImageService handles image processing pipeline.
 type ImageService struct {
 	Store    ImageStore
 	MaxBytes int64

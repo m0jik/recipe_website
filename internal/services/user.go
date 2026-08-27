@@ -1,3 +1,4 @@
+// Package services provides the UserService struct and its methods for managing user accounts, sessions, password resets, and email verification.
 package services
 
 import (
@@ -7,9 +8,7 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-var (
-	ErrUserExists = errors.New("user already exists")
-)
+var ErrUserExists = errors.New("user already exists")
 
 type UserService struct {
 	DB *sqlx.DB
