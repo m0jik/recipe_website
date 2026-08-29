@@ -2,14 +2,16 @@
 package sqlite
 
 import (
+	"fmt"
+
 	"github.com/jmoiron/sqlx"
-	_ "github.com/mattn/go-sqlite3"
+	_ "modernc.org/sqlite"
 )
 
 func New(path string) (*sqlx.DB, error) {
-	db, err := sqlx.Open("sqlite3", path)
+	db, err := sqlx.Open("sqlite", path)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to open sqlite db: %w", err)
 	}
 	return db, nil
 }

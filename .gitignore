@@ -1,3 +1,5 @@
 *.swp
 uploads/*
 .vscode/*
+.idea/
+recipe_website.exe
