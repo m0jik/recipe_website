@@ -7,12 +7,14 @@ import (
 )
 
 type RecipeInfo struct {
-	ID          int64 // recipe ID
-	VersionID   int64 // current version ID
-	Title       string
-	Description string
-	ImageURL    string
-	UserID      int64
+	ID              int64 // recipe ID
+	VersionID       int64 // current version ID
+	Title           string
+	Description     string
+	ImageURL        string
+	UserID          int64
+	Servings        int
+	PrepTimeMinutes int
 }
 
 type RecipeEditPageData struct {
@@ -45,13 +47,15 @@ func NewRecipeService(db *sqlx.DB) *RecipeService {
 	return &RecipeService{DB: db}
 }
 
-func (s *RecipeService) CreateRecipe(userID int, title, imageURL string, description string) (int64, error) {
+func (s *RecipeService) CreateRecipe(userID int, title, imageURL string, description string, servings int, prepTimeMinutes int) (int64, error) {
 	result, err := s.DB.Exec(
-		"INSERT INTO recipesV1(user_id, title, image_url, description) VALUES (?, ?, ?, ?)",
+		"INSERT INTO recipesV1(user_id, title, image_url, description, servings, prep_time_minutes) VALUES (?, ?, ?, ?, ?, ?)",
 		userID,
 		title,
 		imageURL,
 		description,
+		servings,
+		prepTimeMinutes,
 	)
 	if err != nil {
 		return 0, err
@@ -348,11 +352,13 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 	var userID int64
 	var description string
 	var imageURL string
+	var servings int
+	var prepTimeMinutes int
 
 	err := s.DB.QueryRow(
-		"SELECT title, user_id, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 WHERE id = ?",
+		"SELECT title, user_id, COALESCE(description, ''), COALESCE(image_url, ''), COALESCE(servings, 0), COALESCE(prep_time_minutes, 0) FROM recipesV1 WHERE id = ?",
 		recipeID,
-	).Scan(&title, &userID, &description, &imageURL)
+	).Scan(&title, &userID, &description, &imageURL, &servings, &prepTimeMinutes)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -378,11 +384,13 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 
 	return &RecipeEditPageData{
 		Recipe: RecipeInfo{
-			ID:          recipeID,
-			VersionID:   versionID,
-			Title:       title,
-			Description: description,
-			ImageURL:    imageURL,
+			ID:              recipeID,
+			VersionID:       versionID,
+			Title:           title,
+			Description:     description,
+			ImageURL:        imageURL,
+			Servings:        servings,
+			PrepTimeMinutes: prepTimeMinutes,
 		},
 		Ingredients: ingredients,
 		Steps:       steps,

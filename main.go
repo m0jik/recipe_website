@@ -155,6 +155,8 @@ func buildEmailSender(cfg *config.Config) (services.EmailSender, error) {
 			cfg.Email.SES.From,
 			cfg.Email.SES.AWSConfigurationSet,
 		)
+	// case "noop":
+	// 	return services.NoopEmail{}, nil
 	default:
 		return nil, errors.New("unsupported email provider: " + cfg.Email.Provider)
 	}
@@ -713,8 +715,8 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 		"Title":       r.FormValue("title"),
 		"Description": r.FormValue("description"),
 		"Image":       imagePath,
-		// add servings
-		// prep time
+		"Servings":    r.FormValue("servings"),
+		"PrepTime":    r.FormValue("prep_time_minutes"),
 	})
 	if err != nil {
 		log.Printf("Error rendering pageTwo template: %v", err)
@@ -766,7 +768,12 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		recipeID, err := a.Recipes.CreateRecipe(userID, r.FormValue("title"), r.FormValue("image"), r.FormValue("description"))
+		servings, _ := strconv.Atoi(r.FormValue("servings"))
+		prepTimeMinutes, _ := strconv.Atoi(r.FormValue("prep_time_minutes"))
+
+		// needs to be fixed becasue
+		// - bachSaveIngredients and BatchSaveSteps commits the instant it runs (no transaction wrapping any of this)
+		recipeID, err := a.Recipes.CreateRecipe(userID, r.FormValue("title"), r.FormValue("image"), r.FormValue("description"), servings, prepTimeMinutes)
 		if err != nil {
 			http.Error(w, "could not create recipe", http.StatusInternalServerError)
 			return
@@ -778,6 +785,7 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		// fails partway through ( some ingredients row may already be commited)
 		if err := a.Recipes.BatchSaveIngredients(versionID, r.Form["ingredient_name"], r.Form["ingredient_qty"], r.Form["ingredient_unit"]); err != nil {
 			http.Error(w, "could not save ingredients", http.StatusInternalServerError)
 			return
@@ -837,12 +845,14 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = tpl.ExecuteTemplate(w, "recipe.html", map[string]any{
-		"Title":       data.Recipe.Title,
-		"Description": data.Recipe.Description,
-		"ImageURL":    data.Recipe.ImageURL,
-		"Ingredients": data.Ingredients,
-		"Steps":       data.Steps,
-		"Username":    username,
+		"Title":           data.Recipe.Title,
+		"Description":     data.Recipe.Description,
+		"ImageURL":        data.Recipe.ImageURL,
+		"Ingredients":     data.Ingredients,
+		"Steps":           data.Steps,
+		"Username":        username,
+		"Servings":        data.Recipe.Servings,
+		"PrepTimeMinutes": data.Recipe.PrepTimeMinutes,
 	})
 	if err != nil {
 		log.Printf("Error rendering recipe template: %v", err)
