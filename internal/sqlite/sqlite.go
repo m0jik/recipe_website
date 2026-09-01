@@ -41,6 +41,8 @@ func Migrate(db *sqlx.DB) error {
 		title TEXT NOT NULL,
 		image_url TEXT,
 		description TEXT,
+		servings INTEGER,
+		prep_time_minutes INTEGER,
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
 
