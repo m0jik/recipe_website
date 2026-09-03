@@ -54,6 +54,18 @@
                           placeholder="Describe the dish (optional)">{{ .Description }}</textarea>
             </div>
 
+            <div class="field">
+                <label for="servings">Servings</label>
+                <input type="number" id="servings" name="servings" min="1"
+                       placeholder="e.g. 4" value="{{ .Servings }}">
+            </div>
+
+            <div class="field">
+                <label for="prep_time_minutes">Prep time (minutes)</label>
+                <input type="number" id="prep_time_minutes" name="prep_time_minutes" min="0"
+                       placeholder="e.g. 30" value="{{ .PrepTime }}">
+            </div>
+
         </div>
 
         <div class="card-footer">

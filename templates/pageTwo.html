@@ -47,6 +47,8 @@
         <input type="hidden" name="title" value="{{ .Title }}">
         <input type="hidden" name="description" value="{{ .Description }}">
         <input type="hidden" name="image" value="{{ .Image }}">
+        <input type="hidden" name="servings" value="{{ .Servings }}">
+        <input type="hidden" name="prep_time_minutes" value="{{ .PrepTime }}">
 
         <div class="card-body">
 
@@ -81,18 +83,10 @@
                         </optgroup>
                     </select>
 
-                    <input type="text"
-                           id="ing-name"
-                           name="name"
-                           placeholder="Ingredient name"
+                    <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
                            onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
 
-                    <button id="ing-add" type="button"
-                            hx-get="/recipes/v1/ingredient-row"
-                            hx-include="#ing-qty, #ing-unit, #ing-name"
-                            hx-target="#ingredients-list"
-                            hx-swap="beforeend"
-                            class="btn-secondary">
+                    <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
                         + Add
                     </button>
                 </div>
