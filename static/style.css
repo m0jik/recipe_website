@@ -466,3 +466,48 @@ button[type="submit"]:hover {
     object-fit: cover;
     border-bottom: 1px solid #eee;
 }
+
+/* =========================
+   INPUT STATES
+========================= */
+
+.input-error {
+    border: 1px solid red !important;
+    background: #fff5f5;
+}
+
+/* Printing Formatting */
+@media print {
+    body {
+        font-size: auto;
+    }
+
+    .recipe-image {
+        display: none;
+    }
+
+    .recipe-header {
+        padding: 10px;
+        break-inside: avoid;
+    }
+
+    .recipe-section {
+        padding: 10px;
+        break-inside: avoid;
+        p {
+            margin: 0;
+        }
+    }
+
+    .recipe-content {
+        gap: 0;
+        
+    }
+
+    .recipe-page {
+        margin: 0;
+        padding: 0;
+        column-count: auto;
+        column-width: 18rem;
+    }
+}
