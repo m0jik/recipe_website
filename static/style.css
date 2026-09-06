@@ -478,6 +478,10 @@ button[type="submit"]:hover {
 
 /* Printing Formatting */
 @media print {
+    @page {
+        margin: 5px;
+    }
+
     body {
         font-size: auto;
     }
@@ -487,27 +491,42 @@ button[type="submit"]:hover {
     }
 
     .recipe-header {
-        padding: 10px;
+        margin-bottom: 5px;
         break-inside: avoid;
     }
 
     .recipe-section {
-        padding: 10px;
-        break-inside: avoid;
+        break-inside: avoid-column;
         p {
             margin: 0;
+        }
+        li {
+            break-inside: avoid;
         }
     }
 
     .recipe-content {
-        gap: 0;
-        
+        gap: 10px;
     }
 
     .recipe-page {
+        height: auto;
+        width: 100%;
+        break-inside: avoid;
         margin: 0;
         padding: 0;
-        column-count: auto;
-        column-width: 18rem;
+        column-width: auto;
+    }
+}
+
+@media print and ( orientation: landscape ) {
+    .recipe-page {
+        column-count: 3;
+    }
+}
+
+@media print and ( orientation: portrait ) {
+    .recipe-page {
+        column-count: 2;
     }
 }
