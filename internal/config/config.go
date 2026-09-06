@@ -10,7 +10,6 @@ import (
 
 type EmailConfig struct {
 	Provider string      `json:"provider"`
-	SES      *SESConfig  `json:"ses"`
 	SMTP     *SMTPConfig `json:"smtp"`
 }
 
@@ -19,12 +18,6 @@ type SMTPConfig struct {
 	Port     int    `json:"port"`
 	From     string `json:"from"`
 	Password string `json:"password"`
-}
-
-type SESConfig struct {
-	From                string `json:"from"`
-	AWSRegion           string `json:"aws_region"`
-	AWSConfigurationSet string `json:"aws_configuration_set"`
 }
 
 type Config struct {
@@ -84,16 +77,9 @@ func applyEnvOverrides(cfg *Config) {
 		}
 	}
 	if v := os.Getenv("EMAIL_FROM"); v != "" {
-		// if cfg.Email.Provider == "smtp" {
-		// 	cfg.Email.SMTP.From = v
-		// } else if cfg.Email.Provider == "ses" {
-		// 	cfg.Email.SES.From = v
-		// }
 		switch cfg.Email.Provider {
 		case "smtp":
 			cfg.Email.SMTP.From = v
-		case "ses":
-			cfg.Email.SES.From = v
 		default:
 			log.Printf("Uknown email provider '%s', cannot set 'From' address from environment variable", cfg.Email.Provider)
 		}
@@ -101,16 +87,6 @@ func applyEnvOverrides(cfg *Config) {
 	if v := os.Getenv("EMAIL_PASSWORD"); v != "" {
 		if cfg.Email.Provider == "smtp" {
 			cfg.Email.SMTP.Password = v
-		}
-	}
-	if v := os.Getenv("AWS_REGION"); v != "" {
-		if cfg.Email.Provider == "ses" {
-			cfg.Email.SES.AWSRegion = v
-		}
-	}
-	if v := os.Getenv("AWS_SES_CONFIGURATION_SET"); v != "" {
-		if cfg.Email.Provider == "ses" {
-			cfg.Email.SES.AWSConfigurationSet = v
 		}
 	}
 	if v := os.Getenv("EMAIL_PORT"); v != "" {

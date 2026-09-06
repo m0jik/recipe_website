@@ -148,13 +148,6 @@ func buildEmailSender(cfg *config.Config) (services.EmailSender, error) {
 			cfg.Email.SMTP.From,
 			cfg.Email.SMTP.Password,
 		), nil
-	case "ses":
-		return services.NewSESEmail(
-			context.Background(),
-			cfg.Email.SES.AWSRegion,
-			cfg.Email.SES.From,
-			cfg.Email.SES.AWSConfigurationSet,
-		)
 	// case "noop":
 	// 	return services.NoopEmail{}, nil
 	default:
