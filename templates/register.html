@@ -5,7 +5,7 @@
         <title>Register</title>
         <link rel="stylesheet" href="/static/style.css">
     </head>
-    <body class="auth-page">
+    <body>
         <header class="navbar">
             <div class="nav-left">
                 <div class="logo">Jacob's Grub</div>
@@ -27,19 +27,21 @@
                 {{ end }}
             </div>
         </header>
-        <div class="auth-container">
-            <h2>Register</h2>
-            <form method="post" action="/users/v1/register">
-                <label>Username: <input name="username" type="text" placeholder="Username" required></label><br>
-                <label>Email: <input name="email" type="email" placeholder="Email" required></label><br>
-                <label>Password: <input name="password" type="password" placeholder="Password" required></label><br>
-                <label>Confirm Password: <input name="confirm_password" type="password" placeholder="Confirm Password" required></label><br>
-                <button type="submit">Register</button>
-            </form>
-            <p>
-                Already have an account?
-                <a href="/users/v1/login">Login</a>
-            </p>
+        <div class="auth-page">
+            <div class="auth-container">
+                <h2>Register</h2>
+                <form method="post" action="/users/v1/register">
+                    <label>Username: <input name="username" type="text" placeholder="Username" required></label><br>
+                    <label>Email: <input name="email" type="email" placeholder="Email" required></label><br>
+                    <label>Password: <input name="password" type="password" placeholder="Password" required></label><br>
+                    <label>Confirm Password: <input name="confirm_password" type="password" placeholder="Confirm Password" required></label><br>
+                    <button type="submit">Register</button>
+                </form>
+                <p>
+                    Already have an account?
+                    <a href="/users/v1/login">Login</a>
+                </p>
+            </div>
         </div>
     </body>
 </html>

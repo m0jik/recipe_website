@@ -5,7 +5,7 @@
         <title>Forgot Password</title>
         <link rel="stylesheet" href="/static/style.css">
     </head>
-    <body class="auth-page">
+    <body>
         <header class="navbar">
             <div class="nav-left">
                 <div class="logo">Jacob's Grub</div>
@@ -27,13 +27,15 @@
                 {{ end }}
             </div>
         </header>
-        <div class="auth-container">
-            <h2>Forgot Password</h2>
-            <p>Enter your email to receive a password reset link.</p>
-            <form method="post">
-                <input name="email" type="email" placeholder="Email" required>
-                <button type="submit">Send Reset Link</button>
-            </form>
+        <div class="auth-page">
+            <div class="auth-container">
+                <h2>Forgot Password</h2>
+                <p>Enter your email to receive a password reset link.</p>
+                <form method="post">
+                    <input name="email" type="email" placeholder="Email" required>
+                    <button type="submit">Send Reset Link</button>
+                </form>
+            </div>
         </div>
     </body>
 </html>

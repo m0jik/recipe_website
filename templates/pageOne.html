@@ -55,6 +55,12 @@
             </div>
 
             <div class="field">
+                <label for="Tags">Tags</label>
+                <input type="text" id="tags" name="tags" 
+                       placeholder="e.g. Italian, Dinner, Quick">
+            </div>
+
+            <div class="field">
                 <label for="servings">Servings</label>
                 <input type="number" id="servings" name="servings" min="1"
                        placeholder="e.g. 4" value="{{ .Servings }}">
