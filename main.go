@@ -29,12 +29,13 @@ var tpl = template.Must(template.ParseGlob("templates/*.html"))
 const cookieName = "session_id"
 
 type App struct {
-	DB      *sqlx.DB
-	Cfg     *config.Config
-	Users   *services.UserService
-	Recipes *services.RecipeService
-	Email   services.EmailSender
-	Images  *services.ImageService
+	DB       *sqlx.DB
+	Cfg      *config.Config
+	Users    *services.UserService
+	Recipes  *services.RecipeService
+	Email    services.EmailSender
+	Images   *services.ImageService
+	Shopping *services.ShoppingListService
 }
 
 func main() {
@@ -101,6 +102,9 @@ func main() {
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
 	mux.HandleFunc("/recipes/v1/myRecipe", app.handleMyRecipes)
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
+
+	//Shopping List
+	mux.HandleFunc("/shopping-list/v1", app.handleShoppingList)
 
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
@@ -871,4 +875,34 @@ func generateToken() (string, error) { // email/reset tokens
 
 func emailLink(url, text string) string {
 	return `<a href="` + url + `">` + text + `</a>`
+}
+
+// Shopping List
+
+func (a *App) handleShoppingList(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		userID, ok := a.getUserIDFromSession(r)
+		if !ok {
+			http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+			return
+		}
+
+		username, err := a.Users.GetUsernameByID(userID)
+		if err != nil {
+			log.Printf("Error getting username for user ID %d: %v", userID, err)
+			http.Error(w, "could not load user info", http.StatusInternalServerError)
+			return
+		}
+
+		err = tpl.ExecuteTemplate(w, "shoppingList.html", map[string]any{
+			"Username": username,
+		})
+		if err != nil {
+			log.Printf("Error rendering shopping list template: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
 }
