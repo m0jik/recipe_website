@@ -89,6 +89,24 @@ func Migrate(db *sqlx.DB) error {
 		expires_at DATETIME NOT NULL,
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
+	
+	CREATE TABLE IF NOT EXISTS userPantryV1 (
+		user_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		quantity TEXT NOT NULL,
+		unit TEXT NOT NULL DEFAULT '',
+		PRIMARY KEY (user_id, name, unit),
+		FOREIGN KEY (user_id) REFERENCES usersV1(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS userShoppingListV1 (
+		user_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		quantity TEXT NOT NULL,
+		unit TEXT NOT NULL DEFAULT '',
+		PRIMARY KEY (user_id, name, unit),
+		FOREIGN KEY (user_id) REFERENCES usersV1(id)
+	);
 	`
 	_, err := db.Exec(schema)
 	return err

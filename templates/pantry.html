@@ -2,16 +2,66 @@
 <html lang="en">
     <head>
         <meta charset="utf-8">
-        <title>Shopping List</title>
+        <title>Pantry</title>
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
         <link rel="stylesheet" href="/static/style.css">
     </head>
     <body>
         {{template "nav" .}}
         <main class="container">
-            <section class="recipes">
-                <h2>Pantry</h2>
-                <p>Pantry is empty.</p>
-            </section>
+            {{template "pantry-section" .}}
         </main>
     </body>
 </html>
+{{ define "pantry-section" }}
+<section class="recipes" id="pantry-section">
+    <h2>Pantry</h2>
+
+    {{ if .Error }}
+        <p class="form-error" role="alert">{{ .Error }}</p>
+    {{ end }}
+
+    {{ if .Items }}
+        <div id="pantry-list" class="item-list">
+            {{ range .Items }}
+                {{template "pantry-row" .}}
+            {{ end }}
+        </div>
+    {{ else }}
+        <p>Pantry is empty.</p>
+    {{ end }}
+
+    <div class="add-row">
+        <input type="text" id="pantry-qty" name="quantity" placeholder="2" class="qty">
+
+        <select id="pantry-unit" name="unit">
+            <option value="" disabled selected>Unit</option>
+            <optgroup label="US">
+                <option value="cup">cup</option>
+                <option value="tbsp">tbsp</option>
+                <option value="tsp">tsp</option>
+                <option value="oz">oz</option>
+                <option value="lb">lb</option>
+            </optgroup>
+            <optgroup label="Metric">
+                <option value="ml">mL</option>
+                <option value="liter">liter</option>
+                <option value="grams">grams</option>
+                <option value="kg">kg</option>
+            </optgroup>
+            <optgroup label="Other">
+                <option value="piece">piece</option>
+                <option value="pinch">pinch</option>
+                <option value="whole">whole</option>
+            </optgroup>
+        </select>
+
+        <input type="text" id="pantry-name" name="name" placeholder="Ingredient name"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('pantry-add').click();}">
+
+        <button id="pantry-add" type="button" hx-post="/pantry/v1/add" hx-include="#pantry-qty, #pantry-unit, #pantry-name" hx-target="#pantry-section" hx-swap="outerHTML" class="btn-secondary">
+            + Add
+        </button>
+    </div>
+</section>
+{{ end }}

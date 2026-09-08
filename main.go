@@ -110,6 +110,8 @@ func main() {
 	mux.HandleFunc("/shopping-list/v1", app.handleShoppingList)
 
 	//Pantry
+	mux.HandleFunc("/pantry/v1/add", app.handlePantryAdd)
+	mux.HandleFunc("/pantry/v1/remove", app.handlePantryRemove)
 	mux.HandleFunc("/pantry/v1/", app.handlePantry)
 
 	// path
@@ -929,14 +931,94 @@ func (a *App) handlePantry(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
+		items, err := a.Pantry.GetPantryItems(userID)
+		if err != nil {
+			log.Printf("Error getting pantry items for user ID %d: %v", userID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
 		err = tpl.ExecuteTemplate(w, "pantry.html", map[string]any{
 			"Username": username,
+			"Items":    items,
 		})
 		if err != nil {
 			log.Printf("Error rendering pantry template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
+		return
+	}
+}
+
+func (a *App) handlePantryAdd(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
+		return
+	}
+
+	name := r.FormValue("name")
+	if name != "" {
+		if err := a.Pantry.AddPantryItem(userID, name, r.FormValue("quantity"), r.FormValue("unit")); err != nil {
+			if errors.Is(err, services.ErrInvalidQuantity) {
+				a.renderPantrySection(w, userID, "Enter a quantity like 2, 1/2 or 1 1/2.")
+				return
+			}
+			log.Printf("Error adding pantry item for user ID %d: %v", userID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	a.renderPantrySection(w, userID, "")
+}
+
+func (a *App) handlePantryRemove(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodDelete {
+		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+
+	if err := a.Pantry.RemovePantryItem(userID, r.URL.Query().Get("name"), r.URL.Query().Get("unit")); err != nil {
+		log.Printf("Error removing pantry item for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	a.renderPantrySection(w, userID, "")
+}
+
+func (a *App) renderPantrySection(w http.ResponseWriter, userID int, errMsg string) {
+	items, err := a.Pantry.GetPantryItems(userID)
+	if err != nil {
+		log.Printf("Error getting pantry items for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tpl.ExecuteTemplate(w, "pantry-section", map[string]any{
+		"Items": items,
+		"Error": errMsg,
+	}); err != nil {
+		log.Printf("Error rendering pantry section: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 }

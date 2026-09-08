@@ -1,0 +1,6 @@
+{{ define "pantry-row" }}
+<div class="item-row">
+    <span>{{ .Quantity }} {{ .Unit }} - {{ .Name }}</span>
+    <button type="button" class="btn-remove" hx-delete="/pantry/v1/remove?name={{ .Name | urlquery }}&unit={{ .Unit | urlquery }}" hx-target="#pantry-section" hx-swap="outerHTML">✕</button>
+</div>
+{{ end }}
