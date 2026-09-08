@@ -70,6 +70,7 @@ func Migrate(db *sqlx.DB) error {
 		step_number INTEGER NOT NULL,
 		instruction TEXT NOT NULL,
 		notes TEXT,
+		step_ingredients TEXT,
 		UNIQUE(recipe_version_id, step_number),
 		FOREIGN KEY (recipe_version_id) REFERENCES recipe_versionsV1(id)
 	);

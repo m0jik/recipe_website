@@ -90,9 +90,15 @@
                                placeholder="Note (optional)"
                                onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
 
+                        <input type="text"
+                               id="step-ingredient"
+                               name="step_ingredient"
+                               placeholder="What ingredients are used in this step?"
+                               onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
+
                         <button id="step-add" type="button"
                                 hx-get="/recipes/v1/step-row"
-                                hx-include="#step-text, #step-note"
+                                hx-include="#step-text, #step-ingredient, #step-note"
                                 hx-target="#steps-list"
                                 hx-swap="beforeend"
                                 class="btn-secondary">

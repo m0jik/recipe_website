@@ -36,6 +36,7 @@ type Step struct {
 	RecipeVersionID int64
 	StepNumber      int
 	Instruction     string
+	StepIngredients string
 	Notes           string
 }
 
@@ -101,7 +102,7 @@ func (s *RecipeService) BatchSaveIngredients(versionID int64, names, quantities,
 	return nil
 }
 
-func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes []string) error {
+func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, stepIngredients, notes []string) error {
 	for i, instruction := range instructions {
 		if instruction == "" {
 			continue
@@ -111,8 +112,8 @@ func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes []st
 			note = notes[i]
 		}
 		_, err := s.DB.Exec(
-			"INSERT INTO instructionsV1 (recipe_version_id, step_number, instruction, notes) VALUES (?, ?, ?, ?)",
-			versionID, i+1, instruction, note,
+			"INSERT INTO instructionsV1 (recipe_version_id, step_number, instruction, step_ingredients, notes) VALUES (?, ?, ?, ?, ?)",
+			versionID, i+1, instruction, stepIngredients[i], note,
 		)
 		if err != nil {
 			return err

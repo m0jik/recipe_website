@@ -790,7 +790,7 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not save ingredients", http.StatusInternalServerError)
 			return
 		}
-		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"]); err != nil {
+		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_ingredient"], r.Form["step_note"]); err != nil {
 			http.Error(w, "could not save steps", http.StatusInternalServerError)
 			return
 		}
