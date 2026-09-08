@@ -36,6 +36,7 @@ type App struct {
 	Email    services.EmailSender
 	Images   *services.ImageService
 	Shopping *services.ShoppingListService
+	Pantry   *services.PantryService
 }
 
 func main() {
@@ -77,12 +78,14 @@ func main() {
 	}
 
 	app := &App{
-		DB:      db,
-		Cfg:     cfg,
-		Users:   services.NewUserService(db),
-		Recipes: services.NewRecipeService(db),
-		Email:   emailSender,
-		Images:  services.NewImageService(&services.LocalStore{Dir: "uploads"}),
+		DB:       db,
+		Cfg:      cfg,
+		Users:    services.NewUserService(db),
+		Recipes:  services.NewRecipeService(db),
+		Email:    emailSender,
+		Images:   services.NewImageService(&services.LocalStore{Dir: "uploads"}),
+		Shopping: services.NewShoppingListService(db),
+		Pantry:   services.NewPantryService(db),
 	}
 
 	log.Println("Setting up handlers...")
@@ -105,6 +108,9 @@ func main() {
 
 	//Shopping List
 	mux.HandleFunc("/shopping-list/v1", app.handleShoppingList)
+
+	//Pantry
+	mux.HandleFunc("/pantry/v1/", app.handlePantry)
 
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
@@ -900,6 +906,34 @@ func (a *App) handleShoppingList(w http.ResponseWriter, r *http.Request) {
 		})
 		if err != nil {
 			log.Printf("Error rendering shopping list template: %v", err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+}
+
+func (a *App) handlePantry(w http.ResponseWriter, r *http.Request) {
+	switch r.Method {
+	case http.MethodGet:
+		userID, ok := a.getUserIDFromSession(r)
+		if !ok {
+			http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+			return
+		}
+
+		username, err := a.Users.GetUsernameByID(userID)
+		if err != nil {
+			log.Printf("Error getting username for user ID %d: %v", userID, err)
+			http.Error(w, "could not load user info", http.StatusInternalServerError)
+			return
+		}
+
+		err = tpl.ExecuteTemplate(w, "pantry.html", map[string]any{
+			"Username": username,
+		})
+		if err != nil {
+			log.Printf("Error rendering pantry template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
