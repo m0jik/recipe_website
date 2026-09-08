@@ -8,16 +8,6 @@
     "base_url": "http://localhost:8080",
     "email": {
         "provider": "smtp",
-
-        "ses": {
-            "host": "email-smtp.us-east-1.amazonaws.com",
-            "port": 587,
-            "from": "your@verified.com",
-            "password": "SES_PASSWORD",
-            "aws_region": "us-east-1",
-            "aws_configuration_set": ""
-        },
-
         "smtp": {
             "host": "smtp.gmail.com",
             "port": 587,
