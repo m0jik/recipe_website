@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/subtle"
@@ -160,13 +161,6 @@ func buildEmailSender(cfg *config.Config) (services.EmailSender, error) {
 			cfg.Email.SMTP.From,
 			cfg.Email.SMTP.Password,
 		), nil
-	case "ses":
-		return services.NewSESEmail(
-			context.Background(),
-			cfg.Email.SES.AWSRegion,
-			cfg.Email.SES.From,
-			cfg.Email.SES.AWSConfigurationSet,
-		)
 	// case "noop":
 	// 	return services.NoopEmail{}, nil
 	default:
@@ -309,7 +303,7 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		username := r.FormValue("username")
-		email := r.FormValue("email")
+		email := normalizeEmail(r.FormValue("email"))
 		pass := r.FormValue("password")
 		confirmPass := r.FormValue("confirm_password")
 		if pass != confirmPass {
@@ -366,7 +360,12 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 		verifyLink := a.Cfg.BaseURL + "/users/v1/verify?token=" + token
 
 		go func() {
-			err := a.Email.Send(email, "Verify your account", emailLink(verifyLink, "Click to verify"))
+			body, err := buildVerificationEmail(username, verifyLink)
+			if err != nil {
+				log.Printf("email template render failed for %s: %v", email, err)
+				body = "Verify your account: " + verifyLink
+			}
+			err = a.Email.Send(email, "Verify your account", body)
 			if err != nil {
 				log.Printf("email send failed to %s: %v", email, err)
 			}
@@ -393,7 +392,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
 		}
-		email := strings.ToLower(r.FormValue("email"))
+		email := normalizeEmail(r.FormValue("email"))
 		pass := r.FormValue("password")
 		var id int
 		var hash string
@@ -489,7 +488,7 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "invalid form", http.StatusBadRequest)
 			return
 		}
-		email := r.FormValue("email")
+		email := normalizeEmail(r.FormValue("email"))
 		// var id int
 		// row := a.DB.QueryRow("SELECT id FROM usersV1 WHERE username = ?", username)
 		// if err := row.Scan(&id); err != nil {
@@ -519,7 +518,12 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 		resetLink := a.Cfg.BaseURL + "/users/v1/reset?token=" + token
 		// w.Write([]byte("Reset link: " + resetLink))
 		go func() {
-			err := a.Email.Send(email, "Password Reset Request", emailLink(resetLink, "Click to reset your password"))
+			body, err := buildPasswordResetEmail(resetLink)
+			if err != nil {
+				log.Printf("email template render failed for %s: %v", email, err)
+				body = "Reset your password: " + resetLink
+			}
+			err = a.Email.Send(email, "Password Reset Request", body)
 			if err != nil {
 				log.Printf("email send failed to %s: %v", email, err)
 			}
@@ -881,9 +885,52 @@ func generateToken() (string, error) { // email/reset tokens
 	return base64.RawURLEncoding.EncodeToString(b), nil
 }
 
-func emailLink(url, text string) string {
-	return `<a href="` + url + `">` + text + `</a>`
+func buildVerificationEmail(username, verificationURL string) (string, error) {
+	tmpl, err := template.ParseFiles("templates/Email_Templates/verifyEmail.html")
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, struct {
+		Username        string
+		VerificationURL string
+	}{
+		Username:        username,
+		VerificationURL: verificationURL,
+	}); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
 }
+
+func buildPasswordResetEmail(resetURL string) (string, error) {
+	tmpl, err := template.ParseFiles("templates/Email_Templates/resetEmail.html")
+	if err != nil {
+		return "", err
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, struct {
+		ResetURL string
+	}{
+		ResetURL: resetURL,
+	}); err != nil {
+		return "", err
+	}
+
+	return buf.String(), nil
+}
+
+func normalizeEmail(email string) string {
+	return strings.ToLower(strings.TrimSpace(email))
+}
+
+// Old email link function just returns text and url
+// func emailLink(url, text string) string {
+// 	return text + " " + url
+// }
 
 // Shopping List
 
