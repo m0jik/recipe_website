@@ -20,6 +20,11 @@
             <p class="recipe-description">
                 {{.Description}}
             </p>
+
+            <p class="recipe-meta">
+                {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
+                {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
+            </p>
         </div>
     </div>
 
