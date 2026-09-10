@@ -13,6 +13,37 @@
             <div class="nav-center">
                 <form method="GET" action="/" class="search-form">
                     <input type="text" name="query" placeholder="Search recipes..."value="{{.Query}}">
+                    <!-- <menu type="toolbar" class="filter-menu">
+                        <button type="submit" class="filter-button">Filter</button>
+                        <div class="filter-dropdown">
+                            <label>
+                                <input type="checkbox" name="vegan" value="true" {{if .Filters.Vegan}}checked{{end}}>
+                                Vegan
+                            </label>
+                            <label>
+                                <input type="checkbox" name="vegetarian" value="true" {{if .Filters.Vegetarian}}checked{{end}}>
+                                Vegetarian
+                            </label>
+                            <label>
+                                <input type="checkbox" name="gluten-free" value="true" {{if .Filters.GlutenFree}}checked{{end}}>
+                                Gluten-Free
+                            </label>
+                        </div> -->
+                </form>
+                <form method="GET" action="/" class="filter-form">
+                    <label>
+                        <input type="checkbox" name="vegan" value="true" {{if .Filters.Vegan}}checked{{end}}>
+                        Vegan
+                    </label>
+                    <label>
+                        <input type="checkbox" name="vegetarian" value="true" {{if .Filters.Vegetarian}}checked{{end}}>
+                        Vegetarian
+                    </label>
+                    <label>
+                        <input type="checkbox" name="gluten-free" value="true" {{if .Filters.GlutenFree}}checked{{end}}>
+                        Gluten-Free
+                    </label>
+                    <button type="submit">Apply Filters</button>
                 </form>
             </div>
             <div class="nav-right">

@@ -85,8 +85,6 @@ func applyEnvOverrides(cfg *Config) {
 		switch cfg.Email.Provider {
 		case "smtp":
 			cfg.Email.SMTP.From = v
-		case "ses":
-			cfg.Email.SES.From = v
 		default:
 			log.Printf("Uknown email provider '%s', cannot set 'From' address from environment variable", cfg.Email.Provider)
 		}
