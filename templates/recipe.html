@@ -46,6 +46,10 @@
                 {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
                 {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
             </p>
+
+            {{if .Tags}}
+                <p class="recipe-tags">{{range .Tags}}<a href="/?query={{.}}">#{{.}}</a> {{end}}</p>
+            {{end}}
         </div>
     </div>
 

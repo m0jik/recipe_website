@@ -719,6 +719,7 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 		"Title":       r.FormValue("title"),
 		"Description": r.FormValue("description"),
 		"Image":       imagePath,
+		"Tags":        r.FormValue("tags"),
 		"Servings":    r.FormValue("servings"),
 		"PrepTime":    r.FormValue("prep_time_minutes"),
 	})
@@ -780,6 +781,10 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		recipeID, err := a.Recipes.CreateRecipe(userID, r.FormValue("title"), r.FormValue("image"), r.FormValue("description"), servings, prepTimeMinutes)
 		if err != nil {
 			http.Error(w, "could not create recipe", http.StatusInternalServerError)
+			return
+		}
+		if err := a.Recipes.SaveTags(recipeID, r.FormValue("tags")); err != nil {
+			http.Error(w, "could not save tags", http.StatusInternalServerError)
 			return
 		}
 
@@ -857,6 +862,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		"Username":        username,
 		"Servings":        data.Recipe.Servings,
 		"PrepTimeMinutes": data.Recipe.PrepTimeMinutes,
+		"Tags":            data.Recipe.Tags,
 	})
 	if err != nil {
 		log.Printf("Error rendering recipe template: %v", err)

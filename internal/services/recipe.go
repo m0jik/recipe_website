@@ -2,6 +2,7 @@ package services
 
 import (
 	"log"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -15,6 +16,7 @@ type RecipeInfo struct {
 	UserID          int64
 	Servings        int
 	PrepTimeMinutes int
+	Tags            []string
 }
 
 type RecipeEditPageData struct {
@@ -75,6 +77,40 @@ func (s *RecipeService) CreateRecipe(userID int, title, imageURL string, descrip
 		return 0, err
 	}
 	return recipeID, nil
+}
+
+func (s *RecipeService) SaveTags(recipeID int64, rawTags string) error {
+	seen := make(map[string]struct{})
+	for _, rawTag := range strings.Split(rawTags, ",") {
+		tag := strings.ToLower(strings.TrimSpace(rawTag))
+		if tag == "" {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+
+		_, err := s.DB.Exec("INSERT INTO tagsV1(name) VALUES (?) ON CONFLICT(name) DO NOTHING", tag)
+		if err != nil {
+			return err
+		}
+		var tagID int64
+		if err := s.DB.QueryRow("SELECT id FROM tagsV1 WHERE name = ?", tag).Scan(&tagID); err != nil {
+			return err
+		}
+		if _, err := s.DB.Exec("INSERT OR IGNORE INTO recipeTagsV1(recipe_id, tag_id) VALUES (?, ?)", recipeID, tagID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func splitTags(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, ",")
 }
 
 func (s *RecipeService) BatchSaveIngredients(versionID int64, names, quantities, units []string) error {
@@ -290,8 +326,22 @@ func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
 
 func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
 	rows, err := s.DB.Query(
-		`SELECT id, title, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 WHERE title LIKE ? OR description LIKE ? ORDER BY created_at DESC`,
+		`SELECT r.id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
+			COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
+		 FROM recipesV1 r
+		 WHERE r.title LIKE ? OR r.description LIKE ? OR EXISTS (
+			SELECT 1 FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id
+			WHERE rt.recipe_id = r.id AND t.name LIKE ?
+		 ) OR EXISTS (
+			SELECT 1 FROM ingredientsV1 i
+			JOIN recipe_versionsV1 rv ON rv.id = i.recipe_version_id
+			WHERE rv.recipe_id = r.id
+			  AND rv.version_number = (SELECT MAX(version_number) FROM recipe_versionsV1 WHERE recipe_id = r.id)
+			  AND i.name LIKE ?
+		 ) ORDER BY r.created_at DESC`,
 		"%"+query+"%",
+		"%"+query+"%",
+		"%"+strings.ToLower(query)+"%",
 		"%"+query+"%",
 	)
 	if err != nil {
@@ -309,9 +359,11 @@ func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
 
 	for rows.Next() {
 		var ri RecipeInfo
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL); err != nil {
+		var tags string
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL, &tags); err != nil {
 			return nil, err
 		}
+		ri.Tags = splitTags(tags)
 
 		recipes = append(recipes, ri)
 	}
@@ -321,7 +373,9 @@ func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
 
 func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	rows, err := s.DB.Query(
-		`SELECT id, title, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 ORDER BY created_at DESC`,
+		`SELECT r.id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
+			COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
+		 FROM recipesV1 r ORDER BY r.created_at DESC`,
 	)
 	if err != nil {
 		return nil, err
@@ -338,9 +392,11 @@ func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 
 	for rows.Next() {
 		var ri RecipeInfo
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL); err != nil {
+		var tags string
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL, &tags); err != nil {
 			return nil, err
 		}
+		ri.Tags = splitTags(tags)
 		recipes = append(recipes, ri)
 	}
 
@@ -382,6 +438,14 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 		return nil, 0, err
 	}
 
+	var tagString string
+	if err := s.DB.QueryRow(
+		`SELECT COALESCE(GROUP_CONCAT(t.name, ','), '') FROM tagsV1 t
+		 JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = ?`, recipeID,
+	).Scan(&tagString); err != nil {
+		return nil, 0, err
+	}
+
 	return &RecipeEditPageData{
 		Recipe: RecipeInfo{
 			ID:              recipeID,
@@ -391,6 +455,7 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 			ImageURL:        imageURL,
 			Servings:        servings,
 			PrepTimeMinutes: prepTimeMinutes,
+			Tags:            splitTags(tagString),
 		},
 		Ingredients: ingredients,
 		Steps:       steps,
