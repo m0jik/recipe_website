@@ -18,4 +18,4 @@ jobs:
         run: |
           echo "$PRIVATE_KEY" > private_key
           chmod 600 private_key
-          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "private_key" ${USERNAME}@${HOSTNAME} 'cd recipe_website && git pull origin main && go build -o recipe_website && sudo systemctl restart recipe_website'
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "private_key" ${USERNAME}@${HOSTNAME} 'cd recipe_website && git pull origin main && go build -o recipe_website . && sudo systemctl restart recipe_website'
