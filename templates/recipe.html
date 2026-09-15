@@ -3,6 +3,7 @@
 <head>
     <meta charset="utf-8">
     <title>{{.Title}}</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 
@@ -24,7 +25,8 @@
             <p class="recipe-meta">
                 {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
                 {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
-            </p>
+            </p>   
+            {{ template "shopping-btn" . }}
         </div>
     </div>
 

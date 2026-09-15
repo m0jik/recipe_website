@@ -5,6 +5,7 @@
         <title>Pantry</title>
         <script src="https://unpkg.com/htmx.org@1.9.12"></script>
         <link rel="stylesheet" href="/static/style.css">
+        <link rel="stylesheet" href="/static/pantry.css">
     </head>
     <body>
         {{template "nav" .}}
@@ -14,7 +15,7 @@
     </body>
 </html>
 {{ define "pantry-section" }}
-<section class="recipes" id="pantry-section">
+<section class="pantry-panel" id="pantry-section">
     <h2>Pantry</h2>
 
     {{ if .Error }}

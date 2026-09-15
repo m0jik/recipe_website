@@ -427,6 +427,12 @@ button[type="submit"]:hover {
     border: 1px solid #ccc;
 }
 
+/* flashed on a required field when Add is pressed while it is empty */
+.input-error {
+    border-color: #c0392b;
+    background: #fdf3f2;
+}
+
 /* =========================
    BUTTON VARIANTS
 ========================= */
@@ -468,46 +474,38 @@ button[type="submit"]:hover {
 }
 
 /* =========================
-   INPUT STATES
+   SHOPPING LIST BUTTON
+   shared: the button renders on the recipe page and the shopping list page
 ========================= */
 
-.input-error {
-    border: 1px solid red !important;
-    background: #fff5f5;
+/* icon-only cart button, sits under the meta line, left aligned */
+.shopping-btn {
+    align-self: flex-start;
+    margin-top: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
 }
 
-/* Printing Formatting */
-@media print {
-    body {
-        font-size: auto;
-    }
+.shopping-btn:hover {
+    background: #f4f4f4;
+}
 
-    .recipe-image {
-        display: none;
-    }
+.shopping-btn img {
+    display: block;
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
 
-    .recipe-header {
-        padding: 10px;
-        break-inside: avoid;
-    }
-
-    .recipe-section {
-        padding: 10px;
-        break-inside: avoid;
-        p {
-            margin: 0;
-        }
-    }
-
-    .recipe-content {
-        gap: 0;
-        
-    }
-
-    .recipe-page {
-        margin: 0;
-        padding: 0;
-        column-count: auto;
-        column-width: 18rem;
-    }
+/* on the list: the plain black cart carries the state, no background tint.
+   the red hover is the only cue left that clicking removes, since the
+   wording that used to say so is gone */
+.shopping-btn-added:hover {
+    background: #fdecea;
 }

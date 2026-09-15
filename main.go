@@ -108,12 +108,19 @@ func main() {
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
 
 	//Shopping List
-	mux.HandleFunc("/shopping-list/v1", app.handleShoppingList)
+	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
+	mux.HandleFunc("POST /shopping-list/v1/add", app.handleShoppingListAdd)
+	mux.HandleFunc("DELETE /shopping-list/v1/remove", app.handleShoppingListRemove)
+	mux.HandleFunc("DELETE /shopping-list/v1/remove-recipe", app.handleShoppingListRemoveRecipe)
+	mux.HandleFunc("POST /shopping-list/v1/check", app.handleShoppingListCheck)
+	mux.HandleFunc("POST /shopping-list/v1/check-all", app.handleShoppingListCheckAll)
+	mux.HandleFunc("POST /shopping-list/v1/qty", app.handleShoppingListQty)
+	mux.HandleFunc("POST /shopping-list/v1/filter", app.handleShoppingListFilter)
 
 	//Pantry
-	mux.HandleFunc("/pantry/v1/add", app.handlePantryAdd)
-	mux.HandleFunc("/pantry/v1/remove", app.handlePantryRemove)
-	mux.HandleFunc("/pantry/v1/", app.handlePantry)
+	mux.HandleFunc("POST /pantry/v1/add", app.handlePantryAdd)
+	mux.HandleFunc("DELETE /pantry/v1/remove", app.handlePantryRemove)
+	mux.HandleFunc("GET /pantry/v1/{$}", app.handlePantry)
 
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
@@ -860,7 +867,19 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		username = "Unknown"
 	}
 
+	// The cart button is a toggle, so the page has to know up front whether this recipe is already on the viewer's list. A logged out visitor sees the plain add button and gets sent to login when they press it.
+	var added bool
+	if viewerID, ok := a.getUserIDFromSession(r); ok {
+		added, err = a.Shopping.HasRecipe(viewerID, id)
+		if err != nil {
+			log.Printf("Error checking shopping list for user ID %d, recipe %d: %v", viewerID, id, err)
+			added = false
+		}
+	}
+
 	err = tpl.ExecuteTemplate(w, "recipe.html", map[string]any{
+		"RecipeID":        id,
+		"Added":           added,
 		"Title":           data.Recipe.Title,
 		"Description":     data.Recipe.Description,
 		"ImageURL":        data.Recipe.ImageURL,
@@ -932,78 +951,329 @@ func normalizeEmail(email string) string {
 // 	return text + " " + url
 // }
 
-// Shopping List
-
 func (a *App) handleShoppingList(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		userID, ok := a.getUserIDFromSession(r)
-		if !ok {
-			http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
-			return
-		}
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
 
-		username, err := a.Users.GetUsernameByID(userID)
-		if err != nil {
-			log.Printf("Error getting username for user ID %d: %v", userID, err)
-			http.Error(w, "could not load user info", http.StatusInternalServerError)
-			return
-		}
+	username, err := a.Users.GetUsernameByID(userID)
+	if err != nil {
+		log.Printf("Error getting username for user ID %d: %v", userID, err)
+		http.Error(w, "could not load user info", http.StatusInternalServerError)
+		return
+	}
 
-		err = tpl.ExecuteTemplate(w, "shoppingList.html", map[string]any{
-			"Username": username,
-		})
-		if err != nil {
-			log.Printf("Error rendering shopping list template: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
+	needOnly := r.URL.Query().Get("need_only") == "1"
+
+	items, err := a.Shopping.GetItems(userID)
+	if err != nil {
+		log.Printf("Error getting shopping list for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	recipes, err := a.Shopping.GetRecipes(userID)
+	if err != nil {
+		log.Printf("Error getting shopping list recipes for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := shoppingListData(items, recipes, needOnly)
+	data["Username"] = username
+	err = tpl.ExecuteTemplate(w, "shoppingList.html", data)
+	if err != nil {
+		log.Printf("Error rendering shopping list template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.FormValue("recipe_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid recipe id", http.StatusBadRequest)
+		return
+	}
+
+	versionID, err := a.Recipes.GetLatestVersionID(recipeID)
+	if err != nil {
+		http.Error(w, "recipe not found", http.StatusNotFound)
+		return
+	}
+
+	ingredients, err := a.Recipes.GetIngredients(versionID)
+	if err != nil {
+		log.Printf("Error loading ingredients for recipe %d: %v", recipeID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := a.Shopping.AddRecipeIngredients(userID, versionID, ingredients); err != nil {
+		log.Printf("Error adding recipe %d to shopping list for user ID %d: %v", recipeID, userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// Swap the button for a version of itself that confirms the add.
+	if err := tpl.ExecuteTemplate(w, "shopping-btn", map[string]any{
+		"RecipeID": recipeID,
+		"Added":    true,
+	}); err != nil {
+		log.Printf("Error rendering shopping button: %v", err)
+	}
+}
+
+func (a *App) handleShoppingListRemove(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	if err := a.Shopping.RemoveItem(userID, r.URL.Query().Get("name"), r.URL.Query().Get("unit")); err != nil {
+		log.Printf("Error removing shopping list item for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
+}
+
+// handleShoppingListRemoveRecipe takes a whole recipe back off the list, along
+// with every ingredient it put there.
+func (a *App) handleShoppingListRemoveRecipe(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.URL.Query().Get("recipe_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid recipe id", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.Shopping.RemoveRecipe(userID, recipeID); err != nil {
+		log.Printf("Error removing recipe %d from shopping list for user ID %d: %v", recipeID, userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// The recipe page toggles a single button, the shopping list page redraws the
+	// whole section it just deleted a recipe from.
+	if r.URL.Query().Get("render") == "button" {
+		if err := tpl.ExecuteTemplate(w, "shopping-btn", map[string]any{
+			"RecipeID": recipeID,
+			"Added":    false,
+		}); err != nil {
+			log.Printf("Error rendering shopping button: %v", err)
 		}
+		return
+	}
+
+	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
+}
+
+func (a *App) handleShoppingListCheck(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
+		return
+	}
+
+	name := r.URL.Query().Get("name")
+	unit := r.URL.Query().Get("unit")
+	checked := r.FormValue("checked") != ""
+
+	if err := a.Shopping.SetChecked(userID, name, unit, checked); err != nil {
+		log.Printf("Error checking shopping list item for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
+}
+
+// handleShoppingListCheckAll ticks off, or clears, every line at once.
+func (a *App) handleShoppingListCheckAll(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.Shopping.SetAllChecked(userID, r.FormValue("checked") != ""); err != nil {
+		log.Printf("Error checking all shopping list items for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
+}
+
+// handleShoppingListQty nudges how much of a line to actually buy, for when the shopper wants a different amount than the recipes worked out.
+func (a *App) handleShoppingListQty(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	delta, err := strconv.ParseFloat(r.URL.Query().Get("delta"), 64)
+	if err != nil {
+		http.Error(w, "invalid delta", http.StatusBadRequest)
+		return
+	}
+
+	name := r.URL.Query().Get("name")
+	unit := r.URL.Query().Get("unit")
+
+	if err := a.Shopping.AdjustQuantity(userID, name, unit, delta); err != nil {
+		log.Printf("Error adjusting shopping list quantity for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
+}
+
+// handleShoppingListFilter: redraws the list with or without the lines the pantry already covers.
+func (a *App) handleShoppingListFilter(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
+		return
+	}
+
+	a.renderShoppingListSection(w, userID, r.FormValue("need_only") != "")
+}
+
+func needOnlyFrom(r *http.Request) bool {
+	return r.URL.Query().Get("need_only") == "1"
+}
+
+// only what I need to buy filter
+func shoppingListRows(items []services.ShoppingListItem, needOnly bool) []services.ShoppingListItem {
+	if !needOnly {
+		return items
+	}
+	var kept []services.ShoppingListItem
+	for _, item := range items {
+		if item.NeedsBuying() {
+			kept = append(kept, item)
+		}
+	}
+	return kept
+}
+
+func shoppingListData(items []services.ShoppingListItem, recipes []services.ShoppingListRecipe, needOnly bool) map[string]any {
+	shown := shoppingListRows(items, needOnly)
+
+	allChecked := len(items) > 0
+	remaining := 0
+	for _, item := range items {
+		if !item.Checked {
+			allChecked = false
+			remaining++
+		}
+	}
+
+	return map[string]any{
+		"Items":      shown,
+		"Recipes":    recipes,
+		"NeedOnly":   needOnly,
+		"AllChecked": allChecked,
+		"Total":      len(items),
+		"Remaining":  remaining,
+		"Hidden":     len(items) - len(shown),
+	}
+}
+
+func (a *App) renderShoppingListSection(w http.ResponseWriter, userID int, needOnly bool) {
+	items, err := a.Shopping.GetItems(userID)
+	if err != nil {
+		log.Printf("Error getting shopping list for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	recipes, err := a.Shopping.GetRecipes(userID)
+	if err != nil {
+		log.Printf("Error getting shopping list recipes for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tpl.ExecuteTemplate(w, "shopping-list-section", shoppingListData(items, recipes, needOnly)); err != nil {
+		log.Printf("Error rendering shopping list section: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 }
 
 func (a *App) handlePantry(w http.ResponseWriter, r *http.Request) {
-	switch r.Method {
-	case http.MethodGet:
-		userID, ok := a.getUserIDFromSession(r)
-		if !ok {
-			http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
-			return
-		}
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
 
-		username, err := a.Users.GetUsernameByID(userID)
-		if err != nil {
-			log.Printf("Error getting username for user ID %d: %v", userID, err)
-			http.Error(w, "could not load user info", http.StatusInternalServerError)
-			return
-		}
+	username, err := a.Users.GetUsernameByID(userID)
+	if err != nil {
+		log.Printf("Error getting username for user ID %d: %v", userID, err)
+		http.Error(w, "could not load user info", http.StatusInternalServerError)
+		return
+	}
 
-		items, err := a.Pantry.GetPantryItems(userID)
-		if err != nil {
-			log.Printf("Error getting pantry items for user ID %d: %v", userID, err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
+	items, err := a.Pantry.GetPantryItems(userID)
+	if err != nil {
+		log.Printf("Error getting pantry items for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 
-		err = tpl.ExecuteTemplate(w, "pantry.html", map[string]any{
-			"Username": username,
-			"Items":    items,
-		})
-		if err != nil {
-			log.Printf("Error rendering pantry template: %v", err)
-			http.Error(w, "Internal server error", http.StatusInternalServerError)
-			return
-		}
+	err = tpl.ExecuteTemplate(w, "pantry.html", map[string]any{
+		"Username": username,
+		"Items":    items,
+	})
+	if err != nil {
+		log.Printf("Error rendering pantry template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 }
 
 func (a *App) handlePantryAdd(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	userID, ok := a.getUserIDFromSession(r)
 	if !ok {
 		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
@@ -1032,11 +1302,6 @@ func (a *App) handlePantryAdd(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handlePantryRemove(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodDelete {
-		http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-		return
-	}
-
 	userID, ok := a.getUserIDFromSession(r)
 	if !ok {
 		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)

@@ -76,7 +76,7 @@ func Migrate(db *sqlx.DB) error {
 
 	CREATE TABLE IF NOT EXISTS passResetV1 (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id INTERGER NOT NULL,
+		user_id INTEGER NOT NULL,
 		token TEXT NOT NULL,
 		expires_at DATETIME NOT NULL,
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
@@ -84,7 +84,7 @@ func Migrate(db *sqlx.DB) error {
 
 	CREATE TABLE IF NOT EXISTS emailVerifyV1 (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id INTERGER NOT NULL,
+		user_id INTEGER NOT NULL,
 		token TEXT NOT NULL,
 		expires_at DATETIME NOT NULL,
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
@@ -99,11 +99,25 @@ func Migrate(db *sqlx.DB) error {
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
 
-	CREATE TABLE IF NOT EXISTS userShoppingListV1 (
+	CREATE TABLE IF NOT EXISTS userShoppingListV2 (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		user_id INTEGER NOT NULL,
 		name TEXT NOT NULL,
 		quantity TEXT NOT NULL,
 		unit TEXT NOT NULL DEFAULT '',
+		source_recipe_version_id INTEGER,
+		UNIQUE (user_id, name, unit, source_recipe_version_id),
+		FOREIGN KEY (user_id) REFERENCES usersV1(id),
+		FOREIGN KEY (source_recipe_version_id) REFERENCES recipe_versionsV1(id)
+	);
+		
+	-- What the shopper did to a line, as opposed to what the recipes asked for:
+	CREATE TABLE IF NOT EXISTS userShoppingStateV1 (
+		user_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		unit TEXT NOT NULL DEFAULT '',
+		checked BOOLEAN NOT NULL DEFAULT FALSE,
+		qty_override TEXT NOT NULL DEFAULT '',
 		PRIMARY KEY (user_id, name, unit),
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
