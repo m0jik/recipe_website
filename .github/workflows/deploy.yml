@@ -18,4 +18,4 @@ jobs:
         run: |
           echo "$SECRET_KEY" > secret_key
           chmod 600 secret_key
-          ssh -vio StrictHostKeyChecking=no secret_key ${USERNAME}@${HOSTNAME} 'cd /recipe_website && git pull origin main'
+          ssh -vi StrictHostKeyChecking=no secret_key ${USERNAME}@${HOSTNAME} 'cd /recipe_website && git pull origin main'
