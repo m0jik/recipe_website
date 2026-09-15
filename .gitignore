@@ -3,3 +3,4 @@ uploads/*
 .vscode/*
 .idea/
 recipe_website.exe
+app.db
