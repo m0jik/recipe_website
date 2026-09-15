@@ -48,7 +48,7 @@
             </p>
 
             {{if .Tags}}
-                <p class="recipe-tags">{{range .Tags}}<a href="/?query={{.}}">#{{.}}</a> {{end}}</p>
+                <p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . nil ""}}">#{{.}}</a> {{end}}</p>
             {{end}}
         </div>
     </div>

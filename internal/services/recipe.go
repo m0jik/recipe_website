@@ -45,6 +45,13 @@ type RecipeService struct {
 	DB *sqlx.DB
 }
 
+var PresetTags = []string{
+	"breakfast", "brunch", "lunch", "dinner", "dessert", "snack",
+	"quick", "easy", "healthy", "comfort-food", "one-pot", "meal-prep",
+	"vegetarian", "vegan", "gluten-free", "dairy-free", "low-carb",
+	"italian", "mexican", "asian", "indian", "american", "mediterranean",
+}
+
 func NewRecipeService(db *sqlx.DB) *RecipeService {
 	return &RecipeService{DB: db}
 }
@@ -80,10 +87,17 @@ func (s *RecipeService) CreateRecipe(userID int, title, imageURL string, descrip
 }
 
 func (s *RecipeService) SaveTags(recipeID int64, rawTags string) error {
+	allowedTags := make(map[string]struct{}, len(PresetTags))
+	for _, presetTag := range PresetTags {
+		allowedTags[presetTag] = struct{}{}
+	}
 	seen := make(map[string]struct{})
 	for _, rawTag := range strings.Split(rawTags, ",") {
 		tag := strings.ToLower(strings.TrimSpace(rawTag))
 		if tag == "" {
+			continue
+		}
+		if _, allowed := allowedTags[tag]; !allowed {
 			continue
 		}
 		if _, ok := seen[tag]; ok {
@@ -324,26 +338,46 @@ func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
 	return versionID, nil
 }
 
-func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
-	rows, err := s.DB.Query(
-		`SELECT r.id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
-			COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
-		 FROM recipesV1 r
-		 WHERE r.title LIKE ? OR r.description LIKE ? OR EXISTS (
+func (s *RecipeService) Search(query string, tagFilters []string) ([]RecipeInfo, error) {
+	query = strings.TrimSpace(query)
+	conditions := make([]string, 0, len(tagFilters)+1)
+	args := make([]any, 0, len(tagFilters)+5)
+	seenTags := make(map[string]struct{})
+	for _, tag := range tagFilters {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		if tag == "" {
+			continue
+		}
+		if _, seen := seenTags[tag]; seen {
+			continue
+		}
+		seenTags[tag] = struct{}{}
+		conditions = append(conditions, `EXISTS (
 			SELECT 1 FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id
-			WHERE rt.recipe_id = r.id AND t.name LIKE ?
-		 ) OR EXISTS (
-			SELECT 1 FROM ingredientsV1 i
-			JOIN recipe_versionsV1 rv ON rv.id = i.recipe_version_id
-			WHERE rv.recipe_id = r.id
-			  AND rv.version_number = (SELECT MAX(version_number) FROM recipe_versionsV1 WHERE recipe_id = r.id)
-			  AND i.name LIKE ?
-		 ) ORDER BY r.created_at DESC`,
-		"%"+query+"%",
-		"%"+query+"%",
-		"%"+strings.ToLower(query)+"%",
-		"%"+query+"%",
-	)
+			WHERE rt.recipe_id = r.id AND t.name = ?
+		)`)
+		args = append(args, tag)
+	}
+
+	conditions = append(conditions, `(r.title LIKE ? OR r.description LIKE ? OR EXISTS (
+		SELECT 1 FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id
+		WHERE rt.recipe_id = r.id AND t.name LIKE ?
+	) OR EXISTS (
+		SELECT 1 FROM ingredientsV1 i
+		JOIN recipe_versionsV1 rv ON rv.id = i.recipe_version_id
+		WHERE rv.recipe_id = r.id
+		  AND rv.version_number = (SELECT MAX(version_number) FROM recipe_versionsV1 WHERE recipe_id = r.id)
+		  AND i.name LIKE ?
+	))`)
+	args = append(args, "%"+query+"%", "%"+query+"%", "%"+strings.ToLower(query)+"%", "%"+query+"%", "%"+query+"%")
+
+	searchQuery := `SELECT r.id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
+		COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
+	 FROM recipesV1 r WHERE ` + strings.Join(conditions, " AND ") +
+		` ORDER BY CASE WHEN LOWER(r.title) LIKE LOWER(?) THEN 0 ELSE 1 END, r.created_at DESC`
+	args = append(args, "%"+query+"%")
+
+	rows, err := s.DB.Query(searchQuery, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -369,6 +403,10 @@ func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
 	}
 
 	return recipes, nil
+}
+
+func (s *RecipeService) GetAllTags() ([]string, error) {
+	return append([]string(nil), PresetTags...), nil
 }
 
 func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {

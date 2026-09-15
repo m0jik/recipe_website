@@ -35,7 +35,11 @@
 
             <div class="field">
                 <label for="Tags">Tags</label>
-                <input type="text" id="tags" name="tags" placeholder="e.g. Italian, Dinner, Quick">
+                <select id="tags" name="tags" multiple size="6">
+                    {{range .PresetTags}}
+                        <option value="{{.}}">{{.}}</option>
+                    {{end}}
+                </select>
             </div>
 
             <div class="field">

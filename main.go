@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -25,7 +26,11 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-var tpl = template.Must(template.ParseGlob("templates/*.html"))
+var tpl = template.Must(template.New("templates").Funcs(template.FuncMap{
+	"urlquery": url.QueryEscape,
+	"tagurl":   tagURL,
+	"hastag":   hasTag,
+}).ParseGlob("templates/*.html"))
 
 const cookieName = "session_id"
 
@@ -247,12 +252,13 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("query")
+	tags := normalizeTagFilters(r.URL.Query()["tag"])
 
 	var recipes []services.RecipeInfo
 	var err error
 
-	if query != "" {
-		recipes, err = a.Recipes.Search(query) // filtered results
+	if query != "" || len(tags) > 0 {
+		recipes, err = a.Recipes.Search(query, tags) // filtered results
 	} else {
 		recipes, err = a.Recipes.GetAllRecipes() // all recipes
 	}
@@ -263,16 +269,74 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	availableTags, err := a.Recipes.GetAllTags()
+	if err != nil {
+		log.Printf("Error loading tags: %v", err)
+		http.Error(w, "Failed to load tags", http.StatusInternalServerError)
+		return
+	}
+
 	err = tpl.ExecuteTemplate(w, "index.html", map[string]any{
-		"Username": username,
-		"Recipes":  recipes,
-		"Query":    query,
+		"Username":     username,
+		"Recipes":      recipes,
+		"Query":        query,
+		"SelectedTags": tags,
+		"Tags":         availableTags,
 	})
 	if err != nil {
 		log.Printf("Error rendering index template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+func normalizeTagFilters(tags []string) []string {
+	result := make([]string, 0, len(tags))
+	seen := make(map[string]struct{})
+	for _, tag := range tags {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		if tag == "" {
+			continue
+		}
+		if _, exists := seen[tag]; exists {
+			continue
+		}
+		seen[tag] = struct{}{}
+		result = append(result, tag)
+	}
+	return result
+}
+
+func hasTag(tag string, selected []string) bool {
+	for _, selectedTag := range selected {
+		if tag == selectedTag {
+			return true
+		}
+	}
+	return false
+}
+
+func tagURL(tag string, selected []string, query string) string {
+	values := url.Values{}
+	if query != "" {
+		values.Set("query", query)
+	}
+
+	removed := false
+	for _, selectedTag := range selected {
+		if selectedTag == tag {
+			removed = true
+			continue
+		}
+		values.Add("tag", selectedTag)
+	}
+	if !removed {
+		values.Add("tag", tag)
+	}
+	if values.Encode() == "" {
+		return "/"
+	}
+	return "/?" + values.Encode()
 }
 
 func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
@@ -682,7 +746,9 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "pageOne.html", nil)
+		err := tpl.ExecuteTemplate(w, "pageOne.html", map[string]any{
+			"PresetTags": services.PresetTags,
+		})
 		if err != nil {
 			log.Printf("Error rendering pageOne template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -719,7 +785,7 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 		"Title":       r.FormValue("title"),
 		"Description": r.FormValue("description"),
 		"Image":       imagePath,
-		"Tags":        r.FormValue("tags"),
+		"Tags":        r.Form["tags"],
 		"Servings":    r.FormValue("servings"),
 		"PrepTime":    r.FormValue("prep_time_minutes"),
 	})
@@ -783,7 +849,7 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not create recipe", http.StatusInternalServerError)
 			return
 		}
-		if err := a.Recipes.SaveTags(recipeID, r.FormValue("tags")); err != nil {
+		if err := a.Recipes.SaveTags(recipeID, strings.Join(r.Form["tags"], ",")); err != nil {
 			http.Error(w, "could not save tags", http.StatusInternalServerError)
 			return
 		}
