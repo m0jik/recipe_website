@@ -1,4 +1,4 @@
-name: Deploy to Sever
+name: Deploy to Server
 on:
   workflow_dispatch:
   push:
