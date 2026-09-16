@@ -3,33 +3,9 @@
     <head>
         <meta charset="utf-8">
         <title>Home</title>
-        <link rel="stylesheet" href="/static/style.css?v=tag-drawer-2">
+        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
     </head>
     <body>
-        <aside class="tag-drawer" data-tag-drawer aria-hidden="true">
-            <div class="tag-drawer-header">
-                <div>
-                    <span class="tag-drawer-kicker">Recipe filters</span>
-                    <h2>Choose tags</h2>
-                </div>
-                <button type="button" class="tag-drawer-close" data-close-tag-drawer aria-label="Close tag filters">&times;</button>
-            </div>
-            <form method="GET" action="/" class="tag-drawer-form">
-                <label for="recipe-search">Search recipes</label>
-                <input id="recipe-search" class="tag-search" type="search" name="query" value="{{.Query}}" placeholder="Search recipes...">
-                <div class="tag-drawer-options" data-tag-options>
-                    {{range .Tags}}
-                        <label data-tag-option><input type="checkbox" name="tag" value="{{.}}" {{if hastag . $.SelectedTags}}checked{{end}}> <span>#{{.}}</span></label>
-                    {{end}}
-                </div>
-                <div class="tag-drawer-actions">
-                    <button type="submit" class="btn-primary">Apply filters</button>
-                    <a class="clear-filter" href="{{if .Query}}/?query={{urlquery .Query}}{{else}}/{{end}}">Clear all</a>
-                </div>
-            </form>
-        </aside>
-        <div class="tag-drawer-backdrop" data-close-tag-drawer></div>
-        <div class="page-shell" data-page-shell>
         <header class="navbar">
             <div class="nav-left">
                 <div class="logo">Jacob's Grub</div>
@@ -37,9 +13,35 @@
             <div class="nav-center">
                 <form method="GET" action="/" class="search-form">
                     <input type="text" name="query" placeholder="Search recipes..." value="{{.Query}}">
+                    {{range .SelectedTags}}<input type="hidden" name="tag" value="{{.}}">{{end}}
+                    {{if .MaxTime}}<input type="hidden" name="max_time" value="{{.MaxTime}}">{{end}}
                 </form>
-                {{if .Tags}}
-                    <button type="button" class="tag-filter-trigger" data-open-tag-drawer>Filter by tag{{if .SelectedTags}} ({{len .SelectedTags}} selected){{end}}</button>
+                {{if .PresetTagGroups}}
+                    <details class="tag-filter-popout">
+                        <summary>Filter by tag{{if .SelectedTags}} ({{len .SelectedTags}} selected){{end}}</summary>
+                        <form method="GET" action="/" class="tag-filter-form">
+                            {{if .Query}}<input type="hidden" name="query" value="{{.Query}}">{{end}}
+                            <label for="max-time">Maximum prep time (minutes)</label>
+                            <input id="max-time" type="number" name="max_time" min="1" placeholder="e.g. 90" value="{{if .MaxTime}}{{.MaxTime}}{{end}}">
+                            <small>Only recipes at or below this time will match.</small>
+                            <div class="index-tag-groups">
+                                {{range .PresetTagGroups}}
+                                    <fieldset class="index-tag-group">
+                                        <legend>{{.Name}}</legend>
+                                        <div class="tag-options">
+                                            {{range .Tags}}
+                                                <label><input type="checkbox" name="tag" value="{{.}}" {{if hastag . $.SelectedTags}}checked{{end}}> #{{.}}</label>
+                                            {{end}}
+                                        </div>
+                                    </fieldset>
+                                {{end}}
+                            </div>
+                            <div class="tag-filter-actions">
+                                <button type="submit" class="btn-primary">Apply filters</button>
+                                <a class="clear-filter" href="{{if .Query}}/?query={{urlquery .Query}}{{else}}/{{end}}">Clear all</a>
+                            </div>
+                        </form>
+                    </details>
                 {{end}}
             </div>
             <div class="nav-right">
@@ -82,22 +84,5 @@
                 </div>
             </section>
         </main>
-        </div>
-        <script>
-            const tagDrawer = document.querySelector('[data-tag-drawer]');
-            const openTagDrawer = () => {
-                document.body.classList.add('tag-drawer-open');
-                tagDrawer.setAttribute('aria-hidden', 'false');
-            };
-            const closeTagDrawer = () => {
-                document.body.classList.remove('tag-drawer-open');
-                tagDrawer.setAttribute('aria-hidden', 'true');
-            };
-            document.querySelector('[data-open-tag-drawer]')?.addEventListener('click', openTagDrawer);
-            document.querySelectorAll('[data-close-tag-drawer]').forEach((control) => control.addEventListener('click', closeTagDrawer));
-            document.addEventListener('keydown', (event) => {
-                if (event.key === 'Escape') closeTagDrawer();
-            });
-        </script>
     </body>
 </html>

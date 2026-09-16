@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <title>New Recipe</title>
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
@@ -33,7 +34,7 @@
         <h2>New Recipe</h2>
     </div>
 
-    <form action="/recipes/v1/new" method="POST" enctype="multipart/form-data">
+    <form id="recipe-form" action="/recipes/v1/new" method="POST" enctype="multipart/form-data">
         <div class="card-body">
 
             <div class="field">
@@ -54,13 +55,30 @@
                           placeholder="Describe the dish (optional)">{{ .Description }}</textarea>
             </div>
 
-            <div class="field">
-                <label for="Tags">Tags</label>
-                <select id="tags" name="tags" multiple size="6">
-                    {{range .PresetTags}}
-                        <option value="{{.}}">{{.}}</option>
-                    {{end}}
-                </select>
+            <div class="section-block">
+                <div class="section-title">Tags</div>
+
+                <div id="tags-list" class="item-list"></div>
+
+                <div class="add-row">
+                    <select id="recipe-tag" name="tag">
+                        <option value="" disabled selected>Choose a tag</option>
+                        {{range .PresetTagGroups}}
+                            <optgroup label="{{.Name}}">
+                                {{range .Tags}}<option value="{{.}}">{{.}}</option>{{end}}
+                            </optgroup>
+                        {{end}}
+                    </select>
+
+                    <button id="tag-add" type="button"
+                            hx-get="/recipes/v1/tag-row"
+                            hx-include="#recipe-tag"
+                            hx-target="#tags-list"
+                            hx-swap="beforeend"
+                            class="btn-secondary">
+                        + Add
+                    </button>
+                </div>
             </div>
 
             <div class="field">

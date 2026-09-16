@@ -52,6 +52,18 @@ var PresetTags = []string{
 	"italian", "mexican", "asian", "indian", "american", "mediterranean",
 }
 
+type PresetTagGroup struct {
+	Name string
+	Tags []string
+}
+
+var PresetTagGroups = []PresetTagGroup{
+	{Name: "Meal type", Tags: []string{"breakfast", "brunch", "lunch", "dinner", "dessert", "snack"}},
+	{Name: "Dietary", Tags: []string{"vegetarian", "vegan", "gluten-free", "dairy-free", "low-carb"}},
+	{Name: "Preparation", Tags: []string{"quick", "easy", "healthy", "comfort-food", "one-pot", "meal-prep"}},
+	{Name: "Cuisine", Tags: []string{"italian", "mexican", "asian", "indian", "american", "mediterranean"}},
+}
+
 func NewRecipeService(db *sqlx.DB) *RecipeService {
 	return &RecipeService{DB: db}
 }
@@ -338,10 +350,10 @@ func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
 	return versionID, nil
 }
 
-func (s *RecipeService) Search(query string, tagFilters []string) ([]RecipeInfo, error) {
+func (s *RecipeService) Search(query string, tagFilters []string, maxTime int) ([]RecipeInfo, error) {
 	query = strings.TrimSpace(query)
-	conditions := make([]string, 0, len(tagFilters)+1)
-	args := make([]any, 0, len(tagFilters)+5)
+	conditions := make([]string, 0, len(tagFilters)+2)
+	args := make([]any, 0, len(tagFilters)+6)
 	seenTags := make(map[string]struct{})
 	for _, tag := range tagFilters {
 		tag = strings.ToLower(strings.TrimSpace(tag))
@@ -357,6 +369,10 @@ func (s *RecipeService) Search(query string, tagFilters []string) ([]RecipeInfo,
 			WHERE rt.recipe_id = r.id AND t.name = ?
 		)`)
 		args = append(args, tag)
+	}
+	if maxTime > 0 {
+		conditions = append(conditions, "r.prep_time_minutes IS NOT NULL AND r.prep_time_minutes <= ?")
+		args = append(args, maxTime)
 	}
 
 	conditions = append(conditions, `(r.title LIKE ? OR r.description LIKE ? OR EXISTS (
@@ -403,10 +419,6 @@ func (s *RecipeService) Search(query string, tagFilters []string) ([]RecipeInfo,
 	}
 
 	return recipes, nil
-}
-
-func (s *RecipeService) GetAllTags() ([]string, error) {
-	return append([]string(nil), PresetTags...), nil
 }
 
 func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {

@@ -104,6 +104,7 @@ func main() {
 	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
 	mux.HandleFunc("/recipes/v1/ingredient-row", app.handleIngredientRows)
 	mux.HandleFunc("/recipes/v1/step-row", app.handleStepRow)
+	mux.HandleFunc("/recipes/v1/tag-row", app.handleTagRows)
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
 	mux.HandleFunc("/recipes/v1/myRecipe", app.handleMyRecipes)
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
@@ -253,12 +254,16 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 
 	query := r.URL.Query().Get("query")
 	tags := normalizeTagFilters(r.URL.Query()["tag"])
+	maxTime, _ := strconv.Atoi(r.URL.Query().Get("max_time"))
+	if maxTime < 0 {
+		maxTime = 0
+	}
 
 	var recipes []services.RecipeInfo
 	var err error
 
-	if query != "" || len(tags) > 0 {
-		recipes, err = a.Recipes.Search(query, tags) // filtered results
+	if query != "" || len(tags) > 0 || maxTime > 0 {
+		recipes, err = a.Recipes.Search(query, tags, maxTime) // filtered results
 	} else {
 		recipes, err = a.Recipes.GetAllRecipes() // all recipes
 	}
@@ -269,19 +274,13 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	availableTags, err := a.Recipes.GetAllTags()
-	if err != nil {
-		log.Printf("Error loading tags: %v", err)
-		http.Error(w, "Failed to load tags", http.StatusInternalServerError)
-		return
-	}
-
 	err = tpl.ExecuteTemplate(w, "index.html", map[string]any{
-		"Username":     username,
-		"Recipes":      recipes,
-		"Query":        query,
-		"SelectedTags": tags,
-		"Tags":         availableTags,
+		"Username":        username,
+		"Recipes":         recipes,
+		"Query":           query,
+		"SelectedTags":    tags,
+		"MaxTime":         maxTime,
+		"PresetTagGroups": services.PresetTagGroups,
 	})
 	if err != nil {
 		log.Printf("Error rendering index template: %v", err)
@@ -747,7 +746,7 @@ func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		err := tpl.ExecuteTemplate(w, "pageOne.html", map[string]any{
-			"PresetTags": services.PresetTags,
+			"PresetTagGroups": services.PresetTagGroups,
 		})
 		if err != nil {
 			log.Printf("Error rendering pageOne template: %v", err)
@@ -782,12 +781,13 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = tpl.ExecuteTemplate(w, "pageTwo.html", map[string]any{
-		"Title":       r.FormValue("title"),
-		"Description": r.FormValue("description"),
-		"Image":       imagePath,
-		"Tags":        r.Form["tags"],
-		"Servings":    r.FormValue("servings"),
-		"PrepTime":    r.FormValue("prep_time_minutes"),
+		"Title":           r.FormValue("title"),
+		"Description":     r.FormValue("description"),
+		"Image":           imagePath,
+		"Tags":            r.Form["tags"],
+		"PresetTagGroups": services.PresetTagGroups,
+		"Servings":        r.FormValue("servings"),
+		"PrepTime":        r.FormValue("prep_time_minutes"),
 	})
 	if err != nil {
 		log.Printf("Error rendering pageTwo template: %v", err)
@@ -818,6 +818,23 @@ func (a *App) handleStepRow(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error rendering step row: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
+	}
+}
+
+func (a *App) handleTagRows(w http.ResponseWriter, r *http.Request) {
+	tag := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tag")))
+	for _, presetTag := range services.PresetTags {
+		if tag == presetTag {
+			err := tpl.ExecuteTemplate(w, "tag-row", map[string]string{"Tag": tag})
+			if err != nil {
+				log.Printf("Error rendering tag row: %v", err)
+				http.Error(w, "Error rendering tag row", http.StatusInternalServerError)
+			}
+			return
+		}
+	}
+	if tag != "" {
+		http.Error(w, "invalid tag", http.StatusBadRequest)
 	}
 }
 
