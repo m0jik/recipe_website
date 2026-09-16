@@ -1,4 +1,4 @@
-name: Deploy to Amazon EC2
+name: Deploy to Sever
 on:
   workflow_dispatch:
   push:
@@ -10,7 +10,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Deploy to EC2
+      - name: Deploy to Pi
         env:
           PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
           HOSTNAME: ${{ secrets.HOSTNAME }}
