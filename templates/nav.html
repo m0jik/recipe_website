@@ -1,0 +1,30 @@
+{{define "nav"}}
+<header class="navbar">
+    <div class="nav-left">
+        <div class="logo">
+            <a href="/" style="color: rgb(255, 255, 255);">Jacob's Grub</a>
+        </div>
+    </div>
+    <div class="nav-center">
+        <form method="GET" action="/" class="search-form">
+            <input type="text" name="query" placeholder="Search recipes..." value="{{.Query}}">
+        </form>
+    </div>
+    <div class="nav-right">
+        {{ if .Username }}
+            <span class="welcome">Hello, {{ .Username }}</span>
+            <a href="/recipes/v1/new">Create Recipe</a>
+            <a href="/recipes/v1/myRecipe">My Recipes</a>
+            <a href="/shopping-list/v1">Shopping List</a>
+            <a href="/pantry/v1/">Pantry</a>
+            <a href="/users/v1/logout">Logout</a>
+        {{ else }}
+            <a href="/users/v1/login">Login</a>
+            <a href="/users/v1/register">Register</a>
+        {{ end }}
+    </div>
+</header>
+{{end}}
+
+
+
