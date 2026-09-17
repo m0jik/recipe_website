@@ -5,14 +5,18 @@
     "tls_enabled": false,
     "tls_cert_file": "",
     "tls_key_file": "",
-    "base_url": "http://3.17.37.94:8080",
+    "base_url": "https://jacobsgrub.duckdns.org",
     "email": {
         "provider": "smtp",
         "smtp": {
             "host": "smtp.gmail.com",
             "port": 587,
             "from": "cs425recipewebsite@gmail.com",
+<<<<<<< HEAD
             "password": "xxxx xxxx xxxx xxxx"
+=======
+            "password": "ufbl mhtk wiez jfhq"
+>>>>>>> b73cca4e7cf89568f46dd59d75f78d214b7bc6a3
         }
     }
 }
