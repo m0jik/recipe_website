@@ -432,12 +432,6 @@ button[type="submit"]:hover {
     border: 1px solid #ccc;
 }
 
-/* flashed on a required field when Add is pressed while it is empty */
-.input-error {
-    border-color: #c0392b;
-    background: #fdf3f2;
-}
-
 /* =========================
    BUTTON VARIANTS
 ========================= */
@@ -478,39 +472,107 @@ button[type="submit"]:hover {
     border-bottom: 1px solid #eee;
 }
 
-/* =========================
-   SHOPPING LIST BUTTON
-   shared: the button renders on the recipe page and the shopping list page
-========================= */
+.tag-filter-popout {
+    position: relative;
+    display: inline-block;
+}
 
-/* icon-only cart button, sits under the meta line, left aligned */
-.shopping-btn {
-    align-self: flex-start;
-    margin-top: 15px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
-    background: #fff;
-    border: none;
-    border-radius: 8px;
+.tag-filter-popout summary {
     cursor: pointer;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: #eef4fb;
+    color: #356da8;
+    font-size: 13px;
+    list-style: none;
 }
 
-.shopping-btn:hover {
-    background: #f4f4f4;
+.tag-filter-form {
+    position: absolute;
+    z-index: 4;
+    top: calc(100% + 8px);
+    left: 0;
+    display: grid;
+    gap: 10px;
+    min-width: 240px;
+    margin: 0;
+    padding: 14px;
+    border: 1px solid #dce6f2;
+    border-radius: 6px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
 }
 
-.shopping-btn img {
+.tag-filter-form > label,
+.tag-filter-form > small {
     display: block;
-    width: 28px;
-    height: 28px;
-    object-fit: contain;
+    color: #333;
+    line-height: 1.4;
 }
 
-/* on the list: the plain black cart carries the state, no background tint.
-   the red hover is the only cue left that clicking removes, since the
-   wording that used to say so is gone */
-.shopping-btn-added:hover {
-    background: #fdecea;
+.tag-filter-form > small {
+    color: #666;
+    font-size: 12px;
 }
+
+.tag-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.tag-options label {
+    cursor: pointer;
+    color: #333;
+    font-size: 13px;
+}
+
+.index-tag-groups {
+    display: grid;
+    gap: 12px;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.index-tag-group {
+    margin: 0;
+    padding: 10px;
+    border: 1px solid #dce6f2;
+    border-radius: 6px;
+}
+
+.index-tag-group legend {
+    padding: 0 5px;
+    color: #356da8;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.tag-chip {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: #eef4fb;
+    color: #356da8;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.tag-chip:hover,
+.tag-chip.active {
+    background: #4a90e2;
+    color: white;
+}
+
+.clear-filter {
+    color: #777;
+    font-size: 13px;
+}
+
+.recipe-tag-picker {
+    display: grid;
+    gap: 10px;
+}
+
