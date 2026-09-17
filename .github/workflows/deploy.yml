@@ -1,0 +1,21 @@
+name: Deploy to Server
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+      - name: Deploy to Pi
+        env:
+          PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          HOSTNAME: ${{ secrets.HOSTNAME }}
+          USERNAME: ${{ secrets.USERNAME }}
+        run: |
+          echo "$PRIVATE_KEY" > private_key
+          chmod 600 private_key
+          ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i "private_key" ${USERNAME}@${HOSTNAME} 'cd recipe_website && git pull origin main && go build -o recipe_website . && sudo systemctl restart recipe_website'
