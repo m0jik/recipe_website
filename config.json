@@ -11,8 +11,8 @@
         "smtp": {
             "host": "smtp.gmail.com",
             "port": 587,
-            "from": "${EMAIL}",
-            "password": "${EMAIL_PASSWORD}"
+            "from": "cs425recipewebsite@gmail.com",
+            "password": "buej jjgw qiwr cigq"
         }
     }
 }
