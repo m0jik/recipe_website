@@ -43,6 +43,51 @@ type App struct {
 	Images  *services.ImageService
 }
 
+type PageData struct {
+	Username        string
+	Recipes         []services.RecipeInfo
+	Query           string
+	SelectedTags    []string
+	MaxTime         int
+	PresetTagGroups []services.PresetTagGroup
+}
+
+type RecipePageData struct {
+	PageData
+
+	Title           string
+	Description     string
+	ImageURL        string
+	Ingredients     []services.Ingredient
+	Steps           []services.Step
+	CreatorUsername string
+	Servings        int
+	PrepTimeMinutes int
+	Tags            []string
+}
+
+type PageOneData struct {
+	PageData
+
+	Title       string
+	Description string
+	Servings    int
+	PrepTime    int
+}
+
+type PageTwoData struct {
+	PageData
+
+	Image       string
+	Title       string
+	Description string
+	Tags        []string
+	Servings    string
+	PrepTime    string
+	Ingredients []services.Ingredient
+	Steps       []services.Step
+}
+
 func main() {
 	log.Println("Loading config...")
 	cfg, err := config.Load("config.json")
@@ -274,14 +319,17 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tpl.ExecuteTemplate(w, "index.html", map[string]any{
-		"Username":        username,
-		"Recipes":         recipes,
-		"Query":           query,
-		"SelectedTags":    tags,
-		"MaxTime":         maxTime,
-		"PresetTagGroups": services.PresetTagGroups,
-	})
+	data := PageData{
+		Username:        username,
+		Recipes:         recipes,
+		Query:           query,
+		SelectedTags:    tags,
+		MaxTime:         maxTime,
+		PresetTagGroups: services.PresetTagGroups,
+	}
+
+	err = tpl.ExecuteTemplate(w, "index.html", data)
+
 	if err != nil {
 		log.Printf("Error rendering index template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -341,7 +389,10 @@ func tagURL(tag string, selected []string, query string) string {
 func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "register.html", nil)
+		PageData := PageData{
+			PresetTagGroups: services.PresetTagGroups,
+		}
+		err := tpl.ExecuteTemplate(w, "register.html", PageData)
 		if err != nil {
 			log.Printf("Error rendering register template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -431,7 +482,10 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "login.html", nil)
+		PageData := PageData{
+			PresetTagGroups: services.PresetTagGroups,
+		}
+		err := tpl.ExecuteTemplate(w, "login.html", PageData)
 		if err != nil {
 			log.Printf("Error rendering login template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -526,7 +580,10 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "request_reset.html", nil)
+		PageData := PageData{
+			PresetTagGroups: services.PresetTagGroups,
+		}
+		err := tpl.ExecuteTemplate(w, "request_reset.html", PageData)
 		if err != nil {
 			log.Printf("Error rendering request_reset template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -731,10 +788,14 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tpl.ExecuteTemplate(w, "myRecipes.html", map[string]any{
-		"Username": username,
-		"Recipes":  recipes,
-	})
+	data := PageData{
+		Username:        username,
+		Recipes:         recipes,
+		PresetTagGroups: services.PresetTagGroups,
+	}
+
+	err = tpl.ExecuteTemplate(w, "myRecipes.html", data)
+
 	if err != nil {
 		log.Printf("Error rendering template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -745,9 +806,25 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "pageOne.html", map[string]any{
-			"PresetTagGroups": services.PresetTagGroups,
-		})
+		username := ""
+		if uid, ok := a.getUserIDFromSession(r); ok {
+			u, err := a.Users.GetUsernameByID(uid)
+			if err != nil {
+				http.Error(w, "Invalid session", http.StatusInternalServerError)
+				return
+			}
+			username = u
+		}
+
+		data := PageOneData{
+			PageData: PageData{
+				Username:        username,
+				PresetTagGroups: services.PresetTagGroups,
+			},
+		}
+
+		err := tpl.ExecuteTemplate(w, "pageOne.html", data)
+
 		if err != nil {
 			log.Printf("Error rendering pageOne template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -759,6 +836,16 @@ func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	if uid, ok := a.getUserIDFromSession(r); ok {
+		u, err := a.Users.GetUsernameByID(uid)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, "could not parse form", http.StatusBadRequest)
 		return
@@ -780,15 +867,22 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = tpl.ExecuteTemplate(w, "pageTwo.html", map[string]any{
-		"Title":           r.FormValue("title"),
-		"Description":     r.FormValue("description"),
-		"Image":           imagePath,
-		"Tags":            r.Form["tags"],
-		"PresetTagGroups": services.PresetTagGroups,
-		"Servings":        r.FormValue("servings"),
-		"PrepTime":        r.FormValue("prep_time_minutes"),
-	})
+	pageData := PageTwoData{
+		PageData: PageData{
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		Title:       r.FormValue("title"),
+		Description: r.FormValue("description"),
+		Image:       imagePath,
+		Tags:        r.Form["tags"],
+		Servings:    r.FormValue("servings"),
+		PrepTime:    r.FormValue("prep_time_minutes"),
+	}
+
+	err = tpl.ExecuteTemplate(w, "pageTwo.html", pageData)
+
 	if err != nil {
 		log.Printf("Error rendering pageTwo template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -918,6 +1012,15 @@ func (a *App) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	if uid, ok := a.getUserIDFromSession(r); ok {
+		u, err := a.Users.GetUsernameByID(uid)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
 	idStr := strings.TrimPrefix(r.URL.Path, "/recipes/v1/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -931,22 +1034,29 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	username, err := a.Users.GetUsernameByID(int(userID))
+	creatorusername, err := a.Users.GetUsernameByID(int(userID))
 	if err != nil {
-		username = "Unknown"
+		creatorusername = "Unknown"
 	}
 
-	err = tpl.ExecuteTemplate(w, "recipe.html", map[string]any{
-		"Title":           data.Recipe.Title,
-		"Description":     data.Recipe.Description,
-		"ImageURL":        data.Recipe.ImageURL,
-		"Ingredients":     data.Ingredients,
-		"Steps":           data.Steps,
-		"Username":        username,
-		"Servings":        data.Recipe.Servings,
-		"PrepTimeMinutes": data.Recipe.PrepTimeMinutes,
-		"Tags":            data.Recipe.Tags,
-	})
+	pageData := RecipePageData{
+		PageData: PageData{
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		CreatorUsername: creatorusername,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+	}
+
+	err = tpl.ExecuteTemplate(w, "recipe.html", pageData)
 	if err != nil {
 		log.Printf("Error rendering recipe template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)

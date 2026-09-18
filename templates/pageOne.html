@@ -7,56 +7,7 @@
     <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
 </head>
 <body>
-    <header class="navbar">
-            <div class="nav-left">
-                <div class="logo">Jacob's Grub</div>
-            </div>
-            <div class="nav-center">
-                <form method="GET" action="/" class="search-form">
-                    <input type="text" name="query" placeholder="Search recipes..." value="{{.Query}}">
-                    {{range .SelectedTags}}<input type="hidden" name="tag" value="{{.}}">{{end}}
-                    {{if .MaxTime}}<input type="hidden" name="max_time" value="{{.MaxTime}}">{{end}}
-                </form>
-                {{if .PresetTagGroups}}
-                    <details class="tag-filter-popout">
-                        <summary>Filter by tag{{if .SelectedTags}} ({{len .SelectedTags}} selected){{end}}</summary>
-                        <form method="GET" action="/" class="tag-filter-form">
-                            {{if .Query}}<input type="hidden" name="query" value="{{.Query}}">{{end}}
-                            <label for="max-time">Maximum prep time (minutes)</label>
-                            <input id="max-time" type="number" name="max_time" min="1" placeholder="e.g. 90" value="{{if .MaxTime}}{{.MaxTime}}{{end}}">
-                            <small>Only recipes at or below this time will match.</small>
-                            <div class="index-tag-groups">
-                                {{range .PresetTagGroups}}
-                                    <fieldset class="index-tag-group">
-                                        <legend>{{.Name}}</legend>
-                                        <div class="tag-options">
-                                            {{range .Tags}}
-                                                <label><input type="checkbox" name="tag" value="{{.}}" {{if hastag . $.SelectedTags}}checked{{end}}> #{{.}}</label>
-                                            {{end}}
-                                        </div>
-                                    </fieldset>
-                                {{end}}
-                            </div>
-                            <div class="tag-filter-actions">
-                                <button type="submit" class="btn-primary">Apply filters</button>
-                                <a class="clear-filter" href="{{if .Query}}/?query={{urlquery .Query}}{{else}}/{{end}}">Clear all</a>
-                            </div>
-                        </form>
-                    </details>
-                {{end}}
-            </div>
-            <div class="nav-right">
-                {{ if .Username }}
-                    <span class="welcome">Hello, {{ .Username }}</span>
-                    <a href="/recipes/v1/new">Create Recipe</a>
-                    <a href="/recipes/v1/myRecipe">My Recipes</a>
-                    <a href="/users/v1/logout">Logout</a>
-                {{ else }}
-                    <a href="/users/v1/login">Login</a>
-                    <a href="/users/v1/register">Register</a>
-                {{ end }}
-            </div>
-        </header>
+    {{ template "navbar" .}}
 
 <div class="card">
     <div class="card-header">
