@@ -46,10 +46,16 @@ type RecipeService struct {
 }
 
 var PresetTags = []string{
-	"breakfast", "brunch", "lunch", "dinner", "dessert", "snack",
-	"quick", "easy", "healthy", "comfort-food", "one-pot", "meal-prep",
-	"vegetarian", "vegan", "gluten-free", "dairy-free", "low-carb",
-	"italian", "mexican", "asian", "indian", "american", "mediterranean",
+	// Meal type
+	"breakfast", "brunch", "lunch", "dinner", "appetizer", "snack", "dessert", "side-dish", "soup", "salad", "sandwich", "wrap", "burger", "tacos", "pizza", "pasta", "bowl", "curry", "casserole", "stir-fry", "roast", "smoothie", "cocktail",
+	// Dietary / lifestyle
+	"vegetarian", "vegan", "pescatarian", "gluten-free", "dairy-free", "egg-free", "peanut-free", "nut-free", "soy-free", "sesame-free", "shellfish-free", "fish-free", "wheat-free", "halal", "kosher", "paleo", "keto", "low-carb", "low-sugar", "sugar-free", "high-protein", "high-fiber", "low-sodium", "low-fat", "heart-healthy", "diabetic-friendly", "anti-inflammatory", "low-FODMAP", "low-calories", "lactose-free", "grain-free",
+	// Cooking method
+	"quick", "easy", "one-pot", "one-pan", "meal-prep", "air-fryer", "slow-cooker", "instant-pot", "oven-baked", "sheet-pan", "no-bake", "skillet", "stovetop", "make-ahead", "freezer-friendly", "pressure-cooker",
+	// Cuisine
+	"italian", "mexican", "american", "mediterranean", "indian", "japanese", "chinese", "thai", "korean", "french", "greek", "spanish", "lebanese", "moroccan", "caribbean", "african", "vietnamese", "filipino", "brazilian", "tex-mex", "cajun", "soul-food", "middle-eastern", "latin-american",
+	// Flavor / occasion
+	"spicy", "savory", "sweet", "sour", "smoky", "garlicky", "herby", "citrusy", "kid-friendly", "party-food", "date-night", "holiday", "comfort-food", "fresh", "summer", "winter", "fall", "spring",
 }
 
 type PresetTagGroup struct {
@@ -58,10 +64,11 @@ type PresetTagGroup struct {
 }
 
 var PresetTagGroups = []PresetTagGroup{
-	{Name: "Meal type", Tags: []string{"breakfast", "brunch", "lunch", "dinner", "dessert", "snack"}},
-	{Name: "Dietary", Tags: []string{"vegetarian", "vegan", "gluten-free", "dairy-free", "low-carb"}},
-	{Name: "Preparation", Tags: []string{"quick", "easy", "healthy", "comfort-food", "one-pot", "meal-prep"}},
-	{Name: "Cuisine", Tags: []string{"italian", "mexican", "asian", "indian", "american", "mediterranean"}},
+	{Name: "Meal type", Tags: []string{"breakfast", "brunch", "lunch", "dinner", "appetizer", "snack", "dessert", "side-dish", "soup", "salad", "sandwich", "wrap", "burger", "tacos", "pizza", "pasta", "bowl", "curry", "casserole", "stir-fry", "roast", "smoothie", "cocktail"}},
+	{Name: "Dietary", Tags: []string{"vegetarian", "vegan", "pescatarian", "gluten-free", "dairy-free", "egg-free", "peanut-free", "nut-free", "soy-free", "sesame-free", "shellfish-free", "fish-free", "wheat-free", "halal", "kosher", "paleo", "keto", "low-carb", "low-sugar", "sugar-free", "high-protein", "high-fiber", "low-sodium", "low-fat", "heart-healthy", "diabetic-friendly", "anti-inflammatory", "low-FODMAP", "low-calories", "lactose-free", "grain-free"}},
+	{Name: "Cooking method", Tags: []string{"quick", "easy", "one-pot", "one-pan", "meal-prep", "air-fryer", "slow-cooker", "instant-pot", "oven-baked", "sheet-pan", "no-bake", "skillet", "stovetop", "make-ahead", "freezer-friendly", "pressure-cooker"}},
+	{Name: "Cuisine", Tags: []string{"italian", "mexican", "american", "mediterranean", "indian", "japanese", "chinese", "thai", "korean", "french", "greek", "spanish", "lebanese", "moroccan", "caribbean", "african", "vietnamese", "filipino", "brazilian", "tex-mex", "cajun", "soul-food", "middle-eastern", "latin-american"}},
+	{Name: "Flavor & occasion", Tags: []string{"spicy", "savory", "sweet", "sour", "smoky", "garlicky", "herby", "citrusy", "kid-friendly", "party-food", "date-night", "holiday", "comfort-food", "fresh", "summer", "winter", "fall", "spring"}},
 }
 
 func NewRecipeService(db *sqlx.DB) *RecipeService {

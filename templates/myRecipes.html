@@ -3,19 +3,46 @@
 <head>
         <meta charset="utf-8">
         <title>Home</title>
-        <link rel="stylesheet" href="/static/style.css">
+        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
     </head>
     <body>
         <header class="navbar">
             <div class="nav-left">
-                <div class="logo">
-                    <a href="/" style="color: rgb(255, 255, 255);">Jacob's Grub</a>
-                </div>
+                <div class="logo">Jacob's Grub</div>
             </div>
             <div class="nav-center">
                 <form method="GET" action="/" class="search-form">
-                    <input type="text" name="query" placeholder="Search recipes..."value="{{.Query}}">
+                    <input type="text" name="query" placeholder="Search recipes..." value="{{.Query}}">
+                    {{range .SelectedTags}}<input type="hidden" name="tag" value="{{.}}">{{end}}
+                    {{if .MaxTime}}<input type="hidden" name="max_time" value="{{.MaxTime}}">{{end}}
                 </form>
+                {{if .PresetTagGroups}}
+                    <details class="tag-filter-popout">
+                        <summary>Filter by tag{{if .SelectedTags}} ({{len .SelectedTags}} selected){{end}}</summary>
+                        <form method="GET" action="/" class="tag-filter-form">
+                            {{if .Query}}<input type="hidden" name="query" value="{{.Query}}">{{end}}
+                            <label for="max-time">Maximum prep time (minutes)</label>
+                            <input id="max-time" type="number" name="max_time" min="1" placeholder="e.g. 90" value="{{if .MaxTime}}{{.MaxTime}}{{end}}">
+                            <small>Only recipes at or below this time will match.</small>
+                            <div class="index-tag-groups">
+                                {{range .PresetTagGroups}}
+                                    <fieldset class="index-tag-group">
+                                        <legend>{{.Name}}</legend>
+                                        <div class="tag-options">
+                                            {{range .Tags}}
+                                                <label><input type="checkbox" name="tag" value="{{.}}" {{if hastag . $.SelectedTags}}checked{{end}}> #{{.}}</label>
+                                            {{end}}
+                                        </div>
+                                    </fieldset>
+                                {{end}}
+                            </div>
+                            <div class="tag-filter-actions">
+                                <button type="submit" class="btn-primary">Apply filters</button>
+                                <a class="clear-filter" href="{{if .Query}}/?query={{urlquery .Query}}{{else}}/{{end}}">Clear all</a>
+                            </div>
+                        </form>
+                    </details>
+                {{end}}
             </div>
             <div class="nav-right">
                 {{ if .Username }}

@@ -12,11 +12,7 @@
             "host": "smtp.gmail.com",
             "port": 587,
             "from": "cs425recipewebsite@gmail.com",
-<<<<<<< HEAD
-            "password": "xxxx xxxx xxxx xxxx"
-=======
             "password": "ufbl mhtk wiez jfhq"
->>>>>>> b73cca4e7cf89568f46dd59d75f78d214b7bc6a3
         }
     }
 }
