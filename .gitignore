@@ -4,3 +4,4 @@ uploads/*
 .idea/
 recipe_website.exe
 app.db
+config.json
