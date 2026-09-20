@@ -251,8 +251,7 @@
     background: #fafafa;
 }
 
-.shopping-row.is-checked .col-item,
-.shopping-row.is-checked .col-recipes {
+.shopping-row.is-checked .col-item {
     color: #aaa;
     text-decoration: line-through;
 }
@@ -277,12 +276,6 @@
 
 .col-item {
     font-weight: bold;
-}
-
-.col-recipes {
-    color: #999;
-    font-size: 14px;
-    white-space: nowrap;
 }
 
 .col-num {
@@ -448,9 +441,16 @@
 }
 
 .shopping-summary {
-    margin: 16px 0 0;
-    color: #777;
-    font-size: 14px;
+    margin: 0;
+}
+
+.shopping-foot form {
+    margin: 0;
+}
+
+.to-pantry-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
 }
 
 .shopping-empty {

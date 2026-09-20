@@ -89,7 +89,6 @@
                         </th>
                         <th class="col-expand"><span class="visually-hidden">Show recipes</span></th>
                         <th class="col-item">Item</th>
-                        <th class="col-recipes">Recipe Details</th>
                         <th class="col-num">Need</th>
                         <th class="col-num">In Pantry</th>
                         <th class="col-num">To Buy</th>
@@ -123,10 +122,6 @@
                             </td>
 
                             <td class="col-item">{{ $item.Name }}</td>
-
-                            <td class="col-recipes">
-                                From {{ len $item.Sources }} recipe{{ if ne (len $item.Sources) 1 }}s{{ end }}
-                            </td>
 
                             <td class="col-num">
                                 {{ if $item.Need }}{{ $item.Need }}{{ else }}&mdash;{{ end }}
@@ -162,7 +157,7 @@
                         </tr>
 
                         <tr class="shopping-detail">
-                            <td colspan="8">
+                            <td colspan="7">
                                 <div class="detail-box">
                                     <p class="detail-title">Used in these recipes:</p>
                                     <ul class="detail-sources">
@@ -187,13 +182,28 @@
                 </tbody>
             </table>
         </div>
+        <div class="shopping-foot">
+            <p class="shopping-summary">
+                {{ .Remaining }} of {{ .Total }} item{{ if ne .Total 1 }}s{{ end }} left to buy.
+                {{ if and .NeedOnly .Hidden }}
+                    {{ .Hidden }} hidden by the filter.
+                {{ end }}
+            </p>
 
-        <p class="shopping-summary">
-            {{ .Remaining }} of {{ .Total }} item{{ if ne .Total 1 }}s{{ end }} left to buy.
-            {{ if and .NeedOnly .Hidden }}
-                {{ .Hidden }} hidden by the filter.
-            {{ end }}
-        </p>
+            <form
+                hx-post="/shopping-list/v1/to-pantry{{ if .NeedOnly }}?need_only=1{{ end }}"
+                hx-target="#shopping-list-section"
+                hx-swap="outerHTML"
+            >
+                <button
+                    type="submit"
+                    class="btn-primary to-pantry-btn"
+                    title="Add everything still to buy to your pantry"
+                >
+                    Add all to pantry
+                </button>
+            </form>
+        </div>
     {{ else if .NeedOnly }}
         <p class="shopping-empty">Nothing left to buy &mdash; your pantry covers everything on the list.</p>
     {{ else }}

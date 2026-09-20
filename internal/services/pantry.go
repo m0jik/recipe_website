@@ -51,23 +51,26 @@ func (s *PantryService) GetPantryItems(userID int) ([]PantryIngredient, error) {
 }
 
 func (s *PantryService) AddPantryItem(userID int, name, quantity, unit string) error {
+	return s.addPantryItem(s.DB, userID, name, quantity, unit)
+}
+
+func (s *PantryService) addPantryItem(q sqlExecutor, userID int, name, quantity, unit string) error {
 	if _, err := ParseQuantity(quantity); err != nil {
 		return fmt.Errorf("%w: %q", ErrInvalidQuantity, quantity)
 	}
-
-	rows, err := s.DB.Query(
-		"SELECT quantity, unit FROM userPantryV1 WHERE user_id = ? AND name = ?",
+	rows, err := q.Query(
+		"SELECT name, quantity, unit FROM userPantryV1 WHERE user_id = ? AND name = ? COLLATE NOCASE",
 		userID, name,
 	)
 	if err != nil {
 		return err
 	}
 
-	type existingRow struct{ qty, unit string }
+	type existingRow struct{ name, qty, unit string }
 	var existing []existingRow
 	for rows.Next() {
 		var e existingRow
-		if err := rows.Scan(&e.qty, &e.unit); err != nil {
+		if err := rows.Scan(&e.name, &e.qty, &e.unit); err != nil {
 			rows.Close()
 			return err
 		}
@@ -82,14 +85,14 @@ func (s *PantryService) AddPantryItem(userID int, name, quantity, unit string) e
 		if !ok {
 			continue
 		}
-		_, err = s.DB.Exec(
+		_, err = q.Exec(
 			"UPDATE userPantryV1 SET quantity = ?, unit = ? WHERE user_id = ? AND name = ? AND unit = ?",
-			combinedQty, combinedUnit, userID, name, e.unit,
+			combinedQty, combinedUnit, userID, e.name, e.unit,
 		)
 		return err
 	}
 
-	_, err = s.DB.Exec(
+	_, err = q.Exec(
 		`INSERT INTO userPantryV1 (user_id, name, quantity, unit) VALUES (?, ?, ?, ?)
 		 ON CONFLICT(user_id, name, unit) DO UPDATE SET quantity = excluded.quantity`,
 		userID, name, quantity, unit,

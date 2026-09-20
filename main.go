@@ -116,6 +116,7 @@ func main() {
 	mux.HandleFunc("POST /shopping-list/v1/check-all", app.handleShoppingListCheckAll)
 	mux.HandleFunc("POST /shopping-list/v1/qty", app.handleShoppingListQty)
 	mux.HandleFunc("POST /shopping-list/v1/filter", app.handleShoppingListFilter)
+	mux.HandleFunc("POST /shopping-list/v1/to-pantry", app.handleShoppingListToPantry)
 
 	//Pantry
 	mux.HandleFunc("POST /pantry/v1/add", app.handlePantryAdd)
@@ -1162,6 +1163,21 @@ func (a *App) handleShoppingListQty(w http.ResponseWriter, r *http.Request) {
 	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
 }
 
+func (a *App) handleShoppingListToPantry(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	if _, err := a.Shopping.AddCheckedToPantry(userID, a.Pantry); err != nil {
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
+}
+
 // handleShoppingListFilter: redraws the list with or without the lines the pantry already covers.
 func (a *App) handleShoppingListFilter(w http.ResponseWriter, r *http.Request) {
 	userID, ok := a.getUserIDFromSession(r)
@@ -1200,12 +1216,15 @@ func shoppingListData(items []services.ShoppingListItem, recipes []services.Shop
 	shown := shoppingListRows(items, needOnly)
 
 	allChecked := len(items) > 0
+	anyChecked := false
 	remaining := 0
 	for _, item := range items {
 		if !item.Checked {
 			allChecked = false
 			remaining++
+			continue
 		}
+		anyChecked = true
 	}
 
 	return map[string]any{
@@ -1213,6 +1232,7 @@ func shoppingListData(items []services.ShoppingListItem, recipes []services.Shop
 		"Recipes":    recipes,
 		"NeedOnly":   needOnly,
 		"AllChecked": allChecked,
+		"AnyChecked": anyChecked,
 		"Total":      len(items),
 		"Remaining":  remaining,
 		"Hidden":     len(items) - len(shown),

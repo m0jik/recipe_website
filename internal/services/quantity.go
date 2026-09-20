@@ -2,6 +2,7 @@ package services
 
 import (
 	"fmt"
+	"math"
 	"strconv"
 	"strings"
 )
@@ -37,9 +38,8 @@ func ParseQuantity(s string) (float64, error) {
 	return total, nil
 }
 
-// FormatQuantity: formats a quantity, trimming trailing zeros
 func FormatQuantity(q float64) string {
-	return strconv.FormatFloat(q, 'f', -1, 64)
+	return strconv.FormatFloat(math.Round(q*100)/100, 'f', -1, 64)
 }
 
 func CombineQuantities(existingQty, existingUnit, newQty, newUnit string) (qty string, unit string, ok bool) {

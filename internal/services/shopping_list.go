@@ -16,11 +16,8 @@ type ShoppingListSource struct {
 }
 
 type ShoppingListItem struct {
-	Name string
-	Unit string
-	// Need is what the recipes add up to, InPantry what the user already has,
-	// and ToBuy the difference the shopper actually takes to the shop. ToBuy is
-	// overridden outright once the user nudges it with the quantity stepper.
+	Name       string
+	Unit       string
 	Need       string
 	InPantry   string
 	ToBuy      string
@@ -29,9 +26,6 @@ type ShoppingListItem struct {
 	Sources    []ShoppingListSource
 }
 
-// NeedsBuying reports whether a line still has to be bought, which is what the
-// "show only what I need to buy" filter keeps. Quantities that would not parse
-// are kept rather than hidden, since we cannot prove they are covered.
 func (i ShoppingListItem) NeedsBuying() bool {
 	if i.Checked {
 		return false
@@ -59,11 +53,12 @@ func NewShoppingListService(db *sqlx.DB) *ShoppingListService {
 	return &ShoppingListService{DB: db}
 }
 
-// GetItems returns the list grouped by ingredient. Rows are stored one per
-// recipe, so the grouping and the adding up both happen here, along with
-// subtracting whatever the user's pantry already covers.
 func (s *ShoppingListService) GetItems(userID int) ([]ShoppingListItem, error) {
-	rows, err := s.DB.Query(
+	return s.getItems(s.DB, userID)
+}
+
+func (s *ShoppingListService) getItems(q sqlExecutor, userID int) ([]ShoppingListItem, error) {
+	rows, err := q.Query(
 		`SELECT sl.name, sl.unit, sl.quantity,
 		        COALESCE(r.id, 0), COALESCE(r.title, ''), COALESCE(r.image_url, '')
 		 FROM userShoppingListV2 sl
@@ -104,11 +99,11 @@ func (s *ShoppingListService) GetItems(userID int) ([]ShoppingListItem, error) {
 		return nil, err
 	}
 
-	pantry, err := s.pantryAmounts(userID)
+	pantry, err := s.pantryAmounts(q, userID)
 	if err != nil {
 		return nil, err
 	}
-	state, err := s.itemState(userID)
+	state, err := s.itemState(q, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +121,8 @@ func (s *ShoppingListService) GetItems(userID int) ([]ShoppingListItem, error) {
 		if st, ok := state[key]; ok {
 			items[i].Checked = st.checked
 			if st.override != "" {
-				items[i].ToBuy = st.override
+				override, _ := ParseQuantity(st.override)
+				items[i].ToBuy = FormatQuantity(override)
 				items[i].Overridden = true
 			}
 		}
@@ -147,8 +143,8 @@ func itemKey(name, unit string) [2]string {
 	}
 }
 
-func (s *ShoppingListService) pantryAmounts(userID int) (map[[2]string]string, error) {
-	rows, err := s.DB.Query(
+func (s *ShoppingListService) pantryAmounts(q sqlExecutor, userID int) (map[[2]string]string, error) {
+	rows, err := q.Query(
 		"SELECT name, unit, quantity FROM userPantryV1 WHERE user_id = ?", userID,
 	)
 	if err != nil {
@@ -166,13 +162,22 @@ func (s *ShoppingListService) pantryAmounts(userID int) (map[[2]string]string, e
 		if err := rows.Scan(&name, &unit, &quantity); err != nil {
 			return nil, err
 		}
-		amounts[itemKey(name, unit)] = quantity
+
+		key := itemKey(name, unit)
+		if already, ok := amounts[key]; ok {
+			combined, _, ok := CombineQuantities(already, unit, quantity, unit)
+			if !ok {
+				continue
+			}
+			quantity = combined
+		}
+		amounts[key] = quantity
 	}
 	return amounts, rows.Err()
 }
 
-func (s *ShoppingListService) itemState(userID int) (map[[2]string]lineState, error) {
-	rows, err := s.DB.Query(
+func (s *ShoppingListService) itemState(q sqlExecutor, userID int) (map[[2]string]lineState, error) {
+	rows, err := q.Query(
 		"SELECT name, unit, checked, qty_override FROM userShoppingStateV1 WHERE user_id = ?", userID,
 	)
 	if err != nil {
@@ -273,10 +278,41 @@ func (s *ShoppingListService) AdjustQuantity(userID int, name, unit string, delt
 	return nil
 }
 
-// clearState drops the tick and any override for a line, used when the line
-// itself leaves the list so a later re-add starts clean.
-func (s *ShoppingListService) clearState(userID int, name, unit string) error {
-	_, err := s.DB.Exec(
+func (s *ShoppingListService) AddCheckedToPantry(userID int, pantry *PantryService) (int, error) {
+	var moved int
+	err := withTx(s.DB, func(tx sqlExecutor) error {
+		items, err := s.getItems(tx, userID)
+		if err != nil {
+			return err
+		}
+
+		for _, item := range items {
+			if !item.Checked {
+				continue
+			}
+
+			if quantity, err := ParseQuantity(item.ToBuy); err == nil && quantity > 0 {
+				if err := pantry.addPantryItem(tx, userID, item.Name, FormatQuantity(quantity), item.Unit); err != nil {
+					return err
+				}
+				moved++
+			}
+
+			if err := s.removeItem(tx, userID, item.Name, item.Unit); err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	if err != nil {
+		// transaction rolled back
+		return 0, err
+	}
+	return moved, nil
+}
+
+func (s *ShoppingListService) clearState(q sqlExecutor, userID int, name, unit string) error {
+	_, err := q.Exec(
 		"DELETE FROM userShoppingStateV1 WHERE user_id = ? AND name = ? AND unit = ?",
 		userID, name, unit,
 	)
@@ -317,9 +353,6 @@ func (s *ShoppingListService) GetRecipes(userID int) ([]ShoppingListRecipe, erro
 	return recipes, nil
 }
 
-// HasRecipe reports whether any version of a recipe is already feeding the
-// user's list, so a page can render the cart button in its "already added"
-// state instead of assuming a fresh one.
 func (s *ShoppingListService) HasRecipe(userID int, recipeID int64) (bool, error) {
 	var exists bool
 	err := s.DB.QueryRow(
@@ -333,10 +366,6 @@ func (s *ShoppingListService) HasRecipe(userID int, recipeID int64) (bool, error
 	return exists, err
 }
 
-// AddRecipeIngredients replaces whatever a recipe had already put on the list
-// with the ingredients of the version being added. Rows are unique per
-// (name, unit, version), so a recipe listing the same ingredient twice would
-// otherwise overwrite itself.
 func (s *ShoppingListService) AddRecipeIngredients(userID int, versionID int64, ingredients []Ingredient) error {
 	tx, err := s.DB.Begin()
 	if err != nil {
@@ -376,9 +405,6 @@ func (s *ShoppingListService) AddRecipeIngredients(userID int, versionID int64, 
 	return tx.Commit()
 }
 
-// mergeIngredients folds a recipe's repeated ingredients into one row each,
-// keeping the original order. Quantities that will not parse (a "pinch") are
-// kept side by side rather than dropped.
 func mergeIngredients(ingredients []Ingredient) []Ingredient {
 	var merged []Ingredient
 	seen := make(map[[2]string]int, len(ingredients))
@@ -404,14 +430,18 @@ func mergeIngredients(ingredients []Ingredient) []Ingredient {
 }
 
 func (s *ShoppingListService) RemoveItem(userID int, name, unit string) error {
-	_, err := s.DB.Exec(
+	return s.removeItem(s.DB, userID, name, unit)
+}
+
+func (s *ShoppingListService) removeItem(q sqlExecutor, userID int, name, unit string) error {
+	_, err := q.Exec(
 		"DELETE FROM userShoppingListV2 WHERE user_id = ? AND name = ? AND unit = ?",
 		userID, name, unit,
 	)
 	if err != nil {
 		return err
 	}
-	return s.clearState(userID, name, unit)
+	return s.clearState(q, userID, name, unit)
 }
 
 // RemoveRecipe drops every ingredient that came from any version of a recipe.
