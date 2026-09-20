@@ -1,0 +1,495 @@
+/* =========================
+   SHOPPING LIST PAGE
+   Styles used only by templates/shoppingList.html.
+   Shared pieces (.btn-remove, .container) stay in style.css.
+========================= */
+
+.shopping-intro {
+    margin: 0 0 20px;
+    color: #555;
+}
+
+/* shopping list: the recipes the list was built from. Sits inside the panel, so
+   it is outlined rather than raised on its own shadow. */
+.selected-recipes {
+    background: #fff;
+    border: 1px solid #eee;
+    border-radius: 10px;
+    padding: 16px 18px;
+    margin-bottom: 22px;
+    text-align: left;
+}
+
+.selected-recipes h3 {
+    margin: 0 0 15px;
+    font-size: 15px;
+    color: #555;
+}
+
+.selected-recipe-cards {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.selected-recipe-card {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: #f9f9f9;
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 8px 10px;
+}
+
+.selected-recipe-card img {
+    width: 48px;
+    height: 48px;
+    object-fit: cover;
+    border-radius: 6px;
+    flex-shrink: 0;
+}
+
+.selected-recipe-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.selected-recipe-info a {
+    color: #333;
+    font-weight: bold;
+    text-decoration: none;
+}
+
+.selected-recipe-info a:hover {
+    text-decoration: underline;
+}
+
+.selected-recipe-servings {
+    color: #666;
+    font-size: 13px;
+}
+
+.add-more-recipes {
+    display: flex;
+    align-items: center;
+    padding: 8px 16px;
+    border: 1px dashed #bbb;
+    border-radius: 8px;
+    color: #2e7d32;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.add-more-recipes:hover {
+    background: #f4f4f4;
+}
+
+/* -- shopping list panel ------------------------------------------- */
+
+/* flat and outlined rather than raised: definition comes from a crisp border
+   and the whitespace, not a drop shadow */
+.shopping-panel {
+    background: #fff;
+    border: 1px solid #e3e3e3;
+    border-radius: 12px;
+    padding: 26px 28px 22px;
+    text-align: left;
+}
+
+/* the cart, the title block and the filter switch all centre on one line, so
+   the icon reads as part of the heading rather than floating above it */
+.shopping-head {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    flex-wrap: wrap;
+    margin-bottom: 22px;
+}
+
+.shopping-head-icon {
+    width: 56px;
+    height: 56px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+.shopping-head-text {
+    flex: 1;
+    min-width: 240px;
+}
+
+.shopping-head-text h2 {
+    margin: 0;
+    font-size: 30px;
+    line-height: 1.1;
+}
+
+.shopping-panel .shopping-intro {
+    margin: 4px 0 0;
+    color: #6b6b6b;
+    font-size: 14px;
+    max-width: 70ch;
+}
+
+/* the "only what I need to buy" switch */
+.shopping-filter {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-left: auto;
+}
+
+.shopping-filter-label {
+    font-weight: bold;
+    font-size: 15px;
+}
+
+.switch {
+    display: inline-block;
+    position: relative;
+    flex-shrink: 0;
+}
+
+.switch input {
+    position: absolute;
+    opacity: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    cursor: pointer;
+}
+
+.switch-track {
+    display: block;
+    width: 52px;
+    height: 28px;
+    border-radius: 999px;
+    background: #ccc;
+    transition: background 0.15s ease;
+    pointer-events: none;
+}
+
+.switch-thumb {
+    display: block;
+    width: 22px;
+    height: 22px;
+    margin: 3px;
+    border-radius: 50%;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.18);
+    transition: transform 0.15s ease;
+}
+
+.switch input:checked + .switch-track {
+    background: #1f7a3f;
+}
+
+.switch input:checked + .switch-track .switch-thumb {
+    transform: translateX(24px);
+}
+
+.switch input:focus-visible + .switch-track {
+    outline: 2px solid #1f7a3f;
+    outline-offset: 2px;
+}
+
+/* the little i next to a column heading */
+.info {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 15px;
+    height: 15px;
+    margin-left: 4px;
+    border: 1px solid #bbb;
+    border-radius: 50%;
+    color: #888;
+    font-size: 10px;
+    font-style: italic;
+    font-weight: bold;
+    cursor: help;
+    vertical-align: middle;
+}
+
+.info:hover,
+.info:focus {
+    border-color: #1f7a3f;
+    color: #1f7a3f;
+}
+
+/* -- the table ----------------------------------------------------- */
+
+.shopping-table-wrap {
+    overflow-x: auto;
+}
+
+.shopping-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+}
+
+.shopping-table thead th {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e4e4e4;
+    color: #777;
+    font-size: 13px;
+    font-weight: bold;
+    text-align: left;
+    white-space: nowrap;
+}
+
+.shopping-table td {
+    padding: 11px 12px;
+    border-bottom: 1px solid #f0f0f0;
+    vertical-align: middle;
+}
+
+.shopping-row:hover {
+    background: #fafafa;
+}
+
+.shopping-row.is-checked .col-item {
+    color: #aaa;
+    text-decoration: line-through;
+}
+
+.col-check,
+.col-expand {
+    width: 1%;
+    white-space: nowrap;
+}
+
+.col-check form,
+.col-check input {
+    margin: 0;
+}
+
+.col-check input {
+    width: 17px;
+    height: 17px;
+    cursor: pointer;
+    accent-color: #1f7a3f;
+}
+
+.col-item {
+    font-weight: bold;
+}
+
+.col-num {
+    white-space: nowrap;
+}
+
+.in-pantry {
+    color: #777;
+}
+
+.to-buy {
+    font-weight: bold;
+}
+
+/* what still has to be bought carries no fill: the bold weight is the signal */
+.to-buy.needs-buying {
+    color: #222;
+}
+
+.override-flag {
+    color: #999;
+    font-weight: normal;
+    cursor: help;
+}
+
+/* the > that opens the per recipe breakdown */
+.row-expand {
+    display: inline-block;
+    cursor: pointer;
+    padding: 4px 6px;
+    line-height: 1;
+    color: #888;
+}
+
+.row-expand:hover {
+    color: #333;
+}
+
+.chevron {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(-45deg);
+    transition: transform 0.15s ease;
+}
+
+/* Opening a row is a checkbox the label drives, so it needs no script: the
+   detail row is the checked row's next sibling. */
+.shopping-detail {
+    display: none;
+}
+
+.shopping-row:has(.row-expand-toggle:checked) + .shopping-detail {
+    display: table-row;
+}
+
+.shopping-row:has(.row-expand-toggle:checked) .chevron {
+    transform: rotate(45deg);
+}
+
+.row-expand-toggle:focus-visible + .row-expand {
+    outline: 2px solid #1f7a3f;
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+/* -- quantity stepper ---------------------------------------------- */
+
+.qty-stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+}
+
+.qty-btn {
+    width: 26px;
+    height: 26px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    color: #555;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+}
+
+.qty-btn:hover {
+    background: #f2f2f2;
+    border-color: #bbb;
+}
+
+.qty-value {
+    display: inline-block;
+    min-width: 42px;
+    padding: 4px 6px;
+    border: 1px solid #ddd;
+    border-radius: 6px;
+    background: #fff;
+    text-align: center;
+    font-size: 14px;
+}
+
+/* -- expanded "used in these recipes" row -------------------------- */
+
+.shopping-detail > td {
+    padding: 0 12px 12px 44px;
+    background: #fafafa;
+}
+
+.detail-box {
+    border-left: 3px solid #ddd;
+    padding: 10px 0 4px 14px;
+}
+
+.detail-title {
+    margin: 0 0 8px;
+    color: #555;
+    font-size: 14px;
+}
+
+.detail-sources {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.detail-sources li {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    border-radius: 6px;
+    background: #fff;
+    font-size: 14px;
+}
+
+.detail-sources li + li {
+    margin-top: 6px;
+}
+
+.detail-sources img {
+    width: 30px;
+    height: 30px;
+    object-fit: cover;
+    border-radius: 5px;
+    flex-shrink: 0;
+}
+
+.detail-sources a {
+    color: #333;
+    text-decoration: none;
+}
+
+.detail-sources a:hover {
+    text-decoration: underline;
+}
+
+.detail-qty {
+    margin-left: auto;
+    color: #666;
+}
+
+.shopping-summary {
+    margin: 0;
+}
+
+.shopping-foot form {
+    margin: 0;
+}
+
+.to-pantry-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+.shopping-empty {
+    margin: 10px 0 0;
+    color: #666;
+}
+
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+}
+
+
+
+/* =========================
+shopping list buttons 
+========================= */
+
+.recipe-meta {
+    display: flex;
+    gap: 15px;
+}
+
+/* .shopping-btn styles live in style.css so the recipe page picks them up too */
+
+.btn-remove {
+    background: none;
+    border: none;
+    color: #999;
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    padding: 2px 6px;
+}
+
+.btn-remove:hover {
+    color: #c0392b;
+}
