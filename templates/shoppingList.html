@@ -1,0 +1,213 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>Shopping List</title>
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+        <link rel="stylesheet" href="/static/style.css">
+        <link rel="stylesheet" href="/static/shopping_list.css">
+    </head>
+    <body>
+        {{template "nav" .}}
+        <main class="container">
+            {{template "shopping-list-section" .}}
+        </main>
+    </body>
+</html>
+{{ define "shopping-list-section" }}
+<section class="shopping-panel" id="shopping-list-section">
+
+    <header class="shopping-head">
+        <img class="shopping-head-icon" src="/static/icon/grocery-cart.png" alt="">
+        <div class="shopping-head-text">
+            <h2>Shopping List</h2>
+            <p class="shopping-intro">
+                {{ if .NeedOnly }}
+                    Showing only items you need to buy. Quantities are adjusted based on what you already have in your pantry.
+                {{ else }}
+                    Everything your recipes call for. Quantities are adjusted based on what you already have in your pantry.
+                {{ end }}
+            </p>
+        </div>
+
+        <form class="shopping-filter"
+              hx-post="/shopping-list/v1/filter"
+              hx-target="#shopping-list-section"
+              hx-swap="outerHTML"
+              hx-trigger="change">
+            <label class="switch">
+                <input type="checkbox" name="need_only" value="1" {{ if .NeedOnly }}checked{{ end }}>
+                <span class="switch-track"><span class="switch-thumb"></span></span>
+            </label>
+            <span class="shopping-filter-label">Show only what I need to buy</span>
+            <span class="info" tabindex="0" role="img" aria-label="Hides anything your pantry already covers, and anything you have ticked off">i</span>
+        </form>
+    </header>
+
+    {{ if .Recipes }}
+        <div class="selected-recipes">
+            <h3>Selected Recipes ({{ len .Recipes }})</h3>
+            <div class="selected-recipe-cards">
+                {{ range .Recipes }}
+                    <div class="selected-recipe-card">
+                        <img src="{{ if .ImageURL }}{{ .ImageURL }}{{ else }}/static/placeholder.svg{{ end }}" alt="">
+                        <div class="selected-recipe-info">
+                            <a href="/recipes/v1/{{ .ID }}">{{ .Title }}</a>
+                            {{ if .Servings }}
+                                <span class="selected-recipe-servings">
+                                    {{ .Servings }} serving{{ if ne .Servings 1 }}s{{ end }}
+                                </span>
+                            {{ end }}
+                        </div>
+                        <button type="button" class="btn-remove"
+                                title="Remove {{ .Title }} from your list"
+                                hx-delete="/shopping-list/v1/remove-recipe?recipe_id={{ .ID }}{{ if $.NeedOnly }}&need_only=1{{ end }}"
+                                hx-target="#shopping-list-section"
+                                hx-swap="outerHTML">&#10005;</button>
+                    </div>
+                {{ end }}
+                <a class="add-more-recipes" href="/">+ Add More Recipes</a>
+            </div>
+        </div>
+    {{ end }}
+
+    {{ if .Items }}
+        <div class="shopping-table-wrap">
+            <table class="shopping-table">
+                <thead>
+                    <tr>
+                        <th class="col-check">
+                            <form hx-post="/shopping-list/v1/check-all{{ if .NeedOnly }}?need_only=1{{ end }}"
+                                  hx-target="#shopping-list-section"
+                                  hx-swap="outerHTML"
+                                  hx-trigger="change">
+                                <input type="checkbox" name="checked" value="1"
+                                       title="Tick off every item"
+                                       aria-label="Tick off every item"
+                                       {{ if .AllChecked }}checked{{ end }}>
+                            </form>
+                        </th>
+                        <th class="col-expand"><span class="visually-hidden">Show recipes</span></th>
+                        <th class="col-item">Item</th>
+                        <th class="col-num">Need</th>
+                        <th class="col-num">In Pantry</th>
+                        <th class="col-num">To Buy</th>
+                        <th class="col-adjust">Qty Adjust</th>
+                    </tr>
+                </thead>
+
+                <tbody>
+                    {{ range $index, $item := .Items }}
+                        <tr class="shopping-row{{ if $item.Checked }} is-checked{{ end }}">
+                            <td class="col-check">
+                                <form hx-post="/shopping-list/v1/check?name={{ $item.Name | urlquery }}&unit={{ $item.Unit | urlquery }}{{ if $.NeedOnly }}&need_only=1{{ end }}"
+                                      hx-target="#shopping-list-section"
+                                      hx-swap="outerHTML"
+                                      hx-trigger="change">
+                                    <input type="checkbox" name="checked" value="1"
+                                           aria-label="Tick off {{ $item.Name }}"
+                                           {{ if $item.Checked }}checked{{ end }}>
+                                </form>
+                            </td>
+
+                            <td class="col-expand">
+                                {{/* a checkbox and its label: opening a row is CSS, not script */}}
+                                <input type="checkbox" class="row-expand-toggle visually-hidden"
+                                       id="expand-{{ $index }}"
+                                       aria-label="Show which recipes use {{ $item.Name }}">
+                                <label class="row-expand" for="expand-{{ $index }}"
+                                       title="Show which recipes use {{ $item.Name }}">
+                                    <span class="chevron"></span>
+                                </label>
+                            </td>
+
+                            <td class="col-item">{{ $item.Name }}</td>
+
+                            <td class="col-num">
+                                {{ if $item.Need }}{{ $item.Need }}{{ else }}&mdash;{{ end }}
+                                {{ if $item.Unit }} {{ $item.Unit }}{{ end }}
+                            </td>
+
+                            <td class="col-num in-pantry">
+                                {{ $item.InPantry }}{{ if and $item.Unit (ne $item.InPantry "0") }} {{ $item.Unit }}{{ end }}
+                            </td>
+
+                            <td class="col-num to-buy{{ if $item.NeedsBuying }} needs-buying{{ end }}">
+                                {{ if $item.ToBuy }}{{ $item.ToBuy }}{{ else }}&mdash;{{ end }}
+                                {{ if $item.Unit }} {{ $item.Unit }}{{ end }}
+                                {{ if $item.Overridden }}<span class="override-flag" title="You set this amount by hand">*</span>{{ end }}
+                            </td>
+
+                            <td class="col-adjust">
+                                <div class="qty-stepper">
+                                    <button type="button" class="qty-btn"
+                                            aria-label="Buy less {{ $item.Name }}"
+                                            hx-post="/shopping-list/v1/qty?name={{ $item.Name | urlquery }}&unit={{ $item.Unit | urlquery }}&delta=-1{{ if $.NeedOnly }}&need_only=1{{ end }}"
+                                            hx-target="#shopping-list-section"
+                                            hx-swap="outerHTML">&minus;</button>
+                                    <span class="qty-value">{{ if $item.ToBuy }}{{ $item.ToBuy }}{{ else }}&mdash;{{ end }}</span>
+                                    <button type="button" class="qty-btn"
+                                            aria-label="Buy more {{ $item.Name }}"
+                                            hx-post="/shopping-list/v1/qty?name={{ $item.Name | urlquery }}&unit={{ $item.Unit | urlquery }}&delta=1{{ if $.NeedOnly }}&need_only=1{{ end }}"
+                                            hx-target="#shopping-list-section"
+                                            hx-swap="outerHTML">+</button>
+                                </div>
+                            </td>
+
+                        </tr>
+
+                        <tr class="shopping-detail">
+                            <td colspan="7">
+                                <div class="detail-box">
+                                    <p class="detail-title">Used in these recipes:</p>
+                                    <ul class="detail-sources">
+                                        {{ range $item.Sources }}
+                                            <li>
+                                                <img src="{{ if .ImageURL }}{{ .ImageURL }}{{ else }}/static/placeholder.svg{{ end }}" alt="">
+                                                {{ if .RecipeID }}
+                                                    <a href="/recipes/v1/{{ .RecipeID }}">{{ .RecipeTitle }}</a>
+                                                {{ else }}
+                                                    <span>Added by hand</span>
+                                                {{ end }}
+                                                <span class="detail-qty">
+                                                    {{ .Quantity }}{{ if $item.Unit }} {{ $item.Unit }}{{ end }}
+                                                </span>
+                                            </li>
+                                        {{ end }}
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                    {{ end }}
+                </tbody>
+            </table>
+        </div>
+        <div class="shopping-foot">
+            <p class="shopping-summary">
+                {{ .Remaining }} of {{ .Total }} item{{ if ne .Total 1 }}s{{ end }} left to buy.
+                {{ if and .NeedOnly .Hidden }}
+                    {{ .Hidden }} hidden by the filter.
+                {{ end }}
+            </p>
+
+            <form
+                hx-post="/shopping-list/v1/to-pantry{{ if .NeedOnly }}?need_only=1{{ end }}"
+                hx-target="#shopping-list-section"
+                hx-swap="outerHTML"
+            >
+                <button
+                    type="submit"
+                    class="btn-primary to-pantry-btn"
+                    title="Add everything still to buy to your pantry"
+                >
+                    Add all to pantry
+                </button>
+            </form>
+        </div>
+    {{ else if .NeedOnly }}
+        <p class="shopping-empty">Nothing left to buy &mdash; your pantry covers everything on the list.</p>
+    {{ else }}
+        <p class="shopping-empty">Your shopping list is empty. Open a recipe and click the cart to add its ingredients.</p>
+    {{ end }}
+</section>
+{{ end }}
