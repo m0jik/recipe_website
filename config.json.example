@@ -1,0 +1,18 @@
+{
+    "server_address": ":8080",
+    "database_path": "./app.db",
+    "session_lifetime_hours": 24,
+    "tls_enabled": false,
+    "tls_cert_file": "",
+    "tls_key_file": "",
+    "base_url": "http://example.com:8080",
+    "email": {
+        "provider": "smtp",
+        "smtp": {
+            "host": "smtp.gmail.com",
+            "port": 587,
+            "from": "example@gmail.com",
+            "password": "password"
+        }
+    }
+}
