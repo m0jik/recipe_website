@@ -2,6 +2,6 @@
 uploads/*
 .vscode/*
 .idea/
-recipe_website.exe
+recipe_website
 app.db
-.env
+config.json
