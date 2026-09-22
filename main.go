@@ -1492,7 +1492,8 @@ func (a *App) handlePantryAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.FormValue("name")
+	name := strings.TrimSpace(r.FormValue("name"))
+
 	if name != "" {
 		if err := a.Pantry.AddPantryItem(userID, name, r.FormValue("quantity"), r.FormValue("unit")); err != nil {
 			if errors.Is(err, services.ErrInvalidQuantity) {
