@@ -4,11 +4,11 @@
     <meta charset="utf-8">
     <title>{{.Title}}</title>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=recipe-image-size-1">
 </head>
 
 <body>
- {{template "nav" .}}
+    {{template "nav" .}}
 <div class="recipe-page">
 
     <div class="recipe-header">
@@ -16,7 +16,7 @@
 
         <div class="recipe-info">
             <h1>{{.Title}}</h1>
-            <p class="recipe-author">Created by: {{.Username}}</p>
+            <p class="recipe-author">Created by: {{.CreatorUsername}}</p>
 
             <p class="recipe-description">
                 {{.Description}}
@@ -25,8 +25,12 @@
             <p class="recipe-meta">
                 {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
                 {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
-            </p>   
+            </p>
             {{ template "shopping-btn" . }}
+
+            {{if .Tags}}
+                <p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . nil ""}}">#{{.}}</a> {{end}}</p>
+            {{end}}
         </div>
     </div>
 

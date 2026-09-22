@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <title>New Recipe</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
 </head>
 <body>
+    {{ template "nav" .}}
 
 <div class="card">
     <div class="card-header">
         <h2>New Recipe</h2>
     </div>
 
-    <form action="/recipes/v1/new" method="POST" enctype="multipart/form-data">
+    <form id="recipe-form" action="/recipes/v1/new" method="POST" enctype="multipart/form-data">
         <div class="card-body">
 
             <div class="field">
@@ -31,6 +33,32 @@
                 <label for="description">Description</label>
                 <textarea id="description" name="description"
                           placeholder="Describe the dish (optional)">{{ .Description }}</textarea>
+            </div>
+
+            <div class="section-block">
+                <div class="section-title">Tags</div>
+
+                <div id="tags-list" class="item-list"></div>
+
+                <div class="add-row">
+                    <select id="recipe-tag" name="tag">
+                        <option value="" disabled selected>Choose a tag</option>
+                        {{range .PresetTagGroups}}
+                            <optgroup label="{{.Name}}">
+                                {{range .Tags}}<option value="{{.}}">{{.}}</option>{{end}}
+                            </optgroup>
+                        {{end}}
+                    </select>
+
+                    <button id="tag-add" type="button"
+                            hx-get="/recipes/v1/tag-row"
+                            hx-include="#recipe-tag"
+                            hx-target="#tags-list"
+                            hx-swap="beforeend"
+                            class="btn-secondary">
+                        + Add
+                    </button>
+                </div>
             </div>
 
             <div class="field">
