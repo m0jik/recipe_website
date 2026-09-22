@@ -238,11 +238,23 @@ a {
 }
 
 .recipe-image {
-    width: 300px;
-    height: 300px;
+    width: 240px;
+    height: 240px;
     object-fit: cover;
     border-radius: 10px;
     flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .recipe-header {
+        flex-direction: column;
+    }
+
+    .recipe-image {
+        width: 100%;
+        height: auto;
+        max-height: 240px;
+    }
 }
 
 .recipe-info h1 {

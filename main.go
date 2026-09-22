@@ -57,6 +57,8 @@ type PageData struct {
 type RecipePageData struct {
 	PageData
 
+	RecipeID        int64
+	Added           bool
 	Title           string
 	Description     string
 	ImageURL        string
@@ -1033,8 +1035,9 @@ func (a *App) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 	username := ""
-	if uid, ok := a.getUserIDFromSession(r); ok {
-		u, err := a.Users.GetUsernameByID(uid)
+	sessionUserID, loggedIn := a.getUserIDFromSession(r)
+	if loggedIn {
+		u, err := a.Users.GetUsernameByID(sessionUserID)
 		if err != nil {
 			http.Error(w, "Invalid session", http.StatusInternalServerError)
 			return
@@ -1048,13 +1051,23 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, userID, err := a.Recipes.GetRecipeForView(id)
+	data, recipeOwnerID, err := a.Recipes.GetRecipeForView(id)
 	if err != nil {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
 	}
 
-	creatorusername, err := a.Users.GetUsernameByID(int(userID))
+	added := false
+	if loggedIn {
+		added, err = a.Shopping.HasRecipe(sessionUserID, id)
+		if err != nil {
+			log.Printf("Error checking shopping list for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	creatorusername, err := a.Users.GetUsernameByID(int(recipeOwnerID))
 	if err != nil {
 		creatorusername = "Unknown"
 	}
@@ -1065,6 +1078,8 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 			PresetTagGroups: services.PresetTagGroups,
 		},
 
+		RecipeID:        id,
+		Added:           added,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
 		ImageURL:        data.Recipe.ImageURL,
@@ -1076,12 +1091,14 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		Tags:            data.Recipe.Tags,
 	}
 
-	err = tpl.ExecuteTemplate(w, "recipe.html", pageData)
+	var buf bytes.Buffer
+	err = tpl.ExecuteTemplate(&buf, "recipe.html", pageData)
 	if err != nil {
 		log.Printf("Error rendering recipe template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)
 		return
 	}
+	w.Write(buf.Bytes())
 }
 
 func generateToken() (string, error) { // email/reset tokens
