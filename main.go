@@ -110,7 +110,6 @@ func main() {
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
 	mux.HandleFunc("POST /shopping-list/v1/add", app.handleShoppingListAdd)
-	mux.HandleFunc("DELETE /shopping-list/v1/remove", app.handleShoppingListRemove)
 	mux.HandleFunc("DELETE /shopping-list/v1/remove-recipe", app.handleShoppingListRemoveRecipe)
 	mux.HandleFunc("POST /shopping-list/v1/check", app.handleShoppingListCheck)
 	mux.HandleFunc("POST /shopping-list/v1/check-all", app.handleShoppingListCheckAll)
@@ -1036,22 +1035,6 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		log.Printf("Error rendering shopping button: %v", err)
 	}
-}
-
-func (a *App) handleShoppingListRemove(w http.ResponseWriter, r *http.Request) {
-	userID, ok := a.getUserIDFromSession(r)
-	if !ok {
-		w.Header().Set("HX-Redirect", "/users/v1/login")
-		return
-	}
-
-	if err := a.Shopping.RemoveItem(userID, r.URL.Query().Get("name"), r.URL.Query().Get("unit")); err != nil {
-		log.Printf("Error removing shopping list item for user ID %d: %v", userID, err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
 }
 
 // handleShoppingListRemoveRecipe takes a whole recipe back off the list, along
