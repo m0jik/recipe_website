@@ -3,14 +3,16 @@
     <head>
         <meta charset="utf-8">
         <title>Home</title>
-        <link rel="stylesheet" href="/static/style.css">
+        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
     </head>
     <body>
         {{template "nav" .}}
         <main class="container">
             <section class="recipes">
                 <h2>
-                    {{ if .Query }}
+                    {{ if .SelectedTags }}
+                        {{ if .Query }}Results for "{{ .Query }}" with selected tags{{else}}Recipes with selected tags{{end}}
+                    {{ else if .Query }}
                         Results for "{{ .Query }}"
                     {{ else }}
                         Featured Recipes
@@ -23,6 +25,7 @@
                             <div class="recipe-info">
                                 <h3>{{ .Title }}</h3>
                                 <p>{{ .Description }}</p>
+                                {{if .Tags}}<p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . $.SelectedTags $.Query}}">#{{.}}</a> {{end}}</p>{{end}}
                                 <a href="/recipes/v1/{{ .ID }}">View Recipe</a>
                             </div>
                         </div>

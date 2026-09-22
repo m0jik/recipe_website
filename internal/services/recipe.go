@@ -2,6 +2,7 @@ package services
 
 import (
 	"log"
+	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
@@ -15,6 +16,7 @@ type RecipeInfo struct {
 	UserID          int64
 	Servings        int
 	PrepTimeMinutes int
+	Tags            []string
 }
 
 type RecipeEditPageData struct {
@@ -41,6 +43,32 @@ type Step struct {
 
 type RecipeService struct {
 	DB *sqlx.DB
+}
+
+var PresetTags = []string{
+	// Meal type
+	"breakfast", "brunch", "lunch", "dinner", "appetizer", "snack", "dessert", "side-dish", "soup", "salad", "sandwich", "wrap", "burger", "tacos", "pizza", "pasta", "bowl", "curry", "casserole", "stir-fry", "roast", "smoothie", "cocktail",
+	// Dietary / lifestyle
+	"vegetarian", "vegan", "pescatarian", "gluten-free", "dairy-free", "egg-free", "peanut-free", "nut-free", "soy-free", "sesame-free", "shellfish-free", "fish-free", "wheat-free", "halal", "kosher", "paleo", "keto", "low-carb", "low-sugar", "sugar-free", "high-protein", "high-fiber", "low-sodium", "low-fat", "heart-healthy", "diabetic-friendly", "anti-inflammatory", "low-FODMAP", "low-calories", "lactose-free", "grain-free",
+	// Cooking method
+	"quick", "easy", "one-pot", "one-pan", "meal-prep", "air-fryer", "slow-cooker", "instant-pot", "oven-baked", "sheet-pan", "no-bake", "skillet", "stovetop", "make-ahead", "freezer-friendly", "pressure-cooker",
+	// Cuisine
+	"italian", "mexican", "american", "mediterranean", "indian", "japanese", "chinese", "thai", "korean", "french", "greek", "spanish", "lebanese", "moroccan", "caribbean", "african", "vietnamese", "filipino", "brazilian", "tex-mex", "cajun", "soul-food", "middle-eastern", "latin-american",
+	// Flavor / occasion
+	"spicy", "savory", "sweet", "sour", "smoky", "garlicky", "herby", "citrusy", "kid-friendly", "party-food", "date-night", "holiday", "comfort-food", "fresh", "summer", "winter", "fall", "spring",
+}
+
+type PresetTagGroup struct {
+	Name string
+	Tags []string
+}
+
+var PresetTagGroups = []PresetTagGroup{
+	{Name: "Meal type", Tags: []string{"breakfast", "brunch", "lunch", "dinner", "appetizer", "snack", "dessert", "side-dish", "soup", "salad", "sandwich", "wrap", "burger", "tacos", "pizza", "pasta", "bowl", "curry", "casserole", "stir-fry", "roast", "smoothie", "cocktail"}},
+	{Name: "Dietary", Tags: []string{"vegetarian", "vegan", "pescatarian", "gluten-free", "dairy-free", "egg-free", "peanut-free", "nut-free", "soy-free", "sesame-free", "shellfish-free", "fish-free", "wheat-free", "halal", "kosher", "paleo", "keto", "low-carb", "low-sugar", "sugar-free", "high-protein", "high-fiber", "low-sodium", "low-fat", "heart-healthy", "diabetic-friendly", "anti-inflammatory", "low-FODMAP", "low-calories", "lactose-free", "grain-free"}},
+	{Name: "Cooking method", Tags: []string{"quick", "easy", "one-pot", "one-pan", "meal-prep", "air-fryer", "slow-cooker", "instant-pot", "oven-baked", "sheet-pan", "no-bake", "skillet", "stovetop", "make-ahead", "freezer-friendly", "pressure-cooker"}},
+	{Name: "Cuisine", Tags: []string{"italian", "mexican", "american", "mediterranean", "indian", "japanese", "chinese", "thai", "korean", "french", "greek", "spanish", "lebanese", "moroccan", "caribbean", "african", "vietnamese", "filipino", "brazilian", "tex-mex", "cajun", "soul-food", "middle-eastern", "latin-american"}},
+	{Name: "Flavor & occasion", Tags: []string{"spicy", "savory", "sweet", "sour", "smoky", "garlicky", "herby", "citrusy", "kid-friendly", "party-food", "date-night", "holiday", "comfort-food", "fresh", "summer", "winter", "fall", "spring"}},
 }
 
 func NewRecipeService(db *sqlx.DB) *RecipeService {
@@ -75,6 +103,47 @@ func (s *RecipeService) CreateRecipe(userID int, title, imageURL string, descrip
 		return 0, err
 	}
 	return recipeID, nil
+}
+
+func (s *RecipeService) SaveTags(recipeID int64, rawTags string) error {
+	allowedTags := make(map[string]struct{}, len(PresetTags))
+	for _, presetTag := range PresetTags {
+		allowedTags[presetTag] = struct{}{}
+	}
+	seen := make(map[string]struct{})
+	for _, rawTag := range strings.Split(rawTags, ",") {
+		tag := strings.ToLower(strings.TrimSpace(rawTag))
+		if tag == "" {
+			continue
+		}
+		if _, allowed := allowedTags[tag]; !allowed {
+			continue
+		}
+		if _, ok := seen[tag]; ok {
+			continue
+		}
+		seen[tag] = struct{}{}
+
+		_, err := s.DB.Exec("INSERT INTO tagsV1(name) VALUES (?) ON CONFLICT(name) DO NOTHING", tag)
+		if err != nil {
+			return err
+		}
+		var tagID int64
+		if err := s.DB.QueryRow("SELECT id FROM tagsV1 WHERE name = ?", tag).Scan(&tagID); err != nil {
+			return err
+		}
+		if _, err := s.DB.Exec("INSERT OR IGNORE INTO recipeTagsV1(recipe_id, tag_id) VALUES (?, ?)", recipeID, tagID); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func splitTags(value string) []string {
+	if value == "" {
+		return nil
+	}
+	return strings.Split(value, ",")
 }
 
 func (s *RecipeService) BatchSaveIngredients(versionID int64, names, quantities, units []string) error {
@@ -288,12 +357,50 @@ func (s *RecipeService) GetLatestVersionID(recipeID int64) (int64, error) {
 	return versionID, nil
 }
 
-func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
-	rows, err := s.DB.Query(
-		`SELECT id, title, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 WHERE title LIKE ? OR description LIKE ? ORDER BY created_at DESC`,
-		"%"+query+"%",
-		"%"+query+"%",
-	)
+func (s *RecipeService) Search(query string, tagFilters []string, maxTime int) ([]RecipeInfo, error) {
+	query = strings.TrimSpace(query)
+	conditions := make([]string, 0, len(tagFilters)+2)
+	args := make([]any, 0, len(tagFilters)+6)
+	seenTags := make(map[string]struct{})
+	for _, tag := range tagFilters {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		if tag == "" {
+			continue
+		}
+		if _, seen := seenTags[tag]; seen {
+			continue
+		}
+		seenTags[tag] = struct{}{}
+		conditions = append(conditions, `EXISTS (
+			SELECT 1 FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id
+			WHERE rt.recipe_id = r.id AND t.name = ?
+		)`)
+		args = append(args, tag)
+	}
+	if maxTime > 0 {
+		conditions = append(conditions, "r.prep_time_minutes IS NOT NULL AND r.prep_time_minutes <= ?")
+		args = append(args, maxTime)
+	}
+
+	conditions = append(conditions, `(r.title LIKE ? OR r.description LIKE ? OR EXISTS (
+		SELECT 1 FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id
+		WHERE rt.recipe_id = r.id AND t.name LIKE ?
+	) OR EXISTS (
+		SELECT 1 FROM ingredientsV1 i
+		JOIN recipe_versionsV1 rv ON rv.id = i.recipe_version_id
+		WHERE rv.recipe_id = r.id
+		  AND rv.version_number = (SELECT MAX(version_number) FROM recipe_versionsV1 WHERE recipe_id = r.id)
+		  AND i.name LIKE ?
+	))`)
+	args = append(args, "%"+query+"%", "%"+query+"%", "%"+strings.ToLower(query)+"%", "%"+query+"%", "%"+query+"%")
+
+	searchQuery := `SELECT r.id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
+		COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
+	 FROM recipesV1 r WHERE ` + strings.Join(conditions, " AND ") +
+		` ORDER BY CASE WHEN LOWER(r.title) LIKE LOWER(?) THEN 0 ELSE 1 END, r.created_at DESC`
+	args = append(args, "%"+query+"%")
+
+	rows, err := s.DB.Query(searchQuery, args...)
 	if err != nil {
 		return nil, err
 	}
@@ -309,9 +416,11 @@ func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
 
 	for rows.Next() {
 		var ri RecipeInfo
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL); err != nil {
+		var tags string
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL, &tags); err != nil {
 			return nil, err
 		}
+		ri.Tags = splitTags(tags)
 
 		recipes = append(recipes, ri)
 	}
@@ -321,7 +430,9 @@ func (s *RecipeService) Search(query string) ([]RecipeInfo, error) {
 
 func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	rows, err := s.DB.Query(
-		`SELECT id, title, COALESCE(description, ''), COALESCE(image_url, '') FROM recipesV1 ORDER BY created_at DESC`,
+		`SELECT r.id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
+			COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
+		 FROM recipesV1 r ORDER BY r.created_at DESC`,
 	)
 	if err != nil {
 		return nil, err
@@ -338,9 +449,11 @@ func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 
 	for rows.Next() {
 		var ri RecipeInfo
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL); err != nil {
+		var tags string
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL, &tags); err != nil {
 			return nil, err
 		}
+		ri.Tags = splitTags(tags)
 		recipes = append(recipes, ri)
 	}
 
@@ -382,6 +495,14 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 		return nil, 0, err
 	}
 
+	var tagString string
+	if err := s.DB.QueryRow(
+		`SELECT COALESCE(GROUP_CONCAT(t.name, ','), '') FROM tagsV1 t
+		 JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = ?`, recipeID,
+	).Scan(&tagString); err != nil {
+		return nil, 0, err
+	}
+
 	return &RecipeEditPageData{
 		Recipe: RecipeInfo{
 			ID:              recipeID,
@@ -391,6 +512,7 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 			ImageURL:        imageURL,
 			Servings:        servings,
 			PrepTimeMinutes: prepTimeMinutes,
+			Tags:            splitTags(tagString),
 		},
 		Ingredients: ingredients,
 		Steps:       steps,
