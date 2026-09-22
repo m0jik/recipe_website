@@ -35,12 +35,14 @@ var tpl = template.Must(template.New("templates").Funcs(template.FuncMap{
 const cookieName = "session_id"
 
 type App struct {
-	DB      *sqlx.DB
-	Cfg     *config.Config
-	Users   *services.UserService
-	Recipes *services.RecipeService
-	Email   services.EmailSender
-	Images  *services.ImageService
+	DB       *sqlx.DB
+	Cfg      *config.Config
+	Users    *services.UserService
+	Recipes  *services.RecipeService
+	Email    services.EmailSender
+	Images   *services.ImageService
+	Shopping *services.ShoppingListService
+	Pantry   *services.PantryService
 }
 
 type PageData struct {
@@ -127,12 +129,14 @@ func main() {
 	}
 
 	app := &App{
-		DB:      db,
-		Cfg:     cfg,
-		Users:   services.NewUserService(db),
-		Recipes: services.NewRecipeService(db),
-		Email:   emailSender,
-		Images:  services.NewImageService(&services.LocalStore{Dir: "uploads"}),
+		DB:       db,
+		Cfg:      cfg,
+		Users:    services.NewUserService(db),
+		Recipes:  services.NewRecipeService(db),
+		Email:    emailSender,
+		Images:   services.NewImageService(&services.LocalStore{Dir: "uploads"}),
+		Shopping: services.NewShoppingListService(db),
+		Pantry:   services.NewPantryService(db),
 	}
 
 	log.Println("Setting up handlers...")

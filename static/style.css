@@ -432,6 +432,12 @@ button[type="submit"]:hover {
     border: 1px solid #ccc;
 }
 
+/* flashed on a required field when Add is pressed while it is empty */
+.input-error {
+    border-color: #c0392b;
+    background: #fdf3f2;
+}
+
 /* =========================
    BUTTON VARIANTS
 ========================= */
@@ -471,6 +477,48 @@ button[type="submit"]:hover {
     object-fit: cover;
     border-bottom: 1px solid #eee;
 }
+
+/* =========================
+   SHOPPING LIST BUTTON
+   shared: the button renders on the recipe page and the shopping list page
+========================= */
+
+/* icon-only cart button, sits under the meta line, left aligned */
+.shopping-btn {
+    align-self: flex-start;
+    margin-top: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.shopping-btn:hover {
+    background: #f4f4f4;
+}
+
+.shopping-btn img {
+    display: block;
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+/* on the list: the plain black cart carries the state, no background tint.
+   the red hover is the only cue left that clicking removes, since the
+   wording that used to say so is gone */
+.shopping-btn-added:hover {
+    background: #fdecea;
+}
+
+/* =========================
+   TAG FILTER POP-OUT
+   shared: the tag filter pop-out renders on the index page and the shopping list page
+========================= */
 
 .tag-filter-popout {
     position: relative;
