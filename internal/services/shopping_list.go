@@ -429,10 +429,6 @@ func mergeIngredients(ingredients []Ingredient) []Ingredient {
 	return merged
 }
 
-func (s *ShoppingListService) RemoveItem(userID int, name, unit string) error {
-	return s.removeItem(s.DB, userID, name, unit)
-}
-
 func (s *ShoppingListService) removeItem(q sqlExecutor, userID int, name, unit string) error {
 	_, err := q.Exec(
 		"DELETE FROM userShoppingListV2 WHERE user_id = ? AND name = ? AND unit = ?",
