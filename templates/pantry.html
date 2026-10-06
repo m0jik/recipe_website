@@ -23,6 +23,7 @@
     {{ end }}
 
     {{ if .Items }}
+        {{template "add-row" .}}
         <div id="pantry-list" class="item-list">
             {{ range .Items }}
                 {{template "pantry-row" .}}
@@ -30,8 +31,13 @@
         </div>
     {{ else }}
         <p>Pantry is empty.</p>
+        {{template "add-row" .}}
     {{ end }}
 
+</section>
+{{ end }}
+
+{{ define "add-row" }}
     <div class="add-row">
         <input type="text" id="pantry-qty" name="quantity" placeholder="2" class="qty">
 
@@ -64,5 +70,4 @@
             + Add
         </button>
     </div>
-</section>
 {{ end }}
