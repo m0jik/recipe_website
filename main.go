@@ -59,7 +59,7 @@ type RecipePageData struct {
 	PageData
 
 	RecipeID        int64
-	OwnerID         int64
+	IsOwner         bool
 	Added           bool
 	Title           string
 	Description     string
@@ -1067,6 +1067,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
 	}
+	isOwner := loggedIn && int64(sessionUserID) == recipeOwnerID
 
 	added := false
 	if loggedIn {
@@ -1091,7 +1092,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		},
 
 		RecipeID:        id,
-		OwnerID:         recipeOwnerID,
+		IsOwner:         isOwner,
 		Added:           added,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
@@ -1628,6 +1629,7 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 			PresetTagGroups: services.PresetTagGroups,
 		},
 		RecipeID:        recipeID,
+		IsOwner:         true,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
 		ImageURL:        data.Recipe.ImageURL,
