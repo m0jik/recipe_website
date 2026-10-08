@@ -46,6 +46,21 @@ func Migrate(db *sqlx.DB) error {
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS tagsV1 (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE
+	);
+
+	CREATE TABLE IF NOT EXISTS recipeTagsV1 (
+		recipe_id INTEGER NOT NULL,
+		tag_id INTEGER NOT NULL,
+		PRIMARY KEY (recipe_id, tag_id),
+		FOREIGN KEY (recipe_id) REFERENCES recipesV1(id),
+		FOREIGN KEY (tag_id) REFERENCES tagsV1(id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_recipeTagsV1_tag_id ON recipeTagsV1(tag_id);
+
 	CREATE TABLE IF NOT EXISTS recipe_versionsV1(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		recipe_id INTEGER NOT NULL,

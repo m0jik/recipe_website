@@ -6,6 +6,7 @@ body {
     font-family: Arial, sans-serif;
     background: #f4f4f4;
     margin: 0;
+    overflow-x: hidden;
 }
 
 /* =========================
@@ -87,6 +88,10 @@ a {
 .nav-right {
     display: flex;
     align-items: center;
+}
+
+.nav-center {
+    gap: 12px;
 }
 
 /* logo */
@@ -233,11 +238,23 @@ a {
 }
 
 .recipe-image {
-    width: 300px;
-    height: 300px;
+    width: 240px;
+    height: 240px;
     object-fit: cover;
     border-radius: 10px;
     flex-shrink: 0;
+}
+
+@media (max-width: 640px) {
+    .recipe-header {
+        flex-direction: column;
+    }
+
+    .recipe-image {
+        width: 100%;
+        height: auto;
+        max-height: 240px;
+    }
 }
 
 .recipe-info h1 {
@@ -509,3 +526,113 @@ button[type="submit"]:hover {
 .shopping-btn-added:hover {
     background: #fdecea;
 }
+
+/* =========================
+   TAG FILTER POP-OUT
+   shared: the tag filter pop-out renders on the index page and the shopping list page
+========================= */
+
+.tag-filter-popout {
+    position: relative;
+    display: inline-block;
+}
+
+.tag-filter-popout summary {
+    cursor: pointer;
+    padding: 7px 10px;
+    border-radius: 6px;
+    background: #eef4fb;
+    color: #356da8;
+    font-size: 13px;
+    list-style: none;
+}
+
+.tag-filter-form {
+    position: absolute;
+    z-index: 4;
+    top: calc(100% + 8px);
+    left: 0;
+    display: grid;
+    gap: 10px;
+    min-width: 240px;
+    margin: 0;
+    padding: 14px;
+    border: 1px solid #dce6f2;
+    border-radius: 6px;
+    background: white;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+}
+
+.tag-filter-form > label,
+.tag-filter-form > small {
+    display: block;
+    color: #333;
+    line-height: 1.4;
+}
+
+.tag-filter-form > small {
+    color: #666;
+    font-size: 12px;
+}
+
+.tag-options {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.tag-options label {
+    cursor: pointer;
+    color: #333;
+    font-size: 13px;
+}
+
+.index-tag-groups {
+    display: grid;
+    gap: 12px;
+    max-height: 360px;
+    overflow-y: auto;
+}
+
+.index-tag-group {
+    margin: 0;
+    padding: 10px;
+    border: 1px solid #dce6f2;
+    border-radius: 6px;
+}
+
+.index-tag-group legend {
+    padding: 0 5px;
+    color: #356da8;
+    font-size: 12px;
+    font-weight: bold;
+}
+
+.tag-chip {
+    display: inline-block;
+    padding: 4px 9px;
+    border-radius: 999px;
+    background: #eef4fb;
+    color: #356da8;
+    text-decoration: none;
+    font-size: 13px;
+}
+
+.tag-chip:hover,
+.tag-chip.active {
+    background: #4a90e2;
+    color: white;
+}
+
+.clear-filter {
+    color: #777;
+    font-size: 13px;
+}
+
+.recipe-tag-picker {
+    display: grid;
+    gap: 10px;
+}
+

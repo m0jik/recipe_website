@@ -77,7 +77,17 @@ func applyEnvOverrides(cfg *Config) {
 		}
 	}
 	if v := os.Getenv("EMAIL_FROM"); v != "" {
-		cfg.Email.SMTP.From = v
+		// if cfg.Email.Provider == "smtp" {
+		// 	cfg.Email.SMTP.From = v
+		// } else if cfg.Email.Provider == "ses" {
+		// 	cfg.Email.SES.From = v
+		// }
+		switch cfg.Email.Provider {
+		case "smtp":
+			cfg.Email.SMTP.From = v
+		default:
+			log.Printf("Uknown email provider '%s', cannot set 'From' address from environment variable", cfg.Email.Provider)
+		}
 	}
 	if v := os.Getenv("EMAIL_PASSWORD"); v != "" {
 		if cfg.Email.Provider == "smtp" {

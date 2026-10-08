@@ -4,10 +4,10 @@
     <meta charset="UTF-8">
     <title>New Recipe - Step 2</title>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
 </head>
 <body>
-
+    {{ template "nav" .}}
 <div class="card">
 
     <div class="card-header">
@@ -26,6 +26,7 @@
         <input type="hidden" name="title" value="{{ .Title }}">
         <input type="hidden" name="description" value="{{ .Description }}">
         <input type="hidden" name="image" value="{{ .Image }}">
+        {{range .Tags}}<input type="hidden" name="tags" value="{{ . }}">{{end}}
         <input type="hidden" name="servings" value="{{ .Servings }}">
         <input type="hidden" name="prep_time_minutes" value="{{ .PrepTime }}">
 

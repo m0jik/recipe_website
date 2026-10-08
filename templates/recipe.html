@@ -3,20 +3,39 @@
 <head>
     <meta charset="utf-8">
     <title>{{.Title}}</title>
+    <link rel="stylesheet" href="/static/style.css?v=recipe-image-size-1">
+    <link rel="stylesheet" href="/static/recipe-options.css">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
- {{template "nav" .}}
+    {{template "nav" .}}
 <div class="recipe-page">
 
     <div class="recipe-header">
+        {{ if .IsOwner }}
+            <details class="recipe-actions">
+                <summary class="recipe-actions-button">
+                    <img src="/static/icon/more.png" alt="Recipe options">
+                </summary>
+
+                <div class="recipe-actions-options">
+                    <form
+                        method="POST"
+                        action="/recipes/v1/delete/{{ .RecipeID }}"
+                        hx-boost="true"
+                        hx-confirm="Delete &quot;{{ .Title }}&quot;? This cannot be undone."
+                    >
+                        <button type="submit">Delete</button>
+                    </form>
+                </div>
+            </details>
+        {{ end }}
         <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image">
 
         <div class="recipe-info">
             <h1>{{.Title}}</h1>
-            <p class="recipe-author">Created by: {{.Username}}</p>
+            <p class="recipe-author">Created by: {{.CreatorUsername}}</p>
 
             <p class="recipe-description">
                 {{.Description}}
@@ -25,8 +44,12 @@
             <p class="recipe-meta">
                 {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
                 {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
-            </p>   
+            </p>
             {{ template "shopping-btn" . }}
+
+            {{if .Tags}}
+                <p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . nil ""}}">#{{.}}</a> {{end}}</p>
+            {{end}}
         </div>
     </div>
 

@@ -11,6 +11,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strconv"
@@ -25,7 +26,11 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-var tpl = template.Must(template.ParseGlob("templates/*.html"))
+var tpl = template.Must(template.New("templates").Funcs(template.FuncMap{
+	"urlquery": url.QueryEscape,
+	"tagurl":   tagURL,
+	"hastag":   hasTag,
+}).ParseGlob("templates/*.html"))
 
 const cookieName = "session_id"
 
@@ -38,6 +43,55 @@ type App struct {
 	Images   *services.ImageService
 	Shopping *services.ShoppingListService
 	Pantry   *services.PantryService
+}
+
+type PageData struct {
+	UserID          int64
+	Username        string
+	Recipes         []services.RecipeInfo
+	Query           string
+	SelectedTags    []string
+	MaxTime         int
+	PresetTagGroups []services.PresetTagGroup
+}
+
+type RecipePageData struct {
+	PageData
+
+	RecipeID        int64
+	IsOwner         bool
+	Added           bool
+	Title           string
+	Description     string
+	ImageURL        string
+	Ingredients     []services.Ingredient
+	Steps           []services.Step
+	CreatorUsername string
+	Servings        int
+	PrepTimeMinutes int
+	Tags            []string
+}
+
+type PageOneData struct {
+	PageData
+
+	Title       string
+	Description string
+	Servings    int
+	PrepTime    int
+}
+
+type PageTwoData struct {
+	PageData
+
+	Image       string
+	Title       string
+	Description string
+	Tags        []string
+	Servings    string
+	PrepTime    string
+	Ingredients []services.Ingredient
+	Steps       []services.Step
 }
 
 func main() {
@@ -103,14 +157,17 @@ func main() {
 	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
 	mux.HandleFunc("/recipes/v1/ingredient-row", app.handleIngredientRows)
 	mux.HandleFunc("/recipes/v1/step-row", app.handleStepRow)
+	mux.HandleFunc("/recipes/v1/tag-row", app.handleTagRows)
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
 	mux.HandleFunc("/recipes/v1/myRecipe", app.handleMyRecipes)
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
 
+	//Recipe Edit
+	mux.HandleFunc("POST /recipes/v1/delete/{id}", app.handleDeleteRecipe)
+
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
 	mux.HandleFunc("POST /shopping-list/v1/add", app.handleShoppingListAdd)
-	mux.HandleFunc("DELETE /shopping-list/v1/remove", app.handleShoppingListRemove)
 	mux.HandleFunc("DELETE /shopping-list/v1/remove-recipe", app.handleShoppingListRemoveRecipe)
 	mux.HandleFunc("POST /shopping-list/v1/check", app.handleShoppingListCheck)
 	mux.HandleFunc("POST /shopping-list/v1/check-all", app.handleShoppingListCheckAll)
@@ -253,11 +310,14 @@ func initDB(db *sql.DB) error {
 
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	username := ""
+	var userID int64
+
 	if uid, ok := a.getUserIDFromSession(r); ok {
 		// row := a.DB.QueryRow("SELECT username FROM usersV1 WHERE id = ?", uid)
 		// if err := row.Scan(&username); err != nil {
 		// 	username = ""
 		// }
+		userID = int64(uid)
 		u, err := a.Users.GetUsernameByID(uid)
 		if err != nil {
 			http.Error(w, "Invalid session", http.StatusInternalServerError)
@@ -267,12 +327,17 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	query := r.URL.Query().Get("query")
+	tags := normalizeTagFilters(r.URL.Query()["tag"])
+	maxTime, _ := strconv.Atoi(r.URL.Query().Get("max_time"))
+	if maxTime < 0 {
+		maxTime = 0
+	}
 
 	var recipes []services.RecipeInfo
 	var err error
 
-	if query != "" {
-		recipes, err = a.Recipes.Search(query) // filtered results
+	if query != "" || len(tags) > 0 || maxTime > 0 {
+		recipes, err = a.Recipes.Search(query, tags, maxTime) // filtered results
 	} else {
 		recipes, err = a.Recipes.GetAllRecipes() // all recipes
 	}
@@ -283,11 +348,18 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tpl.ExecuteTemplate(w, "index.html", map[string]any{
-		"Username": username,
-		"Recipes":  recipes,
-		"Query":    query,
-	})
+	data := PageData{
+		UserID:          userID,
+		Username:        username,
+		Recipes:         recipes,
+		Query:           query,
+		SelectedTags:    tags,
+		MaxTime:         maxTime,
+		PresetTagGroups: services.PresetTagGroups,
+	}
+
+	err = tpl.ExecuteTemplate(w, "index.html", data)
+
 	if err != nil {
 		log.Printf("Error rendering index template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -295,10 +367,62 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func normalizeTagFilters(tags []string) []string {
+	result := make([]string, 0, len(tags))
+	seen := make(map[string]struct{})
+	for _, tag := range tags {
+		tag = strings.ToLower(strings.TrimSpace(tag))
+		if tag == "" {
+			continue
+		}
+		if _, exists := seen[tag]; exists {
+			continue
+		}
+		seen[tag] = struct{}{}
+		result = append(result, tag)
+	}
+	return result
+}
+
+func hasTag(tag string, selected []string) bool {
+	for _, selectedTag := range selected {
+		if tag == selectedTag {
+			return true
+		}
+	}
+	return false
+}
+
+func tagURL(tag string, selected []string, query string) string {
+	values := url.Values{}
+	if query != "" {
+		values.Set("query", query)
+	}
+
+	removed := false
+	for _, selectedTag := range selected {
+		if selectedTag == tag {
+			removed = true
+			continue
+		}
+		values.Add("tag", selectedTag)
+	}
+	if !removed {
+		values.Add("tag", tag)
+	}
+	if values.Encode() == "" {
+		return "/"
+	}
+	return "/?" + values.Encode()
+}
+
 func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "register.html", nil)
+		PageData := PageData{
+			PresetTagGroups: services.PresetTagGroups,
+		}
+		err := tpl.ExecuteTemplate(w, "register.html", PageData)
 		if err != nil {
 			log.Printf("Error rendering register template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -388,7 +512,10 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "login.html", nil)
+		PageData := PageData{
+			PresetTagGroups: services.PresetTagGroups,
+		}
+		err := tpl.ExecuteTemplate(w, "login.html", PageData)
 		if err != nil {
 			log.Printf("Error rendering login template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -483,7 +610,10 @@ func (a *App) handleLogout(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "request_reset.html", nil)
+		PageData := PageData{
+			PresetTagGroups: services.PresetTagGroups,
+		}
+		err := tpl.ExecuteTemplate(w, "request_reset.html", PageData)
 		if err != nil {
 			log.Printf("Error rendering request_reset template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -688,10 +818,15 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tpl.ExecuteTemplate(w, "myRecipes.html", map[string]any{
-		"Username": username,
-		"Recipes":  recipes,
-	})
+	data := PageData{
+		UserID:          int64(userID),
+		Username:        username,
+		Recipes:         recipes,
+		PresetTagGroups: services.PresetTagGroups,
+	}
+
+	err = tpl.ExecuteTemplate(w, "myRecipes.html", data)
+
 	if err != nil {
 		log.Printf("Error rendering template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -702,7 +837,25 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		err := tpl.ExecuteTemplate(w, "pageOne.html", nil)
+		username := ""
+		if uid, ok := a.getUserIDFromSession(r); ok {
+			u, err := a.Users.GetUsernameByID(uid)
+			if err != nil {
+				http.Error(w, "Invalid session", http.StatusInternalServerError)
+				return
+			}
+			username = u
+		}
+
+		data := PageOneData{
+			PageData: PageData{
+				Username:        username,
+				PresetTagGroups: services.PresetTagGroups,
+			},
+		}
+
+		err := tpl.ExecuteTemplate(w, "pageOne.html", data)
+
 		if err != nil {
 			log.Printf("Error rendering pageOne template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -714,6 +867,16 @@ func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	if uid, ok := a.getUserIDFromSession(r); ok {
+		u, err := a.Users.GetUsernameByID(uid)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+
 	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, "could not parse form", http.StatusBadRequest)
 		return
@@ -735,13 +898,22 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	err = tpl.ExecuteTemplate(w, "pageTwo.html", map[string]any{
-		"Title":       r.FormValue("title"),
-		"Description": r.FormValue("description"),
-		"Image":       imagePath,
-		"Servings":    r.FormValue("servings"),
-		"PrepTime":    r.FormValue("prep_time_minutes"),
-	})
+	pageData := PageTwoData{
+		PageData: PageData{
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		Title:       r.FormValue("title"),
+		Description: r.FormValue("description"),
+		Image:       imagePath,
+		Tags:        r.Form["tags"],
+		Servings:    r.FormValue("servings"),
+		PrepTime:    r.FormValue("prep_time_minutes"),
+	}
+
+	err = tpl.ExecuteTemplate(w, "pageTwo.html", pageData)
+
 	if err != nil {
 		log.Printf("Error rendering pageTwo template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -774,6 +946,23 @@ func (a *App) handleStepRow(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *App) handleTagRows(w http.ResponseWriter, r *http.Request) {
+	tag := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tag")))
+	for _, presetTag := range services.PresetTags {
+		if tag == presetTag {
+			err := tpl.ExecuteTemplate(w, "tag-row", map[string]string{"Tag": tag})
+			if err != nil {
+				log.Printf("Error rendering tag row: %v", err)
+				http.Error(w, "Error rendering tag row", http.StatusInternalServerError)
+			}
+			return
+		}
+	}
+	if tag != "" {
+		http.Error(w, "invalid tag", http.StatusBadRequest)
+	}
+}
+
 func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
@@ -800,6 +989,10 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 		recipeID, err := a.Recipes.CreateRecipe(userID, r.FormValue("title"), r.FormValue("image"), r.FormValue("description"), servings, prepTimeMinutes)
 		if err != nil {
 			http.Error(w, "could not create recipe", http.StatusInternalServerError)
+			return
+		}
+		if err := a.Recipes.SaveTags(recipeID, strings.Join(r.Form["tags"], ",")); err != nil {
+			http.Error(w, "could not save tags", http.StatusInternalServerError)
 			return
 		}
 
@@ -850,6 +1043,16 @@ func (a *App) handleVerifyEmail(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	sessionUserID, loggedIn := a.getUserIDFromSession(r)
+	if loggedIn {
+		u, err := a.Users.GetUsernameByID(sessionUserID)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
 	idStr := strings.TrimPrefix(r.URL.Path, "/recipes/v1/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
@@ -857,44 +1060,57 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data, userID, err := a.Recipes.GetRecipeForView(id)
+	data, recipeOwnerID, err := a.Recipes.GetRecipeForView(id)
 	if err != nil {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
 	}
+	isOwner := loggedIn && int64(sessionUserID) == recipeOwnerID
 
-	username, err := a.Users.GetUsernameByID(int(userID))
-	if err != nil {
-		username = "Unknown"
-	}
-
-	// The cart button is a toggle, so the page has to know up front whether this recipe is already on the viewer's list. A logged out visitor sees the plain add button and gets sent to login when they press it.
-	var added bool
-	if viewerID, ok := a.getUserIDFromSession(r); ok {
-		added, err = a.Shopping.HasRecipe(viewerID, id)
+	added := false
+	if loggedIn {
+		added, err = a.Shopping.HasRecipe(sessionUserID, id)
 		if err != nil {
-			log.Printf("Error checking shopping list for user ID %d, recipe %d: %v", viewerID, id, err)
-			added = false
+			log.Printf("Error checking shopping list for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
 		}
 	}
 
-	err = tpl.ExecuteTemplate(w, "recipe.html", map[string]any{
-		"RecipeID":        id,
-		"Added":           added,
-		"Title":           data.Recipe.Title,
-		"Description":     data.Recipe.Description,
-		"ImageURL":        data.Recipe.ImageURL,
-		"Ingredients":     data.Ingredients,
-		"Steps":           data.Steps,
-		"Username":        username,
-		"Servings":        data.Recipe.Servings,
-		"PrepTimeMinutes": data.Recipe.PrepTimeMinutes,
-	})
+	creatorusername, err := a.Users.GetUsernameByID(int(recipeOwnerID))
+	if err != nil {
+		creatorusername = "Unknown"
+	}
+
+	pageData := RecipePageData{
+		PageData: PageData{
+			UserID:          int64(sessionUserID),
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		RecipeID:        id,
+		IsOwner:         isOwner,
+		Added:           added,
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		CreatorUsername: creatorusername,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+	}
+
+	var buf bytes.Buffer
+	err = tpl.ExecuteTemplate(&buf, "recipe.html", pageData)
 	if err != nil {
 		log.Printf("Error rendering recipe template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)
 		return
 	}
+	w.Write(buf.Bytes())
 }
 
 func generateToken() (string, error) { // email/reset tokens
@@ -1036,22 +1252,6 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 	}); err != nil {
 		log.Printf("Error rendering shopping button: %v", err)
 	}
-}
-
-func (a *App) handleShoppingListRemove(w http.ResponseWriter, r *http.Request) {
-	userID, ok := a.getUserIDFromSession(r)
-	if !ok {
-		w.Header().Set("HX-Redirect", "/users/v1/login")
-		return
-	}
-
-	if err := a.Shopping.RemoveItem(userID, r.URL.Query().Get("name"), r.URL.Query().Get("unit")); err != nil {
-		log.Printf("Error removing shopping list item for user ID %d: %v", userID, err)
-		http.Error(w, "Internal server error", http.StatusInternalServerError)
-		return
-	}
-
-	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
 }
 
 // handleShoppingListRemoveRecipe takes a whole recipe back off the list, along
@@ -1305,7 +1505,8 @@ func (a *App) handlePantryAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	name := r.FormValue("name")
+	name := strings.TrimSpace(r.FormValue("name"))
+
 	if name != "" {
 		if err := a.Pantry.AddPantryItem(userID, name, r.FormValue("quantity"), r.FormValue("unit")); err != nil {
 			if errors.Is(err, services.ErrInvalidQuantity) {
@@ -1353,4 +1554,37 @@ func (a *App) renderPantrySection(w http.ResponseWriter, userID int, errMsg stri
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	_, ownerID, err := a.Recipes.GetRecipeForView(recipeID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if ownerID != int64(userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	if err := a.Recipes.DeleteRecipe(recipeID); err != nil {
+		http.Error(w, "Failed to delete recipe", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/recipes/v1/myRecipe", http.StatusSeeOther)
 }
