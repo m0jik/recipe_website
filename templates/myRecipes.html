@@ -1,12 +1,12 @@
 <!doctype html>
 <html lang="en">
 <head>
-        <meta charset="utf-8">
-        <title>Home</title>
-        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
-        <link rel="stylesheet" href="/static/recipe-options.css">
-        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    </head>
+    <meta charset="utf-8">
+    <title>Home</title>
+    <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
+    <link rel="stylesheet" href="/static/recipe-options.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
     <body>
         {{ template "nav" .}}
         <main class="container">
@@ -28,10 +28,13 @@
                                 </summary>
                                 <div class="recipe-actions-options">
                                     {{ if eq .UserID $.UserID}}
-                                        <form method="POST" action="/recipes/v1/delete/{{.ID}}"
+                                        <form method="POST" action="/recipes/v1/delete-recipe/{{.ID}}"
                                             hx-boost="true"
                                             hx-confirm="Delete &quot;{{.Title}}&quot;? This cannot be undone.">
                                             <button type="submit">Delete</button>
+                                        </form>
+                                        <form method="GET" action="/recipes/v1/edit-recipe/{{.ID}}">
+                                            <button type="submit">Edit</button>
                                         </form>
                                     {{end}}
                                 </div>

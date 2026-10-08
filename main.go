@@ -59,7 +59,7 @@ type RecipePageData struct {
 	PageData
 
 	RecipeID        int64
-	IsOwner         bool
+	OwnerID         int64
 	Added           bool
 	Title           string
 	Description     string
@@ -163,7 +163,9 @@ func main() {
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
 
 	//Recipe Edit
-	mux.HandleFunc("POST /recipes/v1/delete/{id}", app.handleDeleteRecipe)
+	mux.HandleFunc("POST /recipes/v1/delete-recipe/{id}", app.handleDeleteRecipe)
+	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
+	// mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
 
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
@@ -1065,7 +1067,6 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
 	}
-	isOwner := loggedIn && int64(sessionUserID) == recipeOwnerID
 
 	added := false
 	if loggedIn {
@@ -1090,7 +1091,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		},
 
 		RecipeID:        id,
-		IsOwner:         isOwner,
+		OwnerID:         recipeOwnerID,
 		Added:           added,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
@@ -1565,7 +1566,7 @@ func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-	if err != nil {
+	if err != nil || recipeID < 1 {
 		http.NotFound(w, r)
 		return
 	}
@@ -1577,14 +1578,90 @@ func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if ownerID != int64(userID) {
-		http.Error(w, "Forbidden", http.StatusForbidden)
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
 		return
 	}
 
 	if err := a.Recipes.DeleteRecipe(recipeID); err != nil {
-		http.Error(w, "Failed to delete recipe", http.StatusInternalServerError)
+		log.Printf("Error deleting recipe %d: %v", recipeID, err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
 	}
 
 	http.Redirect(w, r, "/recipes/v1/myRecipe", http.StatusSeeOther)
 }
+
+func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || recipeID < 1 {
+		http.NotFound(w, r)
+		return
+	}
+	data, ownerID, err := a.Recipes.GetRecipeForView(recipeID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if ownerID != int64(userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	username, err := a.Users.GetUsernameByID(userID)
+	if err != nil {
+		http.Error(w, "Invalid session", http.StatusInternalServerError)
+		return
+	}
+
+	pageData := RecipePageData{
+		PageData: PageData{
+			UserID:          int64(userID),
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+		RecipeID:        recipeID,
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		CreatorUsername: username,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+	}
+
+	buf := new(bytes.Buffer)
+
+	err = tpl.ExecuteTemplate(buf, "edit_my_recipe.html", pageData)
+	if err != nil {
+		log.Printf("Error rendering edit recipe template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, err = buf.WriteTo(w)
+	if err != nil {
+		log.Printf("Error writing edit recipe response: %v", err)
+	}
+}
+
+// func (a *App) handleSaveRecipe(w *http.ResponseWriter, r *http.Request) {
+// 	userID, ok := a.getUserIDFromSession(r)
+
+// 	if !ok {
+// 		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+// 		return
+// 	}
+
+// }

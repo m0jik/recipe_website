@@ -431,7 +431,7 @@ func (s *RecipeService) Search(query string, tagFilters []string, maxTime int) (
 
 func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	rows, err := s.DB.Query(
-		`SELECT r.id, r.user_id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, r.user_id, ''),
+		`SELECT r.id, r.user_id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
 			COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
 		 FROM recipesV1 r ORDER BY r.created_at DESC`,
 	)
