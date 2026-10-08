@@ -311,7 +311,8 @@ func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
             r.title,
             0 AS version_id,
             COALESCE(r.description, '') AS description,
-            COALESCE(r.image_url, '') AS image_url
+            COALESCE(r.image_url, '') AS image_url,
+            r.user_id
          FROM recipesV1 r
          WHERE r.user_id = ?
          ORDER BY r.created_at DESC`,
@@ -334,7 +335,7 @@ func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
 		// if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID); err != nil {
 		// 	return nil, err
 		// }
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID, &ri.Description, &ri.ImageURL); err != nil {
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID, &ri.Description, &ri.ImageURL, &ri.UserID); err != nil {
 			return nil, err
 		}
 		recipes = append(recipes, ri)
@@ -394,7 +395,7 @@ func (s *RecipeService) Search(query string, tagFilters []string, maxTime int) (
 	))`)
 	args = append(args, "%"+query+"%", "%"+query+"%", "%"+strings.ToLower(query)+"%", "%"+query+"%", "%"+query+"%")
 
-	searchQuery := `SELECT r.id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
+	searchQuery := `SELECT r.id, r.user_id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
 		COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
 	 FROM recipesV1 r WHERE ` + strings.Join(conditions, " AND ") +
 		` ORDER BY CASE WHEN LOWER(r.title) LIKE LOWER(?) THEN 0 ELSE 1 END, r.created_at DESC`
@@ -417,7 +418,7 @@ func (s *RecipeService) Search(query string, tagFilters []string, maxTime int) (
 	for rows.Next() {
 		var ri RecipeInfo
 		var tags string
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL, &tags); err != nil {
+		if err := rows.Scan(&ri.ID, &ri.UserID, &ri.Title, &ri.Description, &ri.ImageURL, &tags); err != nil {
 			return nil, err
 		}
 		ri.Tags = splitTags(tags)
@@ -430,7 +431,7 @@ func (s *RecipeService) Search(query string, tagFilters []string, maxTime int) (
 
 func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	rows, err := s.DB.Query(
-		`SELECT r.id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
+		`SELECT r.id, r.user_id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, r.user_id, ''),
 			COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
 		 FROM recipesV1 r ORDER BY r.created_at DESC`,
 	)
@@ -450,7 +451,7 @@ func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	for rows.Next() {
 		var ri RecipeInfo
 		var tags string
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.Description, &ri.ImageURL, &tags); err != nil {
+		if err := rows.Scan(&ri.ID, &ri.UserID, &ri.Title, &ri.Description, &ri.ImageURL, &tags); err != nil {
 			return nil, err
 		}
 		ri.Tags = splitTags(tags)
@@ -517,4 +518,77 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 		Ingredients: ingredients,
 		Steps:       steps,
 	}, userID, nil
+}
+
+func (s *RecipeService) DeleteRecipe(recipeID int64) error {
+	return withTx(s.DB, func(tx sqlExecutor) error {
+
+		if _, err := tx.Exec(`
+			DELETE FROM userShoppingListV2
+			WHERE source_recipe_version_id IN (
+				SELECT id
+				FROM recipe_versionsV1
+				WHERE recipe_id = ?
+			)
+		`, recipeID); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec(`
+    		DELETE FROM userShoppingStateV1
+    		WHERE NOT EXISTS (
+        		SELECT 1
+        		FROM userShoppingListV2
+        		WHERE userShoppingListV2.user_id = userShoppingStateV1.user_id
+          			AND userShoppingListV2.name = userShoppingStateV1.name
+          			AND userShoppingListV2.unit = userShoppingStateV1.unit
+    		)
+		`); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec(`
+			DELETE FROM ingredientsV1
+			WHERE recipe_version_id IN (
+				SELECT id 
+				FROM recipe_versionsV1
+				WHERE recipe_id = ?
+			)
+		`, recipeID); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec(`
+			DELETE FROM instructionsV1 
+			WHERE recipe_version_id IN (
+				SELECT id 
+				FROM recipe_versionsV1
+				WHERE recipe_id = ?
+			)
+		`, recipeID); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec(`
+			DELETE FROM recipe_versionsV1
+			WHERE recipe_id = ?
+		`, recipeID); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec(`
+			DELETE FROM recipeTagsV1
+			WHERE recipe_id = ?
+		`, recipeID); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec(`
+			DELETE FROM recipesV1
+			WHERE id = ?
+		`, recipeID); err != nil {
+			return err
+		}
+		return nil
+	})
 }

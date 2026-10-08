@@ -3,8 +3,9 @@
 <head>
     <meta charset="utf-8">
     <title>{{.Title}}</title>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     <link rel="stylesheet" href="/static/style.css?v=recipe-image-size-1">
+    <link rel="stylesheet" href="/static/recipe-options.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 
 <body>
@@ -12,6 +13,24 @@
 <div class="recipe-page">
 
     <div class="recipe-header">
+        {{ if .IsOwner }}
+            <details class="recipe-actions">
+                <summary class="recipe-actions-button">
+                    <img src="/static/icon/more.png" alt="Recipe options">
+                </summary>
+
+                <div class="recipe-actions-options">
+                    <form
+                        method="POST"
+                        action="/recipes/v1/delete/{{ .RecipeID }}"
+                        hx-boost="true"
+                        hx-confirm="Delete &quot;{{ .Title }}&quot;? This cannot be undone."
+                    >
+                        <button type="submit">Delete</button>
+                    </form>
+                </div>
+            </details>
+        {{ end }}
         <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image">
 
         <div class="recipe-info">
