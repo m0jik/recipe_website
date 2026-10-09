@@ -158,6 +158,7 @@ func main() {
 	// Recipe
 	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
 	mux.HandleFunc("/recipes/v1/ingredient-row", app.handleIngredientRows)
+	mux.HandleFunc("/recipes/v1/step-ingredient-row", app.handleStepIngredientRows)
 	mux.HandleFunc("/recipes/v1/step-row", app.handleStepRow)
 	mux.HandleFunc("/recipes/v1/tag-row", app.handleTagRows)
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
@@ -931,6 +932,17 @@ func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		log.Printf("Error rendering ingredient row: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *App) handleStepIngredientRows(w http.ResponseWriter, r *http.Request) {
+	err := tpl.ExecuteTemplate(w, "step-ingredient-row", map[string]string{
+		"Ingredient": r.URL.Query().Get("step_ingredient"),
+	})
+	if err != nil {
+		log.Printf("Error rendering step ingredient row: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
