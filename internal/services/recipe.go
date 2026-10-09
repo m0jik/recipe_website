@@ -20,9 +20,10 @@ type RecipeInfo struct {
 }
 
 type RecipeEditPageData struct {
-	Recipe      RecipeInfo
-	Ingredients []Ingredient
-	Steps       []Step
+	Recipe          RecipeInfo
+	Ingredients     []Ingredient
+	Steps           []Step
+	StepIngredients []StepIngredient
 }
 
 type Ingredient struct {
@@ -38,8 +39,13 @@ type Step struct {
 	RecipeVersionID int64
 	StepNumber      int
 	Instruction     string
-	StepIngredients string
 	Notes           string
+}
+
+type StepIngredient struct {
+	ID         int64
+	Ingredient string
+	StepID     int64
 }
 
 type RecipeService struct {
@@ -171,7 +177,7 @@ func (s *RecipeService) BatchSaveIngredients(versionID int64, names, quantities,
 	return nil
 }
 
-func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, stepIngredients, notes []string) error {
+func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes []string) error {
 	for i, instruction := range instructions {
 		if instruction == "" {
 			continue
@@ -181,8 +187,24 @@ func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, stepIngred
 			note = notes[i]
 		}
 		_, err := s.DB.Exec(
-			"INSERT INTO instructionsV1 (recipe_version_id, step_number, instruction, step_ingredients, notes) VALUES (?, ?, ?, ?, ?)",
-			versionID, i+1, instruction, stepIngredients[i], note,
+			"INSERT INTO instructionsV1 (recipe_version_id, step_number, instruction, notes) VALUES (?, ?, ?, ?)",
+			versionID, i+1, instruction, note,
+		)
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func (s *RecipeService) BatchSaveStepIngredients(versionID int64, stepIngredients []string) error {
+	for i, stepIngredient := range stepIngredients {
+		if stepIngredient == "" {
+			continue
+		}
+		_, err := s.DB.Exec(
+			"INSERT INTO step_ingredientsV1 (id, ingredient, step_id) VALUES (?, ?, ?)",
+			i+1, stepIngredient, versionID,
 		)
 		if err != nil {
 			return err
@@ -236,24 +258,37 @@ func (s *RecipeService) GetRecipeForEdit(recipeID int64) (*RecipeEditPageData, e
 		return nil, err
 	}
 
+	stepIngredients, err := s.GetStepIngredients(versionID)
+	if err != nil {
+		return nil, err
+	}
+
 	return &RecipeEditPageData{
 		Recipe: RecipeInfo{
 			ID:        recipeID,
 			VersionID: versionID,
 			Title:     title,
 		},
-		Ingredients: ingredients,
-		Steps:       steps,
+		Ingredients:     ingredients,
+		Steps:           steps,
+		StepIngredients: stepIngredients,
 	}, nil
 }
 
 func (s *RecipeService) GetIngredients(recipeVersionID int64) ([]Ingredient, error) {
 	var ingredients []Ingredient
 	rows, err := s.DB.Query(
-		"SELECT id, recipe_version_id, name, quantity, unit FROM ingredientsV1 WHERE recipe_version_id = ?", recipeVersionID,
+		`SELECT id, recipe_version_id, name, quantity, unit
+		 FROM ingredientsV1
+		 WHERE recipe_version_id = ?
+		 `, recipeVersionID,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Println("Error iterating over rows:", err)
 	}
 
 	// defer rows.Close()
@@ -276,10 +311,17 @@ func (s *RecipeService) GetIngredients(recipeVersionID int64) ([]Ingredient, err
 func (s *RecipeService) GetSteps(recipeVersionID int64) ([]Step, error) {
 	var steps []Step
 	rows, err := s.DB.Query(
-		"SELECT id, recipe_version_id, step_number, instruction, COALESCE(notes, '') FROM instructionsV1 WHERE recipe_version_id = ? ORDER BY step_number", recipeVersionID,
+		`SELECT id, recipe_version_id, step_number, instruction, COALESCE(notes, '')
+		FROM instructionsV1 WHERE recipe_version_id = ?
+		ORDER BY step_number
+		`, recipeVersionID,
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Println("Error iterating over rows:", err)
 	}
 
 	// defer rows.Close()
@@ -297,6 +339,38 @@ func (s *RecipeService) GetSteps(recipeVersionID int64) ([]Step, error) {
 		steps = append(steps, st)
 	}
 	return steps, nil
+}
+
+func (s *RecipeService) GetStepIngredients(recipeVersionID int64) ([]StepIngredient, error) {
+	var stepIngredients []StepIngredient
+	rows, err := s.DB.Query(
+		`SELECT si.id, si.ingredient, si.step_id
+		 FROM step_ingredientsV1 si
+		 WHERE si.step_id IN (SELECT id FROM instructionsV1 WHERE recipe_version_id = ?)
+		`, recipeVersionID,
+	)
+	if err != nil {
+		return nil, err
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Println("Error iterating over rows:", err)
+	}
+
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
+
+	for rows.Next() {
+		var si StepIngredient
+		if err := rows.Scan(&si.ID, &si.Ingredient, &si.StepID); err != nil {
+			return nil, err
+		}
+		stepIngredients = append(stepIngredients, si)
+	}
+	return stepIngredients, nil
 }
 
 func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
@@ -407,6 +481,10 @@ func (s *RecipeService) Search(query string, tagFilters []string, maxTime int) (
 		return nil, err
 	}
 
+	if err := rows.Err(); err != nil {
+		log.Println("Error iterating over rows:", err)
+	}
+
 	// defer rows.Close()
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -438,6 +516,10 @@ func (s *RecipeService) GetAllRecipes() ([]RecipeInfo, error) {
 	)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := rows.Err(); err != nil {
+		log.Println("Error iterating over rows:", err)
 	}
 
 	// defer rows.Close()

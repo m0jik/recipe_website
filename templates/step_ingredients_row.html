@@ -1,0 +1,10 @@
+{{ define "step-ingredient-row" }}
+<div class="item-row">
+
+    <input type="hidden" name="step_ingredient" value="{{ .Ingredient }}">
+
+    <span>{{ .Ingredient }}</span>
+    <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">X</button>
+
+</div>
+{{ end }}

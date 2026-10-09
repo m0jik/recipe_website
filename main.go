@@ -66,6 +66,7 @@ type RecipePageData struct {
 	ImageURL        string
 	Ingredients     []services.Ingredient
 	Steps           []services.Step
+	StepIngredients []services.StepIngredient
 	CreatorUsername string
 	Servings        int
 	PrepTimeMinutes int
@@ -84,14 +85,15 @@ type PageOneData struct {
 type PageTwoData struct {
 	PageData
 
-	Image       string
-	Title       string
-	Description string
-	Tags        []string
-	Servings    string
-	PrepTime    string
-	Ingredients []services.Ingredient
-	Steps       []services.Step
+	Image           string
+	Title           string
+	Description     string
+	Tags            []string
+	Servings        string
+	PrepTime        string
+	Ingredients     []services.Ingredient
+	Steps           []services.Step
+	StepIngredients []services.StepIngredient
 }
 
 func main() {
@@ -1007,8 +1009,14 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not save ingredients", http.StatusInternalServerError)
 			return
 		}
-		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_ingredient"], r.Form["step_note"]); err != nil {
+
+		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"]); err != nil {
 			http.Error(w, "could not save steps", http.StatusInternalServerError)
+			return
+		}
+
+		if err := a.Recipes.BatchSaveStepIngredients(versionID, r.Form["step_ingredient"]); err != nil {
+			http.Error(w, "could not save step ingredients", http.StatusInternalServerError)
 			return
 		}
 

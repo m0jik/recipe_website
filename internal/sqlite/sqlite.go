@@ -137,6 +137,13 @@ func Migrate(db *sqlx.DB) error {
 		PRIMARY KEY (user_id, name, unit),
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
+
+	CREATE TABLE IF NOT EXISTS step_ingredientsV1 (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		ingredient TEXT NOT NULL,
+		step_id INTEGER NOT NULL,
+		FOREIGN KEY (step_id) REFERENCES instructionsV1(id)
+	);
 	`
 	_, err := db.Exec(schema)
 	return err
