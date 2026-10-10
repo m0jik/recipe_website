@@ -1,0 +1,22 @@
+/* Hide the navigation radio buttons */
+.editor-section > input[type="radio"] {
+    display: none;
+}
+
+/* Hide all editor sections */
+#details-section,
+#steps-and-notes-section,
+#cooking-mode-section,
+#version-history-section,
+#ingredients-section {
+    display: none;
+}
+
+/* Show the selected section */
+#tab-details:checked ~ .recipe-content #details-section,
+#tab-ingredients:checked ~ .recipe-content #ingredients-section,
+#tab-steps-and-notes:checked ~ .recipe-content #steps-and-notes-section,
+#tab-cooking-mode:checked ~ .recipe-content #cooking-mode-section,
+#tab-version-history:checked ~ .recipe-content #version-history-section {
+    display: block;
+}

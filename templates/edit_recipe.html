@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="en">
+<head>
+        <meta charset="utf-8">
+        <title>Edit Recipe</title>
+        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1">
+        <link rel="stylesheet" href="/static/edit_recipe.css">
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+{{template "nav" .}}
+<div class="edit-recipe-page">
+
+    <div class= "save-recipe-button">
+        <a href="/recipes/v1/myRecipe">Cancel</a>
+        <form method="POST" action="/recipes/v1/save-recipe/{{.RecipeID}}">
+            <button type="submit">Save</button>
+        </form>
+    </div>
+    
+<div class="editor-section">
+
+    <input type="radio" name="editor-tab" id="tab-details" checked>
+    <input type="radio" name="editor-tab" id="tab-ingredients">
+    <input type="radio" name="editor-tab" id="tab-steps-and-notes">
+    <input type="radio" name="editor-tab" id="tab-cooking-mode">
+    <input type="radio" name="editor-tab" id="tab-version-history">
+
+    <nav class="recipe-sidebar">
+        <label for="tab-details">Details</label>
+        <label for="tab-ingredients">Ingredients</label>
+        <label for="tab-steps-and-notes">Steps &amp; Notes</label>
+        <label for="tab-cooking-mode">Cooking Mode</label>
+        <Label for="tab-version-history">Version History</label>
+    </nav>
+
+    <div class="recipe-content">
+
+        <section id="details-section">
+            <h2>Details</h2>
+            <div class="field">
+                <label>Title<input type="text" id="title" name="title" value="{{.Title}}" required></label>
+            </div>
+            
+            <div class="field">
+                <label>Description<textarea id="description" name="description">{{.Description}}</textarea></label>
+            </div>
+
+            <div class="section-block">
+                <div class="section-title">Tags</div>
+
+                <div id="tags-list" class="item-list">
+                    {{range .Tags}}
+                        <div class="tag-chip">
+                            <span>{{.}}</span>
+                            <input type="hidden" name="tags" value="{{.}}">
+                            <button type="button" class="remove-tag">Remove</button>
+                        </div>
+                    {{end}}
+                </div>
+                <div class="add-row">
+                    <select id="recipe-tag" name="tag">
+                        <option value="" disabled selected>Choose a tag</option>
+                        {{range .PresetTagGroups}}
+                            <optgroup label="{{.Name}}">
+                                {{range .Tags}}
+                                    <option value="{{.}}">{{.}}</option>
+                                {{end}}
+                            </optgroup>
+                        {{end}}
+                    </select>
+
+                    <button id="tag-add" type="button"
+                            hx-get="/recipes/v1/tag-row"
+                            hx-include="#recipe-tag"
+                            hx-target="#tags-list"
+                            hx-swap="beforeend"
+                            class="btn-secondary">
+                        + Add
+                    </button>
+                </div>
+
+                <div class="field">
+                    <label>Servings<input type="number" id="servings" name="servings" min="1" value="{{.Servings}}"></label>
+                </div>
+                <div>
+                    <label>Prep time<input type="number" id="prep_time_minutes" name="prep_time_minutes" value="{{.PrepTimeMinutes}}"></label>
+                </div>
+            </div>
+        </section>
+
+        <section id="ingredients-section">
+            <h2>Ingredients</h2>
+            <div class="existing-ingredients">
+                {{range .Ingredients}}
+                    <div class="item-row">
+                        <input type="hidden" name="ingredient_qty"  value="{{ .Quantity }}">
+                        <input type="hidden" name="ingredient_unit" value="{{ .Unit }}">
+                        <input type="hidden" name="ingredient_name" value="{{ .Name }}">
+                            <span>{{.Quantity}} {{.Unit}} {{.Name}}</span>
+
+                        <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">✕</button>
+                    </div>
+                {{else}}
+                    <p>No ingredients added yet</p>
+                {{end}}
+            </div>
+                <div id="ingredients-list" class="item-list"></div>
+
+                <div class="add-row">
+                    <input type="text" id="ing-qty" name="qty" placeholder="2" class="qty">
+
+                    <select id="ing-unit" name="unit">
+                        <option value="" disabled selected>Unit</option>
+                        <optgroup label="US">
+                            <option value="cup">cup</option>
+                            <option value="tbsp">tbsp</option>
+                            <option value="tsp">tsp</option>
+                            <option value="oz">oz</option>
+                            <option value="lb">lb</option>
+                        </optgroup>
+                        <optgroup label="Metric">
+                            <option value="ml">mL</option>
+                            <option value="liter">liter</option>
+                            <option value="grams">grams</option>
+                            <option value="kg">kg</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="piece">piece</option>
+                            <option value="pinch">pinch</option>
+                            <option value="whole">whole</option>
+                        </optgroup>
+                    </select>
+
+                    <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
+
+                    <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
+                        + Add
+                    </button>
+                </div>
+        </section>
+
+        <section id="steps-and-notes-section">
+            <h2>Steps &amp; Notes</h2>
+            <p>Coming soon...</p>
+        </section>
+        <section id="cooking-mode-section">
+            <h2>Cooking Mode</h2>
+            <p>Coming soon...</p>    
+        </section>
+        <section id="version-history-section">
+            <h2>Version History</h2>
+            <p>Coming Soon...</p>
+        </section>
+    </div>
+</div>
+</body>
+
+</html>

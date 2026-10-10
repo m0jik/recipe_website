@@ -94,6 +94,22 @@ type PageTwoData struct {
 	Steps       []services.Step
 }
 
+// type RecipeDetailUpdate struct {
+// 	Title       string
+// 	Description string
+// 	ImageURL    string
+// 	Servings    int
+// 	PrepTime    string
+// 	Ingredients []services.Ingredient
+// 	Steps       []services.Step
+// }
+// type RecipeIngredientsUpdate struct {
+// 	Ingredients []services.Ingredient
+// }
+// type RecipeStepsUpdate struct {
+// 	Steps []services.Step
+// }
+
 func main() {
 	log.Println("Loading config...")
 	cfg, err := config.Load("config.json")
@@ -1610,6 +1626,9 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// log.Printf("Recipe ID:%d", recipeID)
+	// log.Printf("Recipe Tags: %#v", data.Recipe.Tags)
+
 	if ownerID != int64(userID) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
@@ -1621,6 +1640,10 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// log.Printf("Recipe ID: %d", recipeID)
+	// log.Printf("Ingredients: %+v", data.Ingredients)
+	// log.Printf("Number of ingredients: %d", len(data.Ingredients))
+
 	pageData := RecipePageData{
 		PageData: PageData{
 			UserID:          int64(userID),
@@ -1628,12 +1651,12 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 			PresetTagGroups: services.PresetTagGroups,
 		},
 		RecipeID:        recipeID,
+		CreatorUsername: username,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
 		ImageURL:        data.Recipe.ImageURL,
 		Ingredients:     data.Ingredients,
 		Steps:           data.Steps,
-		CreatorUsername: username,
 		Servings:        data.Recipe.Servings,
 		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
 		Tags:            data.Recipe.Tags,
@@ -1641,7 +1664,7 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 
 	buf := new(bytes.Buffer)
 
-	err = tpl.ExecuteTemplate(buf, "edit_my_recipe.html", pageData)
+	err = tpl.ExecuteTemplate(buf, "edit_recipe.html", pageData)
 	if err != nil {
 		log.Printf("Error rendering edit recipe template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

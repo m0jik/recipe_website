@@ -209,43 +209,6 @@ func (s *RecipeService) NewVersion(recipeID int64) (int64, error) {
 	return result.LastInsertId()
 }
 
-func (s *RecipeService) GetRecipeForEdit(recipeID int64) (*RecipeEditPageData, error) {
-	var title string
-	row := s.DB.QueryRow("SELECT title FROM recipesV1 WHERE id = ?", recipeID)
-	if err := row.Scan(&title); err != nil {
-		return nil, err
-	}
-
-	var versionID int64
-	row = s.DB.QueryRow(
-		"SELECT id FROM recipe_versionsV1 WHERE recipe_id = ? ORDER BY version_number DESC LIMIT 1",
-		recipeID,
-	)
-	if err := row.Scan(&versionID); err != nil {
-		return nil, err
-	}
-
-	ingredients, err := s.GetIngredients(versionID)
-	if err != nil {
-		return nil, err
-	}
-
-	steps, err := s.GetSteps(versionID)
-	if err != nil {
-		return nil, err
-	}
-
-	return &RecipeEditPageData{
-		Recipe: RecipeInfo{
-			ID:        recipeID,
-			VersionID: versionID,
-			Title:     title,
-		},
-		Ingredients: ingredients,
-		Steps:       steps,
-	}, nil
-}
-
 func (s *RecipeService) GetIngredients(recipeVersionID int64) ([]Ingredient, error) {
 	var ingredients []Ingredient
 	rows, err := s.DB.Query(
@@ -503,6 +466,9 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 	).Scan(&tagString); err != nil {
 		return nil, 0, err
 	}
+
+	// log.Printf("Raw tag string for recipe %d: %q", recipeID, tagString)
+	// log.Printf("Split tags: %#v", splitTags(tagString))
 
 	return &RecipeEditPageData{
 		Recipe: RecipeInfo{
