@@ -94,51 +94,72 @@
             <div class="existing-ingredients">
                 {{range .Ingredients}}
                     <div class="item-row">
-                        <input type="hidden" name="ingredient_qty"  value="{{ .Quantity }}">
-                        <input type="hidden" name="ingredient_unit" value="{{ .Unit }}">
-                        <input type="hidden" name="ingredient_name" value="{{ .Name }}">
-                            <span>{{.Quantity}} {{.Unit}} {{.Name}}</span>
 
-                        <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">✕</button>
+                        <input type="text" name="ingredient_qty" value="{{.Quantity}}">
+                        <select id="ing-unit" name="ingredient_unit">
+                            <option value="" disabled {{if not .Unit}}selected{{end}}>Unit</option>
+
+                            <optgroup label="US">
+                                <option value="cup" {{if eq .Unit "cup"}}selected{{end}}>cup</option>
+                                <option value="tbsp" {{if eq .Unit "tbsp"}}selected{{end}}>tbsp</option>
+                                <option value="tsp" {{if eq .Unit "tsp"}}selected{{end}}>tsp</option>
+                                <option value="oz" {{if eq .Unit "oz"}}selected{{end}}>oz</option>
+                                <option value="lb" {{if eq .Unit "lb"}}selected{{end}}>lb</option>
+                            </optgroup>
+
+                            <optgroup label="Metric">
+                                <option value="ml" {{if eq .Unit "ml"}}selected{{end}}>mL</option>
+                                <option value="liter" {{if eq .Unit "liter"}}selected{{end}}>liter</option>
+                                <option value="grams" {{if eq .Unit "grams"}}selected{{end}}>grams</option>
+                                <option value="kg" {{if eq .Unit "kg"}}selected{{end}}>kg</option>
+                            </optgroup>
+
+                            <optgroup label="Other">
+                                <option value="piece" {{if eq .Unit "piece"}}selected{{end}}>piece</option>
+                                <option value="pinch" {{if eq .Unit "pinch"}}selected{{end}}>pinch</option>
+                                <option value="whole" {{if eq .Unit "whole"}}selected{{end}}>whole</option>
+                            </optgroup>
+                        </select>
+                        <input type="text" name="ingredient_name" value="{{.Name}}">
+
+                        <button type="button" onclick="this.closest('.item-row').remove()">✕</button>
                     </div>
-                {{else}}
-                    <p>No ingredients added yet</p>
                 {{end}}
             </div>
-                <div id="ingredients-list" class="item-list"></div>
+            <div id="ingredients-list" class="item-list"></div>
 
-                <div class="add-row">
-                    <input type="text" id="ing-qty" name="qty" placeholder="2" class="qty">
+            <div class="add-row">
+                <input type="text" id="ing-qty" name="qty" placeholder="2" class="qty">
 
-                    <select id="ing-unit" name="unit">
-                        <option value="" disabled selected>Unit</option>
-                        <optgroup label="US">
-                            <option value="cup">cup</option>
-                            <option value="tbsp">tbsp</option>
-                            <option value="tsp">tsp</option>
-                            <option value="oz">oz</option>
-                            <option value="lb">lb</option>
-                        </optgroup>
-                        <optgroup label="Metric">
-                            <option value="ml">mL</option>
-                            <option value="liter">liter</option>
-                            <option value="grams">grams</option>
-                            <option value="kg">kg</option>
-                        </optgroup>
-                        <optgroup label="Other">
-                            <option value="piece">piece</option>
-                            <option value="pinch">pinch</option>
-                            <option value="whole">whole</option>
-                        </optgroup>
-                    </select>
+                <select id="ing-unit" name="unit">
+                    <option value="" disabled selected>Unit</option>
+                    <optgroup label="US">
+                        <option value="cup">cup</option>
+                        <option value="tbsp">tbsp</option>
+                        <option value="tsp">tsp</option>
+                        <option value="oz">oz</option>
+                        <option value="lb">lb</option>
+                    </optgroup>
+                    <optgroup label="Metric">
+                        <option value="ml">mL</option>
+                        <option value="liter">liter</option>
+                        <option value="grams">grams</option>
+                        <option value="kg">kg</option>
+                    </optgroup>
+                    <optgroup label="Other">
+                        <option value="piece">piece</option>
+                        <option value="pinch">pinch</option>
+                        <option value="whole">whole</option>
+                    </optgroup>
+                </select>
 
-                    <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
-                           onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
+                <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
+                        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
 
-                    <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
-                        + Add
-                    </button>
-                </div>
+                <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
+                    + Add
+                </button>
+            </div>
         </section>
 
         <section id="steps-and-notes-section">
