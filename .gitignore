@@ -5,3 +5,6 @@ uploads/*
 recipe_website
 app.db
 config.json
+
+/tmp/
+.air.toml
