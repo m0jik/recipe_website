@@ -1,11 +1,16 @@
 package services
 
 import (
+	"database/sql"
+	"errors"
+	"fmt"
 	"log"
 	"strings"
 
 	"github.com/jmoiron/sqlx"
 )
+
+var ErrRecipeNotFound = errors.New("recipe not found or access denied")
 
 type RecipeInfo struct {
 	ID              int64 // recipe ID
@@ -643,16 +648,19 @@ func (s *RecipeService) UpdateRecipePrepTime(tx sqlExecutor, recipeID int64, pre
 func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpdate) error {
 	return withTx(s.DB, func(tx sqlExecutor) error {
 
-		// Verify recipe ownership.
-		var ownerID int64
+		var exists int
 		err := tx.QueryRow(`
 			SELECT user_id
 			FROM recipesV1
 			WHERE id = ? AND user_id = ? 
-		`, recipeID, userID).Scan(&ownerID)
+		`, recipeID, userID).Scan(&exists)
+
+		if errors.Is(err, sql.ErrNoRows) {
+			return ErrRecipeNotFound
+		}
 
 		if err != nil {
-			return err
+			return fmt.Errorf("failed to verify recipe ownership: %w", err)
 		}
 
 		if err := s.UpdateRecipeTitle(tx, recipeID, data.Title); err != nil {
@@ -675,11 +683,11 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 			return err
 		}
 
-		// tags ??
 		// images??
 		//create new recipe version
 		//insert updated ingredients
 		//insert updated steps
+		// what ingredients where used for each steps?
 
 		return nil
 	})

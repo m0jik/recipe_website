@@ -34,7 +34,7 @@
                                             <button type="submit">Delete</button>
                                         </form>
                                         <form method="GET" action="/recipes/v1/edit-recipe/{{.ID}}">
-                                            <button type="submit">Edit</button>
+                                            <button type="submit" onclick="this.closest('details').open = false;">Edit</button>
                                         </form>
                                     {{end}}
                                 </div>

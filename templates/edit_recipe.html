@@ -11,11 +11,10 @@
 {{template "nav" .}}
 <div class="edit-recipe-page">
 <!-- CANCEL -->
-
 <!-- SAVE -->
 <form method="POST" action="/recipes/v1/save-recipe/{{.RecipeID}}">
     <div class="save-recipe-button">
-        <a href="/recipes/v1/myRecipe">Cancel</a>
+        <button type="button" onclick="window.location.href='/recipes/v1/{{.RecipeID}}'">Cancel</button>
         <button type="submit">Save</button>
     </div>
     
@@ -41,11 +40,11 @@
         <section id="details-section">
             <h2>Details</h2>
             <div class="field">
-                <label>Title<input type="text" name="title" value="{{.Title}}" required></label>
+                <label>Title<input type="text" name="title" value="{{.Title}}" maxlength="200" required></label>
             </div>
             
             <div class="field">
-                <label>Description<textarea name="description">{{.Description}}</textarea></label>
+                <label>Description<textarea name="description" maxlength="2000">{{.Description}}</textarea></label>
             </div>
 
             <div class="section-block">
@@ -93,7 +92,7 @@
                     <label>Servings<input type="number" name="servings" min="1" value="{{.Servings}}"></label>
                 </div>
                 <div>
-                    <label>Prep time<input type="number" name="prep_time_minutes" value="{{.PrepTimeMinutes}}"></label>
+                    <label>Prep time<input type="number" name="prep_time_minutes" value="{{.PrepTimeMinutes}}" min="0"></label>
                 </div>
             </div>
         </section>

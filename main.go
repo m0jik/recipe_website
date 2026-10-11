@@ -1656,6 +1656,7 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Cache-Control", "no-store") // instruct the browswer not to cache the response
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	w.WriteHeader(http.StatusOK)
 	_, err = buf.WriteTo(w)
@@ -1686,28 +1687,51 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	title := strings.TrimSpace(r.PostFormValue("title"))
+	if title == "" {
+		http.Error(w, "Recipe title cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	if len([]rune(title)) > 200 {
+		http.Error(w, "Recipe title cannot exceed 200 characters", http.StatusBadRequest)
+		return
+	}
+
+	description := strings.TrimSpace(r.PostFormValue("description"))
+	if len([]rune(description)) > 2000 {
+		http.Error(w, "Recipe description cannot exceed 2000 characters", http.StatusBadRequest)
+		return
+	}
+
 	tags := r.PostForm["tags"]
 
-	servings, err := strconv.Atoi(r.FormValue("servings"))
+	servings, err := strconv.Atoi(r.PostFormValue("servings"))
 	if err != nil || servings <= 0 {
 		http.Error(w, "Servings must be a positive number", http.StatusBadRequest)
 		return
 	}
 
-	prepTime, err := strconv.Atoi(r.FormValue("prep_time_minutes"))
-	if err != nil {
+	prepTime, err := strconv.Atoi(r.PostFormValue("prep_time_minutes"))
+	if err != nil || prepTime < 0 {
 		http.Error(w, "Invalid preparation time", http.StatusBadRequest)
 		return
 	}
 	data := services.RecipeUpdate{
-		Title:           r.FormValue("title"),
-		Description:     r.FormValue("description"),
+		Title:           title,
+		Description:     description,
 		Tags:            tags,
 		Servings:        servings,
 		PrepTimeMinutes: prepTime,
 	}
 
 	if err := a.Recipes.UpdateRecipe(userID, recipeID, data); err != nil {
+		if errors.Is(err, services.ErrRecipeNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		log.Printf("Failed to update recipe: %v", err)
 		http.Error(w, "Unable to update recipe", http.StatusInternalServerError)
 		return
 	}
