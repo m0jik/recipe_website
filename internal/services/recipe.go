@@ -41,6 +41,25 @@ type Step struct {
 	Notes           string
 }
 
+type RecipeUpdate struct {
+	Title       string
+	Description string
+	// ImageURL        string
+	Servings        int
+	PrepTimeMinutes int
+	// Tags []string
+	// Ingredients     []Ingredient
+	// Steps           []Step
+}
+
+// type UpdateRecipeIngredients struct {
+//     Ingredients []services.Ingredient
+// }
+
+// type UpdateRecipeSteps struct {
+//     Steps []services.Step
+// }
+
 type RecipeService struct {
 	DB *sqlx.DB
 }
@@ -555,6 +574,81 @@ func (s *RecipeService) DeleteRecipe(recipeID int64) error {
 		`, recipeID); err != nil {
 			return err
 		}
+		return nil
+	})
+}
+
+func (s *RecipeService) UpdateRecipeTitle(tx sqlExecutor, recipeID int64, title string) error {
+	_, err := tx.Exec(`
+        UPDATE recipesV1
+        SET title = ?
+        WHERE id = ?
+    `, title, recipeID)
+	return err
+}
+func (s *RecipeService) UpdateRecipeDescription(tx sqlExecutor, recipeID int64, descripton string) error {
+	_, err := tx.Exec(`
+		UPDATE recipesV1
+		SET description = ?
+		WHERE id = ?
+	`, descripton, recipeID)
+	return err
+}
+func (s *RecipeService) UpdateRecipeServing(tx sqlExecutor, recipeID int64, serving int) error {
+	_, err := tx.Exec(`
+		UPDATE recipesV1
+		SET servings = ?
+		WHERE id = ?
+	`, serving, recipeID)
+	return err
+}
+
+func (s *RecipeService) UpdateRecipePrepTime(tx sqlExecutor, recipeID int64, prepTimeMinutes int) error {
+	_, err := tx.Exec(`
+		UPDATE recipesV1
+		SET prep_time_minutes = ?
+		WHERE id = ?
+	`, prepTimeMinutes, recipeID)
+	return err
+}
+
+func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpdate) error {
+	return withTx(s.DB, func(tx sqlExecutor) error {
+
+		// Verify recipe ownership.
+		var ownerID int64
+		err := tx.QueryRow(`
+			SELECT user_id
+			FROM recipesV1
+			WHERE id = ? AND user_id = ? 
+		`, recipeID, userID).Scan(&ownerID)
+
+		if err != nil {
+			return err
+		}
+
+		if err := s.UpdateRecipeTitle(tx, recipeID, data.Title); err != nil {
+			return err
+		}
+
+		if err := s.UpdateRecipeDescription(tx, recipeID, data.Description); err != nil {
+			return err
+		}
+
+		if err := s.UpdateRecipeServing(tx, recipeID, data.Servings); err != nil {
+			return err
+		}
+
+		if err := s.UpdateRecipePrepTime(tx, recipeID, data.PrepTimeMinutes); err != nil {
+			return err
+		}
+
+		// tags ??
+		// images??
+		//create new recipe version
+		//insert updated ingredients
+		//insert updated steps
+
 		return nil
 	})
 }

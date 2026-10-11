@@ -10,12 +10,13 @@
 <body>
 {{template "nav" .}}
 <div class="edit-recipe-page">
+<!-- CANCEL -->
 
-    <div class= "save-recipe-button">
+<!-- SAVE -->
+<form method="POST" action="/recipes/v1/save-recipe/{{.RecipeID}}">
+    <div class="save-recipe-button">
         <a href="/recipes/v1/myRecipe">Cancel</a>
-        <form method="POST" action="/recipes/v1/save-recipe/{{.RecipeID}}">
-            <button type="submit">Save</button>
-        </form>
+        <button type="submit">Save</button>
     </div>
     
 <div class="editor-section">
@@ -36,14 +37,15 @@
 
     <div class="recipe-content">
 
+        <!-- DETAILS -->
         <section id="details-section">
             <h2>Details</h2>
             <div class="field">
-                <label>Title<input type="text" id="title" name="title" value="{{.Title}}" required></label>
+                <label>Title<input type="text" name="title" value="{{.Title}}" required></label>
             </div>
             
             <div class="field">
-                <label>Description<textarea id="description" name="description">{{.Description}}</textarea></label>
+                <label>Description<textarea name="description">{{.Description}}</textarea></label>
             </div>
 
             <div class="section-block">
@@ -81,16 +83,19 @@
                 </div>
 
                 <div class="field">
-                    <label>Servings<input type="number" id="servings" name="servings" min="1" value="{{.Servings}}"></label>
+                    <label>Servings<input type="number" name="servings" min="1" value="{{.Servings}}"></label>
                 </div>
                 <div>
-                    <label>Prep time<input type="number" id="prep_time_minutes" name="prep_time_minutes" value="{{.PrepTimeMinutes}}"></label>
+                    <label>Prep time<input type="number" name="prep_time_minutes" value="{{.PrepTimeMinutes}}"></label>
                 </div>
             </div>
         </section>
 
+        <!-- INGREDIENTS -->
         <section id="ingredients-section">
             <h2>Ingredients</h2>
+            <p>Coming soon...</p>
+            <!--
             <div class="existing-ingredients">
                 {{range .Ingredients}}
                     <div class="item-row">
@@ -160,22 +165,27 @@
                     + Add
                 </button>
             </div>
+        -->
         </section>
 
+        <!-- STEPS & NOTES -->
         <section id="steps-and-notes-section">
             <h2>Steps &amp; Notes</h2>
             <p>Coming soon...</p>
         </section>
+        <!-- COOKING MODE -->
         <section id="cooking-mode-section">
             <h2>Cooking Mode</h2>
             <p>Coming soon...</p>    
         </section>
+        <!-- VERSION CONTROL -->
         <section id="version-history-section">
             <h2>Version History</h2>
             <p>Coming Soon...</p>
         </section>
     </div>
 </div>
+</form>
 </body>
 
 </html>

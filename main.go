@@ -94,22 +94,6 @@ type PageTwoData struct {
 	Steps       []services.Step
 }
 
-// type RecipeDetailUpdate struct {
-// 	Title       string
-// 	Description string
-// 	ImageURL    string
-// 	Servings    int
-// 	PrepTime    string
-// 	Ingredients []services.Ingredient
-// 	Steps       []services.Step
-// }
-// type RecipeIngredientsUpdate struct {
-// 	Ingredients []services.Ingredient
-// }
-// type RecipeStepsUpdate struct {
-// 	Steps []services.Step
-// }
-
 func main() {
 	log.Println("Loading config...")
 	cfg, err := config.Load("config.json")
@@ -181,7 +165,7 @@ func main() {
 	//Recipe Edit
 	mux.HandleFunc("POST /recipes/v1/delete-recipe/{id}", app.handleDeleteRecipe)
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
-	// mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
+	mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
 
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
@@ -1679,12 +1663,45 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-// func (a *App) handleSaveRecipe(w *http.ResponseWriter, r *http.Request) {
-// 	userID, ok := a.getUserIDFromSession(r)
+func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
 
-// 	if !ok {
-// 		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
-// 		return
-// 	}
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
 
-// }
+	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+
+	if err != nil || recipeID < 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form", http.StatusBadRequest)
+		return
+	}
+
+	servings, err := strconv.Atoi(r.FormValue("servings"))
+	if err != nil {
+		http.Error(w, "Servings must be a positive number", http.StatusBadRequest)
+	}
+
+	prepTime, err := strconv.Atoi(r.FormValue("prep_time_minutes"))
+	if err != nil {
+		http.Error(w, "Invalid prepTime", http.StatusBadRequest)
+	}
+	data := services.RecipeUpdate{
+		Title:           r.FormValue("title"),
+		Description:     r.FormValue("description"),
+		Servings:        servings,
+		PrepTimeMinutes: prepTime,
+	}
+
+	if err := a.Recipes.UpdateRecipe(userID, recipeID, data); err != nil {
+		http.Error(w, "Unable to update recipe", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/recipes/v1/myRecipe", http.StatusSeeOther)
+}
