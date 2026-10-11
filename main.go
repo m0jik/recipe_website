@@ -166,6 +166,7 @@ func main() {
 	mux.HandleFunc("POST /recipes/v1/delete-recipe/{id}", app.handleDeleteRecipe)
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
 	mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
+	mux.HandleFunc("DELETE /recipes/v1/tag-row", app.handleRemoveTag)
 
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
@@ -993,7 +994,7 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not create recipe", http.StatusInternalServerError)
 			return
 		}
-		if err := a.Recipes.SaveTags(recipeID, strings.Join(r.Form["tags"], ",")); err != nil {
+		if err := a.Recipes.SaveTags(a.Recipes.DB, recipeID, r.Form["tags"]); err != nil {
 			http.Error(w, "could not save tags", http.StatusInternalServerError)
 			return
 		}
@@ -1662,6 +1663,9 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error writing edit recipe response: %v", err)
 	}
 }
+func (a *App) handleRemoveTag(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+}
 
 func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 	userID, ok := a.getUserIDFromSession(r)
@@ -1672,7 +1676,6 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
-
 	if err != nil || recipeID < 1 {
 		http.NotFound(w, r)
 		return
@@ -1683,18 +1686,23 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	tags := r.PostForm["tags"]
+
 	servings, err := strconv.Atoi(r.FormValue("servings"))
-	if err != nil {
+	if err != nil || servings <= 0 {
 		http.Error(w, "Servings must be a positive number", http.StatusBadRequest)
+		return
 	}
 
 	prepTime, err := strconv.Atoi(r.FormValue("prep_time_minutes"))
 	if err != nil {
-		http.Error(w, "Invalid prepTime", http.StatusBadRequest)
+		http.Error(w, "Invalid preparation time", http.StatusBadRequest)
+		return
 	}
 	data := services.RecipeUpdate{
 		Title:           r.FormValue("title"),
 		Description:     r.FormValue("description"),
+		Tags:            tags,
 		Servings:        servings,
 		PrepTimeMinutes: prepTime,
 	}
@@ -1703,5 +1711,5 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to update recipe", http.StatusInternalServerError)
 		return
 	}
-	http.Redirect(w, r, "/recipes/v1/myRecipe", http.StatusSeeOther)
+	http.Redirect(w, r, "/recipes/v1/"+strconv.FormatInt(recipeID, 10), http.StatusSeeOther)
 }

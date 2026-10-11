@@ -56,7 +56,14 @@
                         <div class="tag-chip">
                             <span>{{.}}</span>
                             <input type="hidden" name="tags" value="{{.}}">
-                            <button type="button" class="remove-tag">Remove</button>
+                            <button
+                                type="button"
+                                class="remove-tag"
+                                hx-delete="/recipes/v1/tag-row"
+                                hx-target="closest .tag-chip"
+                                hx-swap="delete">
+                                Remove
+                            </button>
                         </div>
                     {{end}}
                 </div>

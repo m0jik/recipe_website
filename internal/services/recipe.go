@@ -45,9 +45,9 @@ type RecipeUpdate struct {
 	Title       string
 	Description string
 	// ImageURL        string
+	Tags            []string
 	Servings        int
 	PrepTimeMinutes int
-	// Tags []string
 	// Ingredients     []Ingredient
 	// Steps           []Step
 }
@@ -124,13 +124,15 @@ func (s *RecipeService) CreateRecipe(userID int, title, imageURL string, descrip
 	return recipeID, nil
 }
 
-func (s *RecipeService) SaveTags(recipeID int64, rawTags string) error {
+func (s *RecipeService) SaveTags(tx sqlExecutor, recipeID int64, tags []string) error {
 	allowedTags := make(map[string]struct{}, len(PresetTags))
+
 	for _, presetTag := range PresetTags {
 		allowedTags[presetTag] = struct{}{}
 	}
 	seen := make(map[string]struct{})
-	for _, rawTag := range strings.Split(rawTags, ",") {
+
+	for _, rawTag := range tags {
 		tag := strings.ToLower(strings.TrimSpace(rawTag))
 		if tag == "" {
 			continue
@@ -143,15 +145,27 @@ func (s *RecipeService) SaveTags(recipeID int64, rawTags string) error {
 		}
 		seen[tag] = struct{}{}
 
-		_, err := s.DB.Exec("INSERT INTO tagsV1(name) VALUES (?) ON CONFLICT(name) DO NOTHING", tag)
+		_, err := tx.Exec(`
+			INSERT INTO tagsV1(name) VALUES (?) ON CONFLICT(name) DO NOTHING`,
+			tag,
+		)
 		if err != nil {
 			return err
 		}
+
 		var tagID int64
-		if err := s.DB.QueryRow("SELECT id FROM tagsV1 WHERE name = ?", tag).Scan(&tagID); err != nil {
+		if err := tx.QueryRow(`
+			SELECT id 
+			FROM tagsV1 WHERE name = ?`,
+			tag,
+		).Scan(&tagID); err != nil {
 			return err
 		}
-		if _, err := s.DB.Exec("INSERT OR IGNORE INTO recipeTagsV1(recipe_id, tag_id) VALUES (?, ?)", recipeID, tagID); err != nil {
+
+		if _, err := tx.Exec(
+			`INSERT OR IGNORE INTO recipeTagsV1(recipe_id, tag_id) VALUES (?, ?)`,
+			recipeID, tagID,
+		); err != nil {
 			return err
 		}
 	}
@@ -594,6 +608,20 @@ func (s *RecipeService) UpdateRecipeDescription(tx sqlExecutor, recipeID int64, 
 	`, descripton, recipeID)
 	return err
 }
+
+func (s *RecipeService) UpdateRecipeTags(tx sqlExecutor, recipeID int64, tags []string) error {
+	_, err := tx.Exec(`
+        DELETE FROM recipeTagsV1
+        WHERE recipe_id = ?
+    `, recipeID)
+
+	if err != nil {
+		return err
+	}
+
+	return s.SaveTags(tx, recipeID, tags)
+}
+
 func (s *RecipeService) UpdateRecipeServing(tx sqlExecutor, recipeID int64, serving int) error {
 	_, err := tx.Exec(`
 		UPDATE recipesV1
@@ -632,6 +660,10 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 		}
 
 		if err := s.UpdateRecipeDescription(tx, recipeID, data.Description); err != nil {
+			return err
+		}
+
+		if err := s.UpdateRecipeTags(tx, recipeID, data.Tags); err != nil {
 			return err
 		}
 
