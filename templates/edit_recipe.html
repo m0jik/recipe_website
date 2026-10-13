@@ -14,7 +14,7 @@
 <!-- SAVE -->
 <form method="POST" action="/recipes/v1/save-recipe/{{.RecipeID}}">
     <div class="save-recipe-button">
-        <button type="button" onclick="window.location.href='/recipes/v1/{{.RecipeID}}'">Cancel</button>
+        <button type="button" class="btn-secondary" onclick="window.location.href='/recipes/v1/{{.RecipeID}}'">Cancel</button>
         <button type="submit">Save</button>
     </div>
     
@@ -31,7 +31,7 @@
         <label for="tab-ingredients">Ingredients</label>
         <label for="tab-steps-and-notes">Steps &amp; Notes</label>
         <label for="tab-cooking-mode">Cooking Mode</label>
-        <Label for="tab-version-history">Version History</label>
+        <label for="tab-version-history">Version History</label>
     </nav>
 
     <div class="recipe-content">
@@ -53,7 +53,7 @@
                 <div id="tags-list" class="item-list">
                     {{range .Tags}}
                         <div class="tag-chip">
-                            <span>{{.}}</span>
+                            <span>#{{.}}</span>
                             <input type="hidden" name="tags" value="{{.}}">
                             <button
                                 type="button"
@@ -61,7 +61,7 @@
                                 hx-delete="/recipes/v1/tag-row"
                                 hx-target="closest .tag-chip"
                                 hx-swap="delete">
-                                Remove
+                                ✕
                             </button>
                         </div>
                     {{end}}
@@ -88,11 +88,13 @@
                     </button>
                 </div>
 
-                <div class="field">
-                    <label>Servings<input type="number" name="servings" min="1" value="{{.Servings}}"></label>
-                </div>
-                <div>
-                    <label>Prep time<input type="number" name="prep_time_minutes" value="{{.PrepTimeMinutes}}" min="0"></label>
+                <div class="field-row">
+                    <div class="field">
+                        <label>Servings<input type="number" name="servings" min="1" value="{{.Servings}}"></label>
+                    </div>
+                    <div class="field">
+                        <label>Prep time<input type="number" name="prep_time_minutes" value="{{.PrepTimeMinutes}}" min="0"></label>
+                    </div>
                 </div>
             </div>
         </section>
@@ -192,6 +194,7 @@
     </div>
 </div>
 </form>
+</div>
 </body>
 
 </html>

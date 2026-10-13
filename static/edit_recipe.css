@@ -20,3 +20,143 @@
 #tab-version-history:checked ~ .recipe-content #version-history-section {
     display: block;
 }
+
+.edit-recipe-page {
+    padding: 20px;
+}
+
+/* Cancel and Save in the top right, as pill buttons */
+.save-recipe-button {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.save-recipe-button button {
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+/* Cancel: grey */
+.save-recipe-button .btn-secondary {
+    background: #e5e5e5;
+}
+
+.save-recipe-button .btn-secondary:hover {
+    background: #d9d9d9;
+}
+
+/* Save: black */
+.save-recipe-button button[type="submit"] {
+    background: #0f0f0f;
+}
+
+.save-recipe-button button[type="submit"]:hover {
+    background: #272727;
+}
+
+/* Sidebar on the left, selected section on the right */
+.editor-section {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+/* Sidebar card */
+.recipe-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+    background: white;
+    border-radius: 10px;
+}
+
+.recipe-sidebar label {
+    padding: 12px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.recipe-sidebar label:hover {
+    background: #f4f4f4;
+}
+
+/* Highlight the selected tab */
+#tab-details:checked ~ .recipe-sidebar label[for="tab-details"],
+#tab-ingredients:checked ~ .recipe-sidebar label[for="tab-ingredients"],
+#tab-steps-and-notes:checked ~ .recipe-sidebar label[for="tab-steps-and-notes"],
+#tab-cooking-mode:checked ~ .recipe-sidebar label[for="tab-cooking-mode"],
+#tab-version-history:checked ~ .recipe-sidebar label[for="tab-version-history"] {
+    background: #eef4fb;
+    color: #356da8;
+}
+
+/* Content card (style.css gives .recipe-content a top margin for the recipe page) */
+.editor-section .recipe-content {
+    margin-top: 0;
+    padding: 20px;
+    background: white;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.editor-section .recipe-content h2 {
+    margin-top: 0;
+}
+
+/* Title and Description stacked, Servings and Prep time side by side */
+#details-section > .field {
+    margin-bottom: 16px;
+}
+
+#details-section .field-row {
+    display: grid;
+    grid-template-columns: 160px 160px;
+    gap: 16px;
+    margin-top: 16px;
+}
+
+/* Each field: small label on top, inside one outlined box */
+#details-section .field label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    font-size: 13px;
+    color: #606060;
+}
+
+#details-section .field label:focus-within {
+    border-color: #4a90e2;
+}
+
+#details-section .field input,
+#details-section .field textarea {
+    padding: 0;
+    border: none;
+    outline: none;
+    font-size: 15px;
+}
+
+/* Servings and Prep time: label on the left, number on the right */
+#details-section .field-row label {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#details-section .field-row input {
+    width: 56px;
+}
+
+/* Stack the sidebar above the content on small screens */
+@media (max-width: 640px) {
+    .editor-section {
+        grid-template-columns: 1fr;
+    }
+}

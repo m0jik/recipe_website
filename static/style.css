@@ -620,10 +620,25 @@ button[type="submit"]:hover {
     font-size: 13px;
 }
 
-.tag-chip:hover,
+a.tag-chip:hover,
 .tag-chip.active {
     background: #4a90e2;
     color: white;
+}
+
+/* editable tags (new + edit recipe pages): chips flow left to right */
+#tags-list {
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.remove-tag {
+    background: none;
+    border: none;
+    padding: 0 0 0 4px;
+    color: inherit;
+    font-size: 12px;
+    cursor: pointer;
 }
 
 .clear-filter {
