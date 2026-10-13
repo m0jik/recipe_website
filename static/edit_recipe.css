@@ -74,6 +74,37 @@
     border-radius: 10px;
 }
 
+/* Recipe preview above the tabs: image, "Your recipe", then the title */
+.sidebar-recipe {
+    margin-bottom: 8px;
+}
+
+/* Fill the sidebar width as a 16:9 thumbnail, cropped instead of squashed */
+.sidebar-recipe img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.sidebar-recipe-label {
+    margin: 12px 4px 2px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f0f0f;
+}
+
+/* One grey line, cut off with "..." when the title is too long */
+.sidebar-recipe-title {
+    margin: 0 4px;
+    font-size: 13px;
+    color: #606060;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
 .recipe-sidebar label {
     padding: 12px 16px;
     border-radius: 10px;
@@ -155,9 +186,71 @@
     width: 56px;
 }
 
+/* Dropdowns: outlined box like the fields */
+.editor-section select {
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: white;
+    font-family: inherit;
+    font-size: 15px;
+    color: #0f0f0f;
+    cursor: pointer;
+}
+
+.editor-section select:focus {
+    border-color: #4a90e2;
+    outline: none;
+}
+
+/* Grey like the field labels while only the "Choose a tag" placeholder is showing */
+.editor-section select:has(option[value=""]:checked) {
+    color: #606060;
+}
+
+/* Keep the choices in the open list dark */
+.editor-section select option,
+.editor-section select optgroup {
+    color: #0f0f0f;
+}
+
+/* Hide the browser arrow and leave room on the right for our own */
+.select-wrap {
+    position: relative;
+}
+
+.select-wrap select {
+    appearance: none;
+    padding-right: 40px;
+}
+
+/* Our arrow: a small square showing only its right and bottom borders, rotated into a V */
+.select-wrap::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid #606060;
+    border-bottom: 2px solid #606060;
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+}
+
+/* Tag dropdown: wide enough to read like a field */
+#recipe-tag {
+    width: 200px;
+}
+
 /* Stack the sidebar above the content on small screens */
 @media (max-width: 640px) {
     .editor-section {
         grid-template-columns: 1fr;
+    }
+
+    /* Let the sidebar shrink to the screen so a long title is cut off instead of widening the page */
+    .recipe-sidebar {
+        min-width: 0;
     }
 }
