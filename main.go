@@ -46,6 +46,7 @@ type App struct {
 }
 
 type PageData struct {
+	UserID          int64
 	Username        string
 	Recipes         []services.RecipeInfo
 	Query           string
@@ -58,6 +59,7 @@ type RecipePageData struct {
 	PageData
 
 	RecipeID        int64
+	IsOwner         bool
 	Added           bool
 	Title           string
 	Description     string
@@ -159,6 +161,9 @@ func main() {
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
 	mux.HandleFunc("/recipes/v1/myRecipe", app.handleMyRecipes)
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
+
+	//Recipe Edit
+	mux.HandleFunc("POST /recipes/v1/delete/{id}", app.handleDeleteRecipe)
 
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
@@ -305,11 +310,14 @@ func initDB(db *sql.DB) error {
 
 func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	username := ""
+	var userID int64
+
 	if uid, ok := a.getUserIDFromSession(r); ok {
 		// row := a.DB.QueryRow("SELECT username FROM usersV1 WHERE id = ?", uid)
 		// if err := row.Scan(&username); err != nil {
 		// 	username = ""
 		// }
+		userID = int64(uid)
 		u, err := a.Users.GetUsernameByID(uid)
 		if err != nil {
 			http.Error(w, "Invalid session", http.StatusInternalServerError)
@@ -341,6 +349,7 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := PageData{
+		UserID:          userID,
 		Username:        username,
 		Recipes:         recipes,
 		Query:           query,
@@ -810,6 +819,7 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := PageData{
+		UserID:          int64(userID),
 		Username:        username,
 		Recipes:         recipes,
 		PresetTagGroups: services.PresetTagGroups,
@@ -1055,6 +1065,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
 	}
+	isOwner := loggedIn && int64(sessionUserID) == recipeOwnerID
 
 	added := false
 	if loggedIn {
@@ -1073,11 +1084,13 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 
 	pageData := RecipePageData{
 		PageData: PageData{
+			UserID:          int64(sessionUserID),
 			Username:        username,
 			PresetTagGroups: services.PresetTagGroups,
 		},
 
 		RecipeID:        id,
+		IsOwner:         isOwner,
 		Added:           added,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
@@ -1541,4 +1554,37 @@ func (a *App) renderPantrySection(w http.ResponseWriter, userID int, errMsg stri
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
+}
+
+func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	_, ownerID, err := a.Recipes.GetRecipeForView(recipeID)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	if ownerID != int64(userID) {
+		http.Error(w, "Forbidden", http.StatusForbidden)
+		return
+	}
+
+	if err := a.Recipes.DeleteRecipe(recipeID); err != nil {
+		http.Error(w, "Failed to delete recipe", http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/recipes/v1/myRecipe", http.StatusSeeOther)
 }
