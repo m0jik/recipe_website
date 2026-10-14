@@ -1,17 +1,17 @@
 /* Hide every section.
    The screen-tall scroll margin leaves the browser nowhere to scroll on desktop, so clicking a tab doesn't jump the page */
-.recipe-content > section {
+.editor-content > section {
     display: none;
     scroll-margin-top: 100vh;
 }
 
 /* Show the section named after the # in the URL */
-.recipe-content > section:target {
+.editor-content > section:target {
     display: block;
 }
 
 /* No # in the URL yet: show Details */
-.recipe-content:not(:has(section:target)) #details-section {
+.editor-content:not(:has(section:target)) #details-section {
     display: block;
 }
 
@@ -21,7 +21,7 @@
     padding: 20px;
 }
 
-/* Cancel and Save in the top right, as pill buttons */
+/* Cancel and Save in the top right */
 .save-recipe-button {
     display: flex;
     justify-content: flex-end;
@@ -32,15 +32,6 @@
     padding: 10px 16px;
     border-radius: 999px;
     font-weight: 600;
-}
-
-/* Cancel: grey */
-.save-recipe-button .btn-secondary {
-    background: #e5e5e5;
-}
-
-.save-recipe-button .btn-secondary:hover {
-    background: #d9d9d9;
 }
 
 /* Save: black */
@@ -60,14 +51,19 @@
     margin-top: 12px;
 }
 
+/* White cards: the sidebar and the content */
+.recipe-sidebar,
+.editor-content {
+    background: white;
+    border-radius: 10px;
+}
+
 /* Sidebar card */
 .recipe-sidebar {
     display: flex;
     flex-direction: column;
     gap: 4px;
     padding: 12px;
-    background: white;
-    border-radius: 10px;
 }
 
 /* Recipe preview above the tabs: image, "Your recipe", then the title */
@@ -123,15 +119,12 @@
     font-weight: 700;
 }
 
-/* Content card (style.css gives .recipe-content a top margin for the recipe page) */
-.editor-section .recipe-content {
-    margin-top: 0;
+/* Content card */
+.editor-content {
     padding: 20px;
-    background: white;
-    border-radius: 10px;
 }
 
-.editor-section .recipe-content h2 {
+.editor-content h2 {
     margin-top: 0;
 }
 
@@ -147,20 +140,26 @@
     margin-top: 16px;
 }
 
-/* Each field: small label on top, inside one outlined box */
+/* Outlined box shared by fields and dropdowns (keep above .select-wrap select, which widens the right padding) */
+#details-section .field label,
+.editor-section select {
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+#details-section .field label:focus-within,
+.editor-section select:focus {
+    border-color: #4a90e2;
+}
+
+/* Each field: small label on top, inside the outlined box */
 #details-section .field label {
     display: flex;
     flex-direction: column;
     gap: 6px;
-    padding: 10px 14px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
     font-size: 13px;
     color: #606060;
-}
-
-#details-section .field label:focus-within {
-    border-color: #4a90e2;
 }
 
 #details-section .field input,
@@ -182,11 +181,8 @@
     width: 56px;
 }
 
-/* Dropdowns: outlined box like the fields */
+/* Dropdowns: the outlined box above, plus dropdown text */
 .editor-section select {
-    padding: 10px 14px;
-    border: 1px solid #ccc;
-    border-radius: 8px;
     background-color: white;
     font-family: inherit;
     font-size: 15px;
@@ -195,7 +191,6 @@
 }
 
 .editor-section select:focus {
-    border-color: #4a90e2;
     outline: none;
 }
 
@@ -246,7 +241,7 @@
     }
 
     /* Phones: jump down to the section, leaving room for the card's padding and a small gap */
-    .recipe-content > section {
+    .editor-content > section {
         scroll-margin-top: 32px;
     }
 }
