@@ -1,23 +1,17 @@
-/* Hide the navigation radio buttons */
-.editor-section > input[type="radio"] {
+/* Hide every section.
+   The screen-tall scroll margin leaves the browser nowhere to scroll on desktop, so clicking a tab doesn't jump the page */
+.recipe-content > section {
     display: none;
+    scroll-margin-top: 100vh;
 }
 
-/* Hide all editor sections */
-#details-section,
-#steps-and-notes-section,
-#cooking-mode-section,
-#version-history-section,
-#ingredients-section {
-    display: none;
+/* Show the section named after the # in the URL */
+.recipe-content > section:target {
+    display: block;
 }
 
-/* Show the selected section */
-#tab-details:checked ~ .recipe-content #details-section,
-#tab-ingredients:checked ~ .recipe-content #ingredients-section,
-#tab-steps-and-notes:checked ~ .recipe-content #steps-and-notes-section,
-#tab-cooking-mode:checked ~ .recipe-content #cooking-mode-section,
-#tab-version-history:checked ~ .recipe-content #version-history-section {
+/* No # in the URL yet: show Details */
+.recipe-content:not(:has(section:target)) #details-section {
     display: block;
 }
 
@@ -107,24 +101,24 @@
     text-overflow: ellipsis;
 }
 
-.recipe-sidebar label {
+.recipe-sidebar a {
     padding: 12px 16px;
     border-radius: 10px;
     font-size: 15px;
     color: #0f0f0f;
-    cursor: pointer;
 }
 
-.recipe-sidebar label:hover {
+.recipe-sidebar a:hover {
     background: #f2f2f2;
 }
 
-/* Highlight the selected tab */
-#tab-details:checked ~ .recipe-sidebar label[for="tab-details"],
-#tab-ingredients:checked ~ .recipe-sidebar label[for="tab-ingredients"],
-#tab-steps-and-notes:checked ~ .recipe-sidebar label[for="tab-steps-and-notes"],
-#tab-cooking-mode:checked ~ .recipe-sidebar label[for="tab-cooking-mode"],
-#tab-version-history:checked ~ .recipe-sidebar label[for="tab-version-history"] {
+/* Highlight the tab whose section is showing (Details when there's no # in the URL) */
+.editor-section:has(#details-section:target) a[href="#details-section"],
+.editor-section:has(#ingredients-section:target) a[href="#ingredients-section"],
+.editor-section:has(#steps-and-notes-section:target) a[href="#steps-and-notes-section"],
+.editor-section:has(#cooking-mode-section:target) a[href="#cooking-mode-section"],
+.editor-section:has(#version-history-section:target) a[href="#version-history-section"],
+.editor-section:not(:has(section:target)) a[href="#details-section"] {
     background: #f2f2f2;
     font-weight: 700;
 }
@@ -248,6 +242,11 @@
 /* Stack the sidebar above the content on small screens */
 @media (max-width: 640px) {
     .editor-section {
-        grid-template-columns: minmax(0,1fr)
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    /* Phones: jump down to the section, leaving room for the card's padding and a small gap */
+    .recipe-content > section {
+        scroll-margin-top: 32px;
     }
 }

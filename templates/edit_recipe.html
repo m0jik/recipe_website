@@ -21,23 +21,17 @@
     
 <div class="editor-section">
 
-    <input type="radio" name="editor-tab" id="tab-details" checked>
-    <input type="radio" name="editor-tab" id="tab-ingredients">
-    <input type="radio" name="editor-tab" id="tab-steps-and-notes">
-    <input type="radio" name="editor-tab" id="tab-cooking-mode">
-    <input type="radio" name="editor-tab" id="tab-version-history">
-
     <nav class="recipe-sidebar">
         <div class="sidebar-recipe">
             <img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}" alt="">
             <p class="sidebar-recipe-label">Your recipe</p>
             <p class="sidebar-recipe-title">{{.Title}}</p>
         </div>
-        <label for="tab-details">Details</label>
-        <label for="tab-ingredients">Ingredients</label>
-        <label for="tab-steps-and-notes">Steps &amp; Notes</label>
-        <label for="tab-cooking-mode">Cooking Mode</label>
-        <label for="tab-version-history">Version History</label>
+        <a href="#details-section">Details</a>
+        <a href="#ingredients-section">Ingredients</a>
+        <a href="#steps-and-notes-section">Steps &amp; Notes</a>
+        <a href="#cooking-mode-section">Cooking Mode</a>
+        <a href="#version-history-section">Version History</a>
     </nav>
 
     <div class="recipe-content">
