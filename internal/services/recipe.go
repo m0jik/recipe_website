@@ -177,7 +177,7 @@ func (s *RecipeService) BatchSaveIngredients(versionID int64, names, quantities,
 	return nil
 }
 
-func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes []string) error {
+func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes, step_ingredients []string) error {
 	for i, instruction := range instructions {
 		if instruction == "" {
 			continue
@@ -193,21 +193,17 @@ func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes []st
 		if err != nil {
 			return err
 		}
-	}
-	return nil
-}
-
-func (s *RecipeService) BatchSaveStepIngredients(versionID int64, stepIngredients []string) error {
-	for i, stepIngredient := range stepIngredients {
-		if stepIngredient == "" {
-			continue
-		}
-		_, err := s.DB.Exec(
-			"INSERT INTO step_ingredientsV1 (id, ingredient, step_id) VALUES (?, ?, ?)",
-			i+1, stepIngredient, versionID,
-		)
-		if err != nil {
-			return err
+		for _, step_ingredient := range strings.Split(strings.Trim(step_ingredients[i], "[] "), "  ") {
+			if step_ingredient == "" {
+				continue
+			}
+			_, err := s.DB.Exec(
+				"INSERT INTO step_ingredientsV1 (recipe_id, step_id, ingredient) VALUES (?, ?, ?)",
+				versionID, i+1, step_ingredient,
+			)
+			if err != nil {
+				return err
+			}
 		}
 	}
 	return nil

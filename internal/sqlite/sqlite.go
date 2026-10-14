@@ -139,9 +139,11 @@ func Migrate(db *sqlx.DB) error {
 	);
 
 	CREATE TABLE IF NOT EXISTS step_ingredientsV1 (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		ingredient TEXT NOT NULL,
+	    id INTEGER PRIMARY KEY AUTOINCREMENT,
+		recipe_id INTEGER NOT NULL,
 		step_id INTEGER NOT NULL,
+		ingredient TEXT NOT NULL,
+		FOREIGN KEY (recipe_id) REFERENCES instructionsV1(recipe_version_id)
 		FOREIGN KEY (step_id) REFERENCES instructionsV1(id)
 	);
 	`

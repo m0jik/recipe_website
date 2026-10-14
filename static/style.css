@@ -394,13 +394,6 @@ button[type="submit"]:hover {
     margin-bottom: 10px;
 }
 
-.step-ingredients-list {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    margin-bottom: 10px;
-}
-
 /* ingredient / step row styling */
 .item-row {
     background: #f9f9f9;
@@ -409,6 +402,7 @@ button[type="submit"]:hover {
     display: flex;
     justify-content: space-between;
     gap: 10px;
+    word-break: break-word;
 }
 
 /* add row inputs */

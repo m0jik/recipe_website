@@ -949,9 +949,10 @@ func (a *App) handleStepIngredientRows(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleStepRow(w http.ResponseWriter, r *http.Request) {
-	err := tpl.ExecuteTemplate(w, "step-row", map[string]string{
+	err := tpl.ExecuteTemplate(w, "step-row", map[string]any{
 		"Instruction": r.URL.Query().Get("step"),
 		"Note":        r.URL.Query().Get("note"),
+		"Ingredients": strings.Split(r.URL.Query().Get("step_ingredients"), ","),
 	})
 	if err != nil {
 		log.Printf("Error rendering step row: %v", err)
@@ -1022,13 +1023,8 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"]); err != nil {
+		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"], r.Form["step_ingredients"]); err != nil {
 			http.Error(w, "could not save steps", http.StatusInternalServerError)
-			return
-		}
-
-		if err := a.Recipes.BatchSaveStepIngredients(versionID, r.Form["step_ingredient"]); err != nil {
-			http.Error(w, "could not save step ingredients", http.StatusInternalServerError)
 			return
 		}
 
