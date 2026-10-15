@@ -37,12 +37,17 @@
                                     {{end}}
                                 </div>
                             </details>
-                            <img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}" alt="{{.Title}}">
-                            <div class="recipe-info">
-                                <h3>{{ .Title }}</h3>
-                                <p>{{ .Description }}</p>
-                                <a href="/recipes/v1/{{ .ID }}">View Recipe</a>
-                            </div>
+                            <a href="/recipes/v1/{{ .ID }}">
+                                <div class="recipe-card-link">
+                                    <img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}" alt="{{.Title}}">
+                                    <div class="recipe-info">
+                                        <h3>{{ .Title }}</h3>
+                                        <p>{{ .Description }}</p>
+                                        {{if .Tags}}<p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . $.SelectedTags $.Query}}">#{{.}}</a> {{end}}</p>{{end}}
+                                    </div>
+                                </div>
+                            </a>
+                            
                         </div>
                     {{ else }}
                         <p>No recipes found.</p>
