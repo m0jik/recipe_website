@@ -9,4 +9,8 @@
     <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">✕</button>
 
 </div>
+
+{{ template "ingredient-qty-input" true }}
+{{ template "ingredient-unit-select" true }}
+{{ template "ingredient-name-input" true }}
 {{ end }}

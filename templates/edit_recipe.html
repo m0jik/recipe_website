@@ -129,17 +129,13 @@
             <div id="ingredients-list" class="item-list"></div>
 
             <div class="add-row">
-                <input type="text" id="ing-qty" name="qty" placeholder="Qty" aria-label="Quantity">
+                {{ template "ingredient-qty-input" }}
 
                 <div class="select-wrap">
-                    <select id="ing-unit" name="unit" aria-label="Unit">
-                    <option value="" disabled selected>Unit</option>
-                    {{ template "unit-options" "" }}
-                </select>
+                    {{ template "ingredient-unit-select" }}
                 </div>
 
-                <input type="text" id="ing-name" name="name" placeholder="Ingredient name" aria-label="Ingredient"
-                        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
+                {{ template "ingredient-name-input" }}
 
                 <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
                     + Add

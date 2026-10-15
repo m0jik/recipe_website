@@ -790,20 +790,11 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 			}
 
 			// Save the edited ingredients
-			if err := s.InsertVersionIngredients(
-				tx,
-				newVersionID,
-				data.Ingredients,
-			); err != nil {
+			if err := s.InsertVersionIngredients(tx, newVersionID, data.Ingredients); err != nil {
 				return err
 			}
-
 			// Preserve the current instructions
-			if err := s.CopyVersionSteps(
-				tx,
-				currentVersionID,
-				newVersionID,
-			); err != nil {
+			if err := s.CopyVersionSteps(tx, currentVersionID, newVersionID); err != nil {
 				return err
 			}
 		}
