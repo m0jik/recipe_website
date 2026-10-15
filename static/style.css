@@ -255,6 +255,10 @@ button {
     text-decoration: none;
 }
 
+.recipe-card-link .recipe-info h3 {
+    color: #333;
+}
+
 .recipe-card:hover {
     transform: translateY(-3px);
 }
@@ -276,6 +280,11 @@ button {
     object-fit: cover;
     border-radius: 8px;
     flex-shrink: 0;
+}
+
+.recipe-card > a {
+    color: inherit;
+    text-decoration: none;
 }
 
 .recipe-info {
