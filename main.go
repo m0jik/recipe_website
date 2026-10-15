@@ -1712,7 +1712,7 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	steps, err := a.Recipes.GetSteps(versionID)
+	steps, err := a.Recipes.GetSteps(a.Recipes.DB, versionID)
 	if err != nil {
 		log.Printf("Error loading steps for version %d: %v", versionID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

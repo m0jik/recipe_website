@@ -130,13 +130,10 @@
 
             <div class="add-row">
                 {{ template "ingredient-qty-input" }}
-
                 <div class="select-wrap">
                     {{ template "ingredient-unit-select" }}
                 </div>
-
                 {{ template "ingredient-name-input" }}
-
                 <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
                     + Add
                 </button>
