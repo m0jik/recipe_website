@@ -1,31 +1,59 @@
 /* =========================
    GLOBAL BASE
 ========================= */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    width: 100%;
+}
 
 body {
     font-family: Arial, sans-serif;
     background: #f4f4f4;
     margin: 0;
+    width: 100%;
+    min-width: 0;
     overflow-x: hidden;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+}
+
+input[type="hidden"] {
+    display: none;
+}
+
+a {
+    color: #4a90e2;
+    text-decoration: none;
+}
+
+button {
+    font-family: inherit;
 }
 
 /* =========================
    AUTH PAGES
 ========================= */
-
 .auth-page {
     display: flex;
-    justify-content: center;
-    align-items: center;
-    height: 100vh;
+    flex-direction: column;
+    min-height: 100vh;
+    height: auto;
 }
 
 .auth-container {
     background: white;
     padding: 30px;
-    width: 350px;
+    width: 100%;
+    max-width: 350px;
+    margin: auto;
     border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     text-align: center;
 }
 
@@ -36,16 +64,13 @@ body {
     gap: 10px;
 }
 
-/* inputs now behave consistently */
 .auth-container input {
     width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
     border-radius: 6px;
-    box-sizing: border-box;
 }
 
-/* button matches inputs exactly */
 .auth-container button {
     width: 100%;
     padding: 10px;
@@ -60,19 +85,9 @@ body {
     background: #357bd8;
 }
 
-input[type="hidden"] {
-    display: none;
-}
-
-a {
-    color: #4a90e2;
-    text-decoration: none;
-}
-
 /* =========================
-   NAVBAR (NEW STRUCTURE)
+   NAVBAR
 ========================= */
-
 .navbar {
     background: #222;
     color: white;
@@ -82,7 +97,11 @@ a {
     padding: 12px 20px;
 }
 
-/* left / center / right layout */
+.auth-page > .navbar {
+    width: 100%;
+    align-self: stretch;
+}
+
 .nav-left,
 .nav-center,
 .nav-right {
@@ -92,15 +111,14 @@ a {
 
 .nav-center {
     gap: 12px;
+    min-width: 0;
 }
 
-/* logo */
 .logo {
     font-weight: bold;
     font-size: 18px;
 }
 
-/* right links */
 .nav-right {
     gap: 15px;
 }
@@ -121,12 +139,70 @@ a {
     opacity: 0.8;
 }
 
-/* =========================
-   SEARCH (IN NAVBAR)
-========================= */
+.nav-menu {
+    position: relative;
+}
+
+.nav-menu summary {
+    color: white;
+    cursor: pointer;
+    list-style: none;
+    white-space: nowrap;
+    padding: 8px 10px;
+    border-radius: 6px;
+}
+
+.nav-menu summary::-webkit-details-marker {
+    display: none;
+}
+
+.nav-menu summary::after {
+    content: " ▾";
+}
+
+.nav-menu summary:hover {
+    background: #333;
+}
+
+.nav-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    min-width: 190px;
+    max-width: calc(100vw - 24px);
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    background: #333;
+    border: 1px solid #484848;
+    border-radius: 8px;
+    padding: 8px 0;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+    z-index: 1000;
+}
+
+.nav-menu-dropdown a {
+    display: block;
+    color: white;
+    text-decoration: none;
+    font-size: 14px;
+    padding: 10px 14px;
+    white-space: normal;
+}
+
+.nav-menu-dropdown a:hover {
+    background: #484848;
+    text-decoration: none;
+}
+
+/* Navbar search */
+.search-form {
+    min-width: 0;
+}
 
 .search-form input {
     width: 220px;
+    max-width: 100%;
     padding: 7px 10px;
     border-radius: 6px;
     border: none;
@@ -135,20 +211,15 @@ a {
 
 .search-form input:focus {
     width: 260px;
-    transition: 0.2s;
+    transition: width 0.2s;
 }
 
 /* =========================
-   MAIN LAYOUT
+   MAIN LAYOUT AND RECIPE GRID
 ========================= */
-
 .container {
     padding: 20px;
 }
-
-/* =========================
-   RECIPES GRID
-========================= */
 
 .recipes {
     text-align: center;
@@ -157,7 +228,7 @@ a {
 
 .recipe-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
     gap: 20px;
     margin-top: 20px;
 }
@@ -169,7 +240,7 @@ a {
     background: white;
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     text-align: left;
     transition: 0.2s;
 }
@@ -201,6 +272,8 @@ a {
     display: flex;
     flex-direction: column;
     justify-content: center;
+    flex: 1;
+    min-width: 0;
 }
 
 .recipe-info a {
@@ -220,21 +293,19 @@ a {
 /* =========================
    RECIPE VIEW PAGE
 ========================= */
-
 .recipe-page {
     max-width: 900px;
     margin: 40px auto;
     padding: 20px;
 }
 
-/* HEADER */
 .recipe-header {
     display: flex;
     gap: 20px;
     background: white;
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .recipe-image {
@@ -243,18 +314,6 @@ a {
     object-fit: cover;
     border-radius: 10px;
     flex-shrink: 0;
-}
-
-@media (max-width: 640px) {
-    .recipe-header {
-        flex-direction: column;
-    }
-
-    .recipe-image {
-        width: 100%;
-        height: auto;
-        max-height: 240px;
-    }
 }
 
 .recipe-info h1 {
@@ -272,26 +331,23 @@ a {
     color: #333;
 }
 
-/* CONTENT */
 .recipe-content {
     margin-top: 20px;
     display: grid;
     gap: 20px;
 }
 
-/* SECTIONS */
 .recipe-section {
     background: white;
     padding: 20px;
     border-radius: 10px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
 }
 
 .recipe-section h2 {
     margin-top: 0;
 }
 
-/* LIST STYLING */
 .recipe-section ul,
 .recipe-section ol {
     padding-left: 20px;
@@ -302,15 +358,14 @@ a {
 }
 
 /* =========================
-   FORM SYSTEM (NEW RECIPE PAGES)
+   RECIPE CREATION FORMS
 ========================= */
-
 .card {
     max-width: 700px;
     margin: 40px auto;
     background: white;
     border-radius: 12px;
-    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     overflow: hidden;
 }
 
@@ -357,10 +412,6 @@ a {
     resize: vertical;
 }
 
-button {
-    font-family: inherit;
-}
-
 button[type="submit"] {
     background: #4a90e2;
     color: white;
@@ -374,10 +425,7 @@ button[type="submit"]:hover {
     background: #357bd8;
 }
 
-/* =========================
-   STEP 2 PAGE (INGREDIENTS + STEPS)
-========================= */
-
+/* Ingredients and steps */
 .section-block {
     margin-top: 20px;
 }
@@ -394,7 +442,6 @@ button[type="submit"]:hover {
     margin-bottom: 10px;
 }
 
-/* ingredient / step row styling */
 .item-row {
     background: #f9f9f9;
     padding: 10px;
@@ -405,7 +452,6 @@ button[type="submit"]:hover {
     word-break: break-word;
 }
 
-/* add row inputs */
 .add-row {
     display: flex;
     gap: 8px;
@@ -419,7 +465,6 @@ button[type="submit"]:hover {
     border-radius: 6px;
 }
 
-/* step textarea block */
 .step-add-row {
     display: flex;
     flex-direction: column;
@@ -445,16 +490,12 @@ button[type="submit"]:hover {
     border: 1px solid #ccc;
 }
 
-/* flashed on a required field when Add is pressed while it is empty */
 .input-error {
     border-color: #c0392b;
     background: #fdf3f2;
 }
 
-/* =========================
-   BUTTON VARIANTS
-========================= */
-
+/* Buttons */
 .btn-secondary {
     background: #eee;
     border: none;
@@ -480,10 +521,7 @@ button[type="submit"]:hover {
     background: #357bd8;
 }
 
-/* =========================
-   IMAGE PREVIEW
-========================= */
-
+/* Image preview */
 .recipe-preview-img {
     width: 100%;
     max-height: 250px;
@@ -492,11 +530,8 @@ button[type="submit"]:hover {
 }
 
 /* =========================
-   SHOPPING LIST BUTTON
-   shared: the button renders on the recipe page and the shopping list page
+   SHOPPING LIST
 ========================= */
-
-/* icon-only cart button, sits under the meta line, left aligned */
 .shopping-btn {
     align-self: flex-start;
     margin-top: 15px;
@@ -521,18 +556,13 @@ button[type="submit"]:hover {
     object-fit: contain;
 }
 
-/* on the list: the plain black cart carries the state, no background tint.
-   the red hover is the only cue left that clicking removes, since the
-   wording that used to say so is gone */
 .shopping-btn-added:hover {
     background: #fdecea;
 }
 
 /* =========================
-   TAG FILTER POP-OUT
-   shared: the tag filter pop-out renders on the index page and the shopping list page
+   TAG FILTERS AND TAG CHIPS
 ========================= */
-
 .tag-filter-popout {
     position: relative;
     display: inline-block;
@@ -554,14 +584,15 @@ button[type="submit"]:hover {
     top: calc(100% + 8px);
     left: 0;
     display: grid;
-    gap: 10px;
-    min-width: 240px;
+    gap: 12px;
+    width: 320px;
+    min-width: 320px;
     margin: 0;
-    padding: 14px;
+    padding: 16px;
     border: 1px solid #dce6f2;
-    border-radius: 6px;
+    border-radius: 8px;
     background: white;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
 }
 
 .tag-filter-form > label,
@@ -637,3 +668,217 @@ button[type="submit"]:hover {
     gap: 10px;
 }
 
+/* =========================
+   RESPONSIVE LAYOUT
+========================= */
+@media (max-width: 640px) {
+    /* Navbar: logo/account on row one; search/filter on row two */
+    .navbar {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 12px 8px;
+        padding: 12px;
+    }
+
+    .nav-left {
+        grid-column: 1;
+        grid-row: 1;
+        min-width: 0;
+    }
+
+    .nav-right {
+        grid-column: 2;
+        grid-row: 1;
+        justify-self: end;
+        min-width: 0;
+    }
+
+    .nav-center {
+        grid-column: 1 / -1;
+        grid-row: 2;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        min-width: 0;
+    }
+
+    .search-form {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .search-form input,
+    .search-form input:focus {
+        display: block;
+        width: 100%;
+        min-width: 0;
+        padding: 9px;
+        transition: none;
+    }
+
+    .tag-filter-popout {
+        flex-shrink: 0;
+    }
+
+    .tag-filter-popout summary {
+        white-space: nowrap;
+    }
+
+    .nav-menu summary {
+        white-space: nowrap;
+        font-size: 13px;
+        padding: 8px;
+    }
+
+    .nav-menu-dropdown {
+        right: 0;
+        max-width: calc(100vw - 24px);
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .tag-filter-form {
+        left: auto;
+        right: 0;
+        width: min(320px, calc(100vw - 24px));
+        min-width: 0;
+        max-height: 70vh;
+        overflow-y: auto;
+    }
+
+    .index-tag-groups {
+        min-width: 0;
+    }
+
+    /* Keep recipe details readable on phones */
+    .recipe-header {
+        flex-direction: column;
+    }
+
+    .recipe-image {
+        width: 100%;
+        height: auto;
+        max-height: 240px;
+    }
+
+    /* Form and ingredient/step rows can shrink and wrap */
+    .card,
+    .card-body,
+    .field,
+    .section-block,
+    .item-list {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .card {
+        width: calc(100% - 24px);
+        margin: 20px auto;
+    }
+
+    .item-row {
+        flex-wrap: wrap;
+        min-width: 0;
+        max-width: 100%;
+        gap: 8px;
+        overflow-wrap: anywhere;
+    }
+
+    .item-row > * {
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .add-row {
+        flex-wrap: wrap;
+        width: 100%;
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .add-row input,
+    .add-row select {
+        flex: 1 1 100px;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .add-row button {
+        flex: 0 0 auto;
+        max-width: 100%;
+    }
+
+    .step-add-bottom {
+        flex-wrap: wrap;
+        width: 100%;
+        min-width: 0;
+        gap: 8px;
+    }
+
+    .step-add-bottom input {
+        flex: 1 1 150px;
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .step-add-bottom button {
+        max-width: 100%;
+    }
+
+    .field input,
+    .field textarea,
+    .field select {
+        width: 100%;
+        min-width: 0;
+        max-width: 100%;
+    }
+
+    .recipe-instructions {
+        min-width: 0;
+        max-width: 100%;
+        overflow-wrap: anywhere;
+        white-space: pre-wrap;
+    }
+
+    .pantry-panel .item-row {
+        display: flex;
+        flex-direction: row;
+        flex-wrap: nowrap;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+    }
+
+    .pantry-panel .item-row > span {
+        flex: 1 1 0;
+        min-width: 0;
+        overflow-wrap: anywhere;
+    }
+
+    .pantry-panel .item-row > .btn-remove {
+        flex: 0 0 auto;
+        width: auto;
+        margin: 0;
+        white-space: nowrap;
+    }
+}
+
+/* Prevent long recipe text from overflowing on any screen */
+.recipe-info,
+.recipe-section,
+.recipe-description,
+.recipe-section li,
+.recipe-section li p,
+.recipe-section li small {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.recipe-description,
+.recipe-section li p,
+.recipe-section li small {
+    white-space: pre-wrap;
+}

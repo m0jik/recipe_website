@@ -40,16 +40,25 @@
         {{end}}
     </div>
     <div class="nav-right">
-        {{ if .Username }}
-            <span class="welcome">Hello, {{ .Username }}</span>
-            <a href="/recipes/v1/new">Create Recipe</a>
-            <a href="/recipes/v1/myRecipe">My Recipes</a>
-            <a href="/shopping-list/v1">Shopping List</a>
-            <a href="/pantry/v1/">Pantry</a>
-            <a href="/users/v1/logout">Logout</a>
+        {{if .Username}}
+            <details class ="nav-menu">
+                <summary>Hello, {{.Username}}</summary>
+                <div class="nav-menu-dropdown">
+                    <a href="/recipes/v1/new">Create Recipe</a>
+                    <a href="/recipes/v1/myRecipe">My Recipes</a>
+                    <a href="/shopping-list/v1">Shopping List</a>
+                    <a href="/pantry/v1/">Pantry</a>
+                    <a href="/users/v1/logout">Logout</a>
+                </div>
+            </details>
         {{ else }}
-            <a href="/users/v1/login">Login</a>
-            <a href="/users/v1/register">Register</a>
+            <details class = "nav-menu">
+                <summary>Account</summary>
+                <div class="nav-menu-dropdown">
+                    <a href="/users/v1/login">Login</a>
+                    <a href="/users/v1/register">Register</a>
+                </div>
+            </details>
         {{ end }}
     </div>
 </header>

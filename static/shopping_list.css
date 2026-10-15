@@ -493,3 +493,14 @@ shopping list buttons
 .btn-remove:hover {
     color: #c0392b;
 }
+
+/* Keep long shopping-list item names from forcing the table wider */
+.shopping-table {
+    width: 100%;
+    table-layout: fixed;
+}
+
+.shopping-table .col-item {
+    overflow-wrap: anywhere;
+    min-width: 0;
+}

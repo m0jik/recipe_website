@@ -15,3 +15,22 @@
     font-size: 30px;
     line-height: 1.1;
 }
+
+/* Keep pantry ingredient names and remove buttons aligned */
+.pantry-panel .item-row {
+display: flex;
+align-items: center;
+flex-wrap: nowrap;
+gap: 12px;
+}
+
+.pantry-panel .item-row span {
+flex: 1;
+min-width: 0;
+overflow-wrap: anywhere;
+}
+
+.pantry-panel .item-row .btn-remove {
+flex-shrink: 0;
+align-self: center;
+}
