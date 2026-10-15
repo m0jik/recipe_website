@@ -43,11 +43,17 @@
                                     <div class="recipe-info">
                                         <h3>{{ .Title }}</h3>
                                         <p>{{ .Description }}</p>
-                                        {{if .Tags}}<p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . $.SelectedTags $.Query}}">#{{.}}</a> {{end}}</p>{{end}}
                                     </div>
                                 </div>
                             </a>
-                            
+
+                            {{if .Tags}}
+                                <p class="recipe-tags">
+                                    {{range .Tags}}
+                                        <a class="tag-chip" href="{{tagurl . $.SelectedTags $.Query}}">#{{.}}</a> 
+                                    {{end}}
+                                </p>
+                            {{end}}
                         </div>
                     {{ else }}
                         <p>No recipes found.</p>

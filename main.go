@@ -807,6 +807,7 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 	}
 	recipes, err := a.Recipes.GetRecipesByUser(userID)
 	if err != nil {
+		log.Printf("Error getting recipes for user %d: %v", userID, err)
 		http.Error(w, "could not load recipes", http.StatusInternalServerError)
 		return
 	}
