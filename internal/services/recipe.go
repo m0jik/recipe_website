@@ -676,6 +676,14 @@ func (s *RecipeService) DeleteRecipe(recipeID int64) error {
 		`, recipeID); err != nil {
 			return err
 		}
+
+		if _, err := tx.Exec(`
+			DELETE FROM step_ingredientsV1
+			WHERE recipe_id = ?
+		`, recipeID); err != nil {
+			return err
+		}
+
 		return nil
 	})
 }

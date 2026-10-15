@@ -877,7 +877,6 @@ button[type="submit"]:hover {
     overflow-wrap: anywhere;
 }
 
-.recipe-description,
 .recipe-section li p,
 .recipe-section li small {
     white-space: pre-wrap;
