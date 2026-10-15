@@ -449,6 +449,19 @@ button[type="submit"]:hover {
     display: flex;
     justify-content: space-between;
     gap: 10px;
+    min-width:0;
+    max-width: 100%;
+}
+
+.item-row > span,
+.item-row > em {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.item-row > .btn-remove {
+    flex-shrink: 0;
+    align-self: flex-start;
 }
 
 .add-row {
@@ -474,6 +487,8 @@ button[type="submit"]:hover {
     min-height: 80px;
     padding: 10px;
     border-radius: 6px;
+    width: 100%;
+    max-width: 100%;
     border: 1px solid #ccc;
 }
 
@@ -776,7 +791,7 @@ button[type="submit"]:hover {
     }
 
     .item-row {
-        flex-wrap: wrap;
+        flex-wrap: nowrap;
         min-width: 0;
         max-width: 100%;
         gap: 8px;
