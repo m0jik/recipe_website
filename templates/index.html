@@ -42,7 +42,7 @@
                             {{end}}
                             <a href="/recipes/v1/{{ .ID }}">
                                 <div class="recipe-card-link">
-                                    <img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}" alt="{{.Title}}">
+                                    <img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}" alt="{{.Title}}" onerror="this.onerror=null; this.src='/static/placeholder.svg'">
                                     <div class="recipe-info">
                                         <h3>{{ .Title }}</h3>
                                         <p>{{ .Description }}</p>
