@@ -40,12 +40,14 @@ type Step struct {
 	StepNumber      int
 	Instruction     string
 	Notes           string
+	StepIngredients []StepIngredient
 }
 
 type StepIngredient struct {
 	ID         int64
-	Ingredient string
+	RecipeID   int64
 	StepID     int64
+	Ingredient string
 }
 
 type RecipeService struct {
@@ -198,7 +200,7 @@ func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes, ste
 				continue
 			}
 			_, err := s.DB.Exec(
-				"INSERT INTO step_ingredientsV1 (recipe_id, step_id, ingredient) VALUES (?, ?, ?)",
+				"INSERT INTO step_ingredientsV1 (recipe_id, step_id, step_ingredient) VALUES (?, ?, ?)",
 				versionID, i+1, step_ingredient,
 			)
 			if err != nil {
@@ -340,9 +342,9 @@ func (s *RecipeService) GetSteps(recipeVersionID int64) ([]Step, error) {
 func (s *RecipeService) GetStepIngredients(recipeVersionID int64) ([]StepIngredient, error) {
 	var stepIngredients []StepIngredient
 	rows, err := s.DB.Query(
-		`SELECT si.id, si.ingredient, si.step_id
-		 FROM step_ingredientsV1 si
-		 WHERE si.step_id IN (SELECT id FROM instructionsV1 WHERE recipe_version_id = ?)
+		`SELECT id, recipe_id, step_id, step_ingredient
+		 FROM step_ingredientsV1
+		 WHERE recipe_id = ?
 		`, recipeVersionID,
 	)
 	if err != nil {
@@ -361,7 +363,7 @@ func (s *RecipeService) GetStepIngredients(recipeVersionID int64) ([]StepIngredi
 
 	for rows.Next() {
 		var si StepIngredient
-		if err := rows.Scan(&si.ID, &si.Ingredient, &si.StepID); err != nil {
+		if err := rows.Scan(&si.ID, &si.RecipeID, &si.StepID, &si.Ingredient); err != nil {
 			return nil, err
 		}
 		stepIngredients = append(stepIngredients, si)
@@ -575,6 +577,11 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 		return nil, 0, err
 	}
 
+	stepIngredients, err := s.GetStepIngredients(versionID)
+	if err != nil {
+		return nil, 0, err
+	}
+
 	var tagString string
 	if err := s.DB.QueryRow(
 		`SELECT COALESCE(GROUP_CONCAT(t.name, ','), '') FROM tagsV1 t
@@ -594,8 +601,9 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 			PrepTimeMinutes: prepTimeMinutes,
 			Tags:            splitTags(tagString),
 		},
-		Ingredients: ingredients,
-		Steps:       steps,
+		Ingredients:     ingredients,
+		Steps:           steps,
+		StepIngredients: stepIngredients,
 	}, userID, nil
 }
 

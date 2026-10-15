@@ -1113,6 +1113,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		ImageURL:        data.Recipe.ImageURL,
 		Ingredients:     data.Ingredients,
 		Steps:           data.Steps,
+		StepIngredients: data.StepIngredients,
 		CreatorUsername: creatorusername,
 		Servings:        data.Recipe.Servings,
 		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,

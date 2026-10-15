@@ -9,11 +9,11 @@
         <p>{{ if .Note }}<em>{{ .Note }}</em>{{ end }}</p></span>
 
     {{ if .Ingredients }}
-    <ul>
-    {{ range .Ingredients }}
-        <li>{{ . }}</li>
-    {{ end }}
-    </ul>
+        <ul>
+        {{ range .Ingredients }}
+            <li>{{ . }}</li>
+        {{ end }}
+        </ul>
     {{ end }}
 
     <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">X</button>
