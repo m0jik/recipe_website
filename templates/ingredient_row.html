@@ -2,10 +2,10 @@
 <div class="item-row">
 
     <input type="hidden" name="ingredient_name" value="{{ .Name }}">
-    <input type="hidden" name="ingredient_qty"  value="{{ .Qty }}">
+    <input type="hidden" name="ingredient_qty"  value="{{ .Quantity }}">
     <input type="hidden" name="ingredient_unit" value="{{ .Unit }}">
 
-    <span>{{ .Qty }} {{ .Unit }} - {{ .Name }}</span>
+    <span>{{ .Quantity }} {{ .Unit }} - {{ .Name }}</span>
     <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">✕</button>
 
 </div>

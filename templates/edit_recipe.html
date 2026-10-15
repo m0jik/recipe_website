@@ -104,78 +104,47 @@
         <!-- INGREDIENTS -->
         <section id="ingredients-section">
             <h2>Ingredients</h2>
-            <p>Coming soon...</p>
-            <!--
             <div class="existing-ingredients">
                 {{range .Ingredients}}
                     <div class="item-row">
+                        <div class="field">
+                            <label><input type="text" name="ingredient_qty" value="{{.Quantity}}" aria-label="Quantity"></label>
+                        </div>
 
-                        <input type="text" name="ingredient_qty" value="{{.Quantity}}">
-                        <select id="ing-unit" name="ingredient_unit">
-                            <option value="" disabled {{if not .Unit}}selected{{end}}>Unit</option>
+                        <div class="field">
+                            <label><span class="select-wrap"><select name="ingredient_unit" aria-label="Unit">
+                            <option value="" {{if not .Unit}}selected{{end}}>Unit</option>
+                            {{ template "unit-options" .Unit }}
+                        </select></span></label>
+                        </div>
 
-                            <optgroup label="US">
-                                <option value="cup" {{if eq .Unit "cup"}}selected{{end}}>cup</option>
-                                <option value="tbsp" {{if eq .Unit "tbsp"}}selected{{end}}>tbsp</option>
-                                <option value="tsp" {{if eq .Unit "tsp"}}selected{{end}}>tsp</option>
-                                <option value="oz" {{if eq .Unit "oz"}}selected{{end}}>oz</option>
-                                <option value="lb" {{if eq .Unit "lb"}}selected{{end}}>lb</option>
-                            </optgroup>
+                        <div class="field">
+                            <label><input type="text" name="ingredient_name" value="{{.Name}}" aria-label="Ingredient"></label>
+                        </div>
 
-                            <optgroup label="Metric">
-                                <option value="ml" {{if eq .Unit "ml"}}selected{{end}}>mL</option>
-                                <option value="liter" {{if eq .Unit "liter"}}selected{{end}}>liter</option>
-                                <option value="grams" {{if eq .Unit "grams"}}selected{{end}}>grams</option>
-                                <option value="kg" {{if eq .Unit "kg"}}selected{{end}}>kg</option>
-                            </optgroup>
-
-                            <optgroup label="Other">
-                                <option value="piece" {{if eq .Unit "piece"}}selected{{end}}>piece</option>
-                                <option value="pinch" {{if eq .Unit "pinch"}}selected{{end}}>pinch</option>
-                                <option value="whole" {{if eq .Unit "whole"}}selected{{end}}>whole</option>
-                            </optgroup>
-                        </select>
-                        <input type="text" name="ingredient_name" value="{{.Name}}">
-
-                        <button type="button" onclick="this.closest('.item-row').remove()">✕</button>
+                        <button type="button" class="btn-secondary" onclick="this.closest('.item-row').remove()">✕</button>
                     </div>
                 {{end}}
             </div>
             <div id="ingredients-list" class="item-list"></div>
 
             <div class="add-row">
-                <input type="text" id="ing-qty" name="qty" placeholder="2" class="qty">
+                <input type="text" id="ing-qty" name="qty" placeholder="Qty" aria-label="Quantity">
 
-                <select id="ing-unit" name="unit">
+                <div class="select-wrap">
+                    <select id="ing-unit" name="unit" aria-label="Unit">
                     <option value="" disabled selected>Unit</option>
-                    <optgroup label="US">
-                        <option value="cup">cup</option>
-                        <option value="tbsp">tbsp</option>
-                        <option value="tsp">tsp</option>
-                        <option value="oz">oz</option>
-                        <option value="lb">lb</option>
-                    </optgroup>
-                    <optgroup label="Metric">
-                        <option value="ml">mL</option>
-                        <option value="liter">liter</option>
-                        <option value="grams">grams</option>
-                        <option value="kg">kg</option>
-                    </optgroup>
-                    <optgroup label="Other">
-                        <option value="piece">piece</option>
-                        <option value="pinch">pinch</option>
-                        <option value="whole">whole</option>
-                    </optgroup>
+                    {{ template "unit-options" "" }}
                 </select>
+                </div>
 
-                <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
+                <input type="text" id="ing-name" name="name" placeholder="Ingredient name" aria-label="Ingredient"
                         onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
 
                 <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
                     + Add
                 </button>
             </div>
-        -->
         </section>
 
         <!-- STEPS & NOTES -->
@@ -184,14 +153,24 @@
             <p>Coming soon...</p>
         </section>
         <!-- COOKING MODE -->
-        <section id="cooking-mode-section">
+         <section id="cooking-mode-section">
             <h2>Cooking Mode</h2>
             <p>Coming soon...</p>    
         </section>
         <!-- VERSION CONTROL -->
         <section id="version-history-section">
             <h2>Version History</h2>
-            <p>Coming Soon...</p>
+            <div class="select-wrap">
+                <select id="recipe-version" name="version_id" aria-label="Recipe version"
+                        hx-get="/recipes/v1/edit-recipe/{{.RecipeID}}/version"
+                        hx-trigger="load, change"
+                        hx-target="#version-preview">
+                    {{range $i, $v := .Versions}}
+                        <option value="{{$v.ID}}">Version {{$v.VersionNumber}}{{if eq $i 0}} (current){{end}} · {{$v.CreatedAt.Format "Jan 2, 2006"}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div id="version-preview"></div>
         </section>
     </div>
 </div>

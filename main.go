@@ -70,6 +70,7 @@ type RecipePageData struct {
 	Servings        int
 	PrepTimeMinutes int
 	Tags            []string
+	Versions        []services.RecipeVersion
 }
 
 type PageOneData struct {
@@ -165,6 +166,7 @@ func main() {
 	//Recipe Edit
 	mux.HandleFunc("POST /recipes/v1/delete-recipe/{id}", app.handleDeleteRecipe)
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
+	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}/version", app.handleRecipeVersion)
 	mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
 	mux.HandleFunc("DELETE /recipes/v1/tag-row", app.handleRemoveTag)
 
@@ -925,10 +927,10 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
-	err := tpl.ExecuteTemplate(w, "ingredient-row", map[string]string{
-		"Qty":  r.URL.Query().Get("qty"),
-		"Unit": r.URL.Query().Get("unit"),
-		"Name": r.URL.Query().Get("name"),
+	err := tpl.ExecuteTemplate(w, "ingredient-row", services.Ingredient{
+		Quantity: r.URL.Query().Get("qty"),
+		Unit:     r.URL.Query().Get("unit"),
+		Name:     r.URL.Query().Get("name"),
 	})
 	if err != nil {
 		log.Printf("Error rendering ingredient row: %v", err)
@@ -999,7 +1001,7 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		versionID, err := a.Recipes.GetLatestVersionID(recipeID)
+		versionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, recipeID)
 		if err != nil {
 			http.Error(w, "could not get version", http.StatusInternalServerError)
 			return
@@ -1228,13 +1230,13 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	versionID, err := a.Recipes.GetLatestVersionID(recipeID)
+	versionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, recipeID)
 	if err != nil {
 		http.Error(w, "recipe not found", http.StatusNotFound)
 		return
 	}
 
-	ingredients, err := a.Recipes.GetIngredients(versionID)
+	ingredients, err := a.Recipes.GetIngredients(a.Recipes.DB, versionID)
 	if err != nil {
 		log.Printf("Error loading ingredients for recipe %d: %v", recipeID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1625,6 +1627,13 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	versions, err := a.Recipes.GetVersions(recipeID)
+	if err != nil {
+		log.Printf("Error loading versions for recipe %d: %v", recipeID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	// log.Printf("Recipe ID: %d", recipeID)
 	// log.Printf("Ingredients: %+v", data.Ingredients)
 	// log.Printf("Number of ingredients: %d", len(data.Ingredients))
@@ -1645,6 +1654,7 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		Servings:        data.Recipe.Servings,
 		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
 		Tags:            data.Recipe.Tags,
+		Versions:        versions,
 	}
 
 	buf := new(bytes.Buffer)
@@ -1664,6 +1674,63 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error writing edit recipe response: %v", err)
 	}
 }
+
+func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || recipeID < 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	versionID, err := strconv.ParseInt(r.URL.Query().Get("version_id"), 10, 64)
+	if err != nil || versionID < 1 {
+		http.Error(w, "Invalid version", http.StatusBadRequest)
+		return
+	}
+
+	version, err := a.Recipes.GetVersion(userID, recipeID, versionID)
+	if errors.Is(err, services.ErrRecipeNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		log.Printf("Error loading version %d of recipe %d: %v", versionID, recipeID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	ingredients, err := a.Recipes.GetIngredients(a.Recipes.DB, versionID)
+	if err != nil {
+		log.Printf("Error loading ingredients for version %d: %v", versionID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	steps, err := a.Recipes.GetSteps(versionID)
+	if err != nil {
+		log.Printf("Error loading steps for version %d: %v", versionID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = tpl.ExecuteTemplate(w, "version-preview", map[string]any{
+		"Version":     version,
+		"Ingredients": ingredients,
+		"Steps":       steps,
+	})
+	if err != nil {
+		log.Printf("Error rendering version preview: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
 func (a *App) handleRemoveTag(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 }
@@ -1717,12 +1784,34 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid preparation time", http.StatusBadRequest)
 		return
 	}
+
+	names := r.PostForm["ingredient_name"]
+	quantities := r.PostForm["ingredient_qty"]
+	units := r.PostForm["ingredient_unit"]
+
+	var ingredients []services.Ingredient
+	for i, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		ingredient := services.Ingredient{Name: name}
+		if i < len(quantities) {
+			ingredient.Quantity = strings.TrimSpace(quantities[i])
+		}
+		if i < len(units) {
+			ingredient.Unit = units[i]
+		}
+		ingredients = append(ingredients, ingredient)
+	}
+
 	data := services.RecipeUpdate{
 		Title:           title,
 		Description:     description,
 		Tags:            tags,
 		Servings:        servings,
 		PrepTimeMinutes: prepTime,
+		Ingredients:     ingredients,
 	}
 
 	if err := a.Recipes.UpdateRecipe(userID, recipeID, data); err != nil {

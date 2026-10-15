@@ -1,0 +1,29 @@
+{{ define "version-preview" }}
+<div class="version-preview">
+    <h3>Ingredients</h3>
+    {{ if .Ingredients }}
+        <ul>
+            {{ range .Ingredients }}
+                <li>{{ .Quantity }} {{ .Unit }} - {{ .Name }}</li>
+            {{ end }}
+        </ul>
+    {{ else }}
+        <p>No ingredients in this version.</p>
+    {{ end }}
+
+    <h3>Steps</h3>
+    {{ if .Steps }}
+        <ol>
+            {{ range .Steps }}
+                <li>
+                    {{ .Instruction }}
+                    {{ if .Notes }}<em>- {{ .Notes }}</em>{{ end }}
+                </li>
+            {{ end }}
+        </ol>
+    {{ else }}
+        <p>No steps in this version.</p>
+    {{ end }}
+
+</div>
+{{ end }}

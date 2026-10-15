@@ -44,24 +44,7 @@
 
         <select id="pantry-unit" name="unit">
             <option value="" disabled selected>Unit</option>
-            <optgroup label="US">
-                <option value="cup">cup</option>
-                <option value="tbsp">tbsp</option>
-                <option value="tsp">tsp</option>
-                <option value="oz">oz</option>
-                <option value="lb">lb</option>
-            </optgroup>
-            <optgroup label="Metric">
-                <option value="ml">mL</option>
-                <option value="liter">liter</option>
-                <option value="grams">grams</option>
-                <option value="kg">kg</option>
-            </optgroup>
-            <optgroup label="Other">
-                <option value="piece">piece</option>
-                <option value="pinch">pinch</option>
-                <option value="whole">whole</option>
-            </optgroup>
+            {{ template "unit-options" "" }}
         </select>
 
         <input type="text" id="pantry-name" name="name" placeholder="Ingredient name"

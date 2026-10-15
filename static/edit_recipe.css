@@ -1,11 +1,9 @@
-/* Hide every section.
-   The screen-tall scroll margin leaves the browser nowhere to scroll on desktop, so clicking a tab doesn't jump the page */
+/* The screen-tall scroll margin leaves the browser nowhere to scroll on desktop, so clicking a tab doesn't jump the page */
 .editor-content > section {
     display: none;
     scroll-margin-top: 100vh;
 }
 
-/* Show the section named after the # in the URL */
 .editor-content > section:target {
     display: block;
 }
@@ -21,7 +19,6 @@
     padding: 20px;
 }
 
-/* Cancel and Save in the top right */
 .save-recipe-button {
     display: flex;
     justify-content: flex-end;
@@ -34,7 +31,6 @@
     font-weight: 600;
 }
 
-/* Save: black */
 .save-recipe-button button[type="submit"] {
     background: #0f0f0f;
 }
@@ -43,7 +39,6 @@
     background: #272727;
 }
 
-/* Sidebar on the left, selected section on the right */
 .editor-section {
     display: grid;
     grid-template-columns: 220px 1fr;
@@ -51,14 +46,12 @@
     margin-top: 12px;
 }
 
-/* White cards: the sidebar and the content */
 .recipe-sidebar,
 .editor-content {
     background: white;
     border-radius: 10px;
 }
 
-/* Sidebar card */
 .recipe-sidebar {
     display: flex;
     flex-direction: column;
@@ -66,12 +59,10 @@
     padding: 12px;
 }
 
-/* Recipe preview above the tabs: image, "Your recipe", then the title */
 .sidebar-recipe {
     margin-bottom: 8px;
 }
 
-/* Fill the sidebar width as a 16:9 thumbnail, cropped instead of squashed */
 .sidebar-recipe img {
     display: block;
     width: 100%;
@@ -87,7 +78,6 @@
     color: #0f0f0f;
 }
 
-/* One grey line, cut off with "..." when the title is too long */
 .sidebar-recipe-title {
     margin: 0 4px;
     font-size: 13px;
@@ -119,7 +109,6 @@
     font-weight: 700;
 }
 
-/* Content card */
 .editor-content {
     padding: 20px;
 }
@@ -128,7 +117,6 @@
     margin-top: 0;
 }
 
-/* Title and Description stacked, Servings and Prep time side by side */
 #details-section > .field {
     margin-bottom: 16px;
 }
@@ -140,21 +128,33 @@
     margin-top: 16px;
 }
 
-/* Outlined box shared by fields and dropdowns (keep above .select-wrap select, which widens the right padding) */
-#details-section .field label,
-.editor-section select {
+/* Keep above .select-wrap select, which widens the right padding */
+.editor-content .field label,
+.editor-section select,
+#ingredients-section .add-row input {
     padding: 10px 14px;
     border: 1px solid #ccc;
     border-radius: 8px;
 }
 
-#details-section .field label:focus-within,
-.editor-section select:focus {
+.editor-content .field label:focus-within,
+.editor-section select:focus,
+#ingredients-section .add-row input:focus {
     border-color: #4a90e2;
 }
 
-/* Each field: small label on top, inside the outlined box */
-#details-section .field label {
+/* The blue border above replaces the browser's focus outline */
+.editor-section select,
+.editor-content .field input,
+.editor-content .field textarea,
+#ingredients-section .add-row input {
+    font-family: inherit;
+    font-size: 15px;
+    color: #0f0f0f;
+    outline: none;
+}
+
+.editor-content .field label {
     display: flex;
     flex-direction: column;
     gap: 6px;
@@ -162,15 +162,12 @@
     color: #606060;
 }
 
-#details-section .field input,
-#details-section .field textarea {
+.editor-content .field input,
+.editor-content .field textarea {
     padding: 0;
     border: none;
-    outline: none;
-    font-size: 15px;
 }
 
-/* Servings and Prep time: label on the left, number on the right */
 #details-section .field-row label {
     flex-direction: row;
     align-items: center;
@@ -181,25 +178,15 @@
     width: 56px;
 }
 
-/* Dropdowns: the outlined box above, plus dropdown text */
 .editor-section select {
     background-color: white;
-    font-family: inherit;
-    font-size: 15px;
-    color: #0f0f0f;
     cursor: pointer;
 }
 
-.editor-section select:focus {
-    outline: none;
-}
-
-/* Grey like the field labels while only the "Choose a tag" placeholder is showing */
 .editor-section select:has(option[value=""]:checked) {
     color: #606060;
 }
 
-/* Keep the choices in the open list dark */
 .editor-section select option,
 .editor-section select optgroup {
     color: #0f0f0f;
@@ -229,19 +216,101 @@
     pointer-events: none;
 }
 
-/* Tag dropdown: wide enough to read like a field */
 #recipe-tag {
     width: 200px;
 }
 
-/* Stack the sidebar above the content on small screens */
+/* The wrap hugs the select so our arrow lands inside it, not at the far edge of the card */
+#version-history-section .select-wrap {
+    display: inline-block;
+}
+
+.existing-ingredients {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+/* No ingredients yet: hide both empty lists so their margins don't push the add row down */
+.existing-ingredients:not(:has(.item-row)),
+#ingredients-list:empty {
+    display: none;
+}
+
+#ingredients-section .add-row input::placeholder {
+    color: #606060;
+}
+
+/* Fill the Unit column, so the arrow sits at the column's right edge */
+#ingredients-section .add-row select {
+    width: 100%;
+}
+
+.existing-ingredients .item-row,
+#ingredients-section .add-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) 64px;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    background: none;
+}
+
+.existing-ingredients .item-row > button,
+#ingredients-section .add-row > button {
+    justify-self: center;
+}
+
+/* The field already draws the box, so drop the dropdown's own */
+.editor-content .field select {
+    width: 100%;
+    padding: 0 24px 0 0;
+    border: none;
+}
+
+/* Keep the arrow as far in from the box edge as on the tag dropdown */
+.editor-content .field .select-wrap::after {
+    right: 2px;
+}
+
+/* Grey and hover come from .btn-secondary in style.css */
+.existing-ingredients .item-row > button {
+    border-radius: 999px;
+    font-size: 16px;
+}
+
 @media (max-width: 640px) {
     .editor-section {
         grid-template-columns: minmax(0, 1fr);
     }
 
-    /* Phones: jump down to the section, leaving room for the card's padding and a small gap */
     .editor-content > section {
         scroll-margin-top: 32px;
+    }
+
+    /* Quantity and Unit on the first line, Ingredient on the second */
+    .existing-ingredients .item-row,
+    #ingredients-section .add-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 64px;
+    }
+
+    /* Editable rows: ✕ to the right of both lines */
+    .existing-ingredients .item-row > .field:has([name="ingredient_name"]) {
+        grid-column: 1 / 3;
+    }
+
+    .existing-ingredients .item-row > button {
+        grid-column: 3;
+        grid-row: 1 / 3;
+    }
+
+    /* Add row: "+ Add" next to Ingredient name. Unit stretches over the button column, so its right edge lines up with "+ Add" below */
+    #ingredients-section .add-row > .select-wrap {
+        grid-column: 2 / 4;
+    }
+
+    #ing-name {
+        grid-column: 1 / 3;
     }
 }
