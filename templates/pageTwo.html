@@ -40,16 +40,9 @@
                 <div id="ingredients-list" class="item-list"></div>
 
                 <div class="add-row">
-                    <input type="text" id="ing-qty" name="qty" placeholder="2" class="qty">
-
-                    <select id="ing-unit" name="unit">
-                        <option value="" disabled selected>Unit</option>
-                        {{ template "unit-options" "" }}
-                    </select>
-
-                    <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
-                           onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
-
+                    {{ template "ingredient-qty-input" }}
+                    {{ template "ingredient-unit-select" }}
+                    {{ template "ingredient-name-input" }}
                     <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
                         + Add
                     </button>
