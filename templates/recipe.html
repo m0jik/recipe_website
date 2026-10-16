@@ -32,7 +32,7 @@
                 </div>
             </details>
         {{ end }}
-        <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image">
+        <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image" onerror="this.onerror=null; this.src='/static/placeholder.svg'">
 
         <div class="recipe-info">
             <h1>{{.Title}}</h1>
