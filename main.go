@@ -66,6 +66,7 @@ type RecipePageData struct {
 	ImageURL        string
 	Ingredients     []services.Ingredient
 	Steps           []services.Step
+	StepIngredients []services.StepIngredient
 	CreatorUsername string
 	Servings        int
 	PrepTimeMinutes int
@@ -84,14 +85,15 @@ type PageOneData struct {
 type PageTwoData struct {
 	PageData
 
-	Image       string
-	Title       string
-	Description string
-	Tags        []string
-	Servings    string
-	PrepTime    string
-	Ingredients []services.Ingredient
-	Steps       []services.Step
+	Image           string
+	Title           string
+	Description     string
+	Tags            []string
+	Servings        string
+	PrepTime        string
+	Ingredients     []services.Ingredient
+	Steps           []services.Step
+	StepIngredients []services.StepIngredient
 }
 
 func main() {
@@ -156,6 +158,7 @@ func main() {
 	// Recipe
 	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
 	mux.HandleFunc("/recipes/v1/ingredient-row", app.handleIngredientRows)
+	mux.HandleFunc("/recipes/v1/step-ingredient-row", app.handleStepIngredientRows)
 	mux.HandleFunc("/recipes/v1/step-row", app.handleStepRow)
 	mux.HandleFunc("/recipes/v1/tag-row", app.handleTagRows)
 	mux.HandleFunc("/recipes/v1/submit", app.handleSubmit)
@@ -935,10 +938,22 @@ func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func (a *App) handleStepIngredientRows(w http.ResponseWriter, r *http.Request) {
+	err := tpl.ExecuteTemplate(w, "step-ingredient-row", map[string]string{
+		"Ingredient": r.URL.Query().Get("step_ingredient"),
+	})
+	if err != nil {
+		log.Printf("Error rendering step ingredient row: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
 func (a *App) handleStepRow(w http.ResponseWriter, r *http.Request) {
-	err := tpl.ExecuteTemplate(w, "step-row", map[string]string{
+	err := tpl.ExecuteTemplate(w, "step-row", map[string]any{
 		"Instruction": r.URL.Query().Get("step"),
 		"Note":        r.URL.Query().Get("note"),
+		"Ingredients": strings.Split(r.URL.Query().Get("step_ingredients"), ","),
 	})
 	if err != nil {
 		log.Printf("Error rendering step row: %v", err)
@@ -1008,7 +1023,8 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not save ingredients", http.StatusInternalServerError)
 			return
 		}
-		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"]); err != nil {
+
+		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"], r.Form["step_ingredients"]); err != nil {
 			http.Error(w, "could not save steps", http.StatusInternalServerError)
 			return
 		}
@@ -1098,6 +1114,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		ImageURL:        data.Recipe.ImageURL,
 		Ingredients:     data.Ingredients,
 		Steps:           data.Steps,
+		StepIngredients: data.StepIngredients,
 		CreatorUsername: creatorusername,
 		Servings:        data.Recipe.Servings,
 		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,

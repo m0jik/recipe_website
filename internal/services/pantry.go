@@ -39,6 +39,10 @@ func (s *PantryService) GetPantryItems(userID int) ([]PantryIngredient, error) {
 		}
 	}()
 
+	if err := rows.Err(); err != nil {
+		log.Println("Error iterating over rows:", err)
+	}
+
 	var items []PantryIngredient
 	for rows.Next() {
 		var p PantryIngredient

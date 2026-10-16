@@ -85,6 +85,7 @@ func Migrate(db *sqlx.DB) error {
 		step_number INTEGER NOT NULL,
 		instruction TEXT NOT NULL,
 		notes TEXT,
+		step_ingredients TEXT,
 		UNIQUE(recipe_version_id, step_number),
 		FOREIGN KEY (recipe_version_id) REFERENCES recipe_versionsV1(id)
 	);
@@ -135,6 +136,15 @@ func Migrate(db *sqlx.DB) error {
 		qty_override TEXT NOT NULL DEFAULT '',
 		PRIMARY KEY (user_id, name, unit),
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS step_ingredientsV1 (
+	    id INTEGER PRIMARY KEY AUTOINCREMENT,
+		recipe_id INTEGER NOT NULL,
+		step_id INTEGER NOT NULL,
+		step_ingredient TEXT NOT NULL,
+		FOREIGN KEY (recipe_id) REFERENCES instructionsV1(recipe_version_id)
+		FOREIGN KEY (step_id) REFERENCES instructionsV1(id)
 	);
 	`
 	_, err := db.Exec(schema)
