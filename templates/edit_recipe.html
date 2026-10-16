@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Edit Recipe</title>
         <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
-        <link rel="stylesheet" href="/static/edit_recipe.css">
+        <link rel="stylesheet" href="/static/edit_recipe.css?v=steps-3">
         <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 <body>
@@ -30,7 +30,6 @@
         <a href="#details-section">Details</a>
         <a href="#ingredients-section">Ingredients</a>
         <a href="#steps-and-notes-section">Steps &amp; Notes</a>
-        <a href="#cooking-mode-section">Cooking Mode</a>
         <a href="#version-history-section">Version History</a>
     </nav>
 
@@ -52,18 +51,7 @@
 
                 <div id="tags-list" class="item-list">
                     {{range .Tags}}
-                        <div class="tag-chip">
-                            <span>#{{.}}</span>
-                            <input type="hidden" name="tags" value="{{.}}">
-                            <button
-                                type="button"
-                                class="remove-tag"
-                                hx-delete="/recipes/v1/tag-row"
-                                hx-target="closest .tag-chip"
-                                hx-swap="delete">
-                                ✕
-                            </button>
-                        </div>
+                        {{template "tag-row" .}}
                     {{end}}
                 </div>
                 <div class="add-row">
@@ -143,12 +131,40 @@
         <!-- STEPS & NOTES -->
         <section id="steps-and-notes-section">
             <h2>Steps &amp; Notes</h2>
-            <p>Coming soon...</p>
-        </section>
-        <!-- COOKING MODE -->
-         <section id="cooking-mode-section">
-            <h2>Cooking Mode</h2>
-            <p>Coming soon...</p>    
+            <div class="existing-steps">
+                {{range .Steps}}
+                    <div class="item-row">
+                        <div class="field">
+                            <label><textarea name="step_instruction" aria-label="Step {{.StepNumber}}">{{.Instruction}}</textarea></label>
+                        </div>
+
+                        <div class="field">
+                            <label><input type="text" name="step_note" value="{{.Notes}}" placeholder="Note (optional)" aria-label="Note for step {{.StepNumber}}"></label>
+                        </div>
+
+                        <button type="button" class="btn-secondary" onclick="this.closest('.item-row').remove()">✕</button>
+                    </div>
+                {{end}}
+            </div>
+            <div id="steps-list" class="item-list"></div>
+
+            <div class="step-add-row">
+
+                {{ template "step-text-input" }}
+
+                <div class="step-add-bottom">
+                    {{ template "step-note-input" }}
+                    <button id="step-add" type="button"
+                            hx-get="/recipes/v1/step-row"
+                            hx-include="#step-text, #step-note"
+                            hx-target="#steps-list"
+                            hx-swap="beforeend"
+                            class="btn-secondary">
+                        + Add
+                    </button>
+
+                </div>
+            </div>
         </section>
         <!-- VERSION CONTROL -->
         <section id="version-history-section">

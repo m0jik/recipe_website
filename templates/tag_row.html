@@ -1,7 +1,7 @@
 {{ define "tag-row" }}
 <div class="tag-chip">
-    <input type="hidden" name="tags" value="{{ .Tag }}">
-    <span>#{{ .Tag }}</span>
+    <input type="hidden" name="tags" value="{{ . }}">
+    <span>#{{ . }}</span>
     <button type="button" class="remove-tag" onclick="this.closest('.tag-chip').remove()">✕</button>
 </div>
 {{ end }}

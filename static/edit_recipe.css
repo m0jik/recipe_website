@@ -102,7 +102,6 @@
 .editor-section:has(#details-section:target) a[href="#details-section"],
 .editor-section:has(#ingredients-section:target) a[href="#ingredients-section"],
 .editor-section:has(#steps-and-notes-section:target) a[href="#steps-and-notes-section"],
-.editor-section:has(#cooking-mode-section:target) a[href="#cooking-mode-section"],
 .editor-section:has(#version-history-section:target) a[href="#version-history-section"],
 .editor-section:not(:has(section:target)) a[href="#details-section"] {
     background: #f2f2f2;
@@ -225,16 +224,19 @@
     display: inline-block;
 }
 
-.existing-ingredients {
+.existing-ingredients,
+.existing-steps {
     display: flex;
     flex-direction: column;
     gap: 16px;
     margin-bottom: 16px;
 }
 
-/* No ingredients yet: hide both empty lists so their margins don't push the add row down */
+/* No ingredients or steps yet: hide the empty lists so their margins don't push the add row down */
 .existing-ingredients:not(:has(.item-row)),
-#ingredients-list:empty {
+#ingredients-list:empty,
+.existing-steps:not(:has(.item-row)),
+#steps-list:empty {
     display: none;
 }
 
@@ -248,7 +250,8 @@
 }
 
 .existing-ingredients .item-row,
-#ingredients-section .add-row {
+#ingredients-section .add-row,
+.existing-steps .item-row {
     display: grid;
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) 64px;
     align-items: center;
@@ -257,8 +260,29 @@
     background: none;
 }
 
+/* Step on top, note under it, ✕ to the right of both */
+.existing-steps .item-row {
+    grid-template-columns: minmax(0, 1fr) 64px;
+}
+
+.existing-steps .item-row > .field {
+    grid-column: 1;
+}
+
+.existing-steps .item-row > button {
+    grid-column: 2;
+    grid-row: 1 / 3;
+}
+
+/* Line between the steps and the add row, only once there are steps above it */
+#steps-and-notes-section:has(.item-row) .step-add-row {
+    border-top: 4px solid #eee;
+    padding-top: 16px;
+}
+
 .existing-ingredients .item-row > button,
-#ingredients-section .add-row > button {
+#ingredients-section .add-row > button,
+.existing-steps .item-row > button {
     justify-self: center;
 }
 
@@ -275,7 +299,8 @@
 }
 
 /* Grey and hover come from .btn-secondary in style.css */
-.existing-ingredients .item-row > button {
+.existing-ingredients .item-row > button,
+.existing-steps .item-row > button {
     border-radius: 999px;
     font-size: 16px;
 }

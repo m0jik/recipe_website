@@ -56,18 +56,9 @@
                 <div id="steps-list" class="item-list"></div>
 
                 <div class="step-add-row">
-
-                    <textarea id="step-text" name="step"
-                              placeholder="Describe this step..."></textarea>
-
+                    {{ template "step-text-input" }}
                     <div class="step-add-bottom">
-
-                        <input type="text"
-                               id="step-note"
-                               name="note"
-                               placeholder="Note (optional)"
-                               onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
-
+                        {{ template "step-note-input" }}
                         <button id="step-add" type="button"
                                 hx-get="/recipes/v1/step-row"
                                 hx-include="#step-text, #step-note"

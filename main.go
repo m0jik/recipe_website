@@ -168,7 +168,6 @@ func main() {
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}/version", app.handleRecipeVersion)
 	mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
-	mux.HandleFunc("DELETE /recipes/v1/tag-row", app.handleRemoveTag)
 
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
@@ -956,7 +955,7 @@ func (a *App) handleTagRows(w http.ResponseWriter, r *http.Request) {
 	tag := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tag")))
 	for _, presetTag := range services.PresetTags {
 		if tag == presetTag {
-			err := tpl.ExecuteTemplate(w, "tag-row", map[string]string{"Tag": tag})
+			err := tpl.ExecuteTemplate(w, "tag-row", tag)
 			if err != nil {
 				log.Printf("Error rendering tag row: %v", err)
 				http.Error(w, "Error rendering tag row", http.StatusInternalServerError)
@@ -972,10 +971,6 @@ func (a *App) handleTagRows(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "could not parse form", http.StatusBadRequest)
 			return
@@ -1614,9 +1609,6 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// log.Printf("Recipe ID:%d", recipeID)
-	// log.Printf("Recipe Tags: %#v", data.Recipe.Tags)
-
 	if ownerID != int64(userID) {
 		http.Error(w, "Forbidden", http.StatusForbidden)
 		return
@@ -1634,10 +1626,6 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
-	// log.Printf("Recipe ID: %d", recipeID)
-	// log.Printf("Ingredients: %+v", data.Ingredients)
-	// log.Printf("Number of ingredients: %d", len(data.Ingredients))
 
 	pageData := RecipePageData{
 		PageData: PageData{
@@ -1695,7 +1683,7 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	version, err := a.Recipes.GetVersion(userID, recipeID, versionID)
+	_, err = a.Recipes.GetVersion(userID, recipeID, versionID)
 	if errors.Is(err, services.ErrRecipeNotFound) {
 		http.NotFound(w, r)
 		return
@@ -1721,7 +1709,6 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = tpl.ExecuteTemplate(w, "version-preview", map[string]any{
-		"Version":     version,
 		"Ingredients": ingredients,
 		"Steps":       steps,
 	})
@@ -1730,10 +1717,6 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-}
-
-func (a *App) handleRemoveTag(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
 }
 
 func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
@@ -1806,6 +1789,22 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		ingredients = append(ingredients, ingredient)
 	}
 
+	instructions := r.PostForm["step_instruction"]
+	notes := r.PostForm["step_note"]
+
+	var steps []services.Step
+	for i, instruction := range instructions {
+		instruction = strings.TrimSpace(strings.ReplaceAll(instruction, "\r\n", "\n"))
+		if instruction == "" {
+			continue
+		}
+		step := services.Step{StepNumber: len(steps) + 1, Instruction: instruction}
+		if i < len(notes) {
+			step.Notes = strings.TrimSpace(notes[i])
+		}
+		steps = append(steps, step)
+	}
+
 	data := services.RecipeUpdate{
 		Title:           title,
 		Description:     description,
@@ -1813,6 +1812,7 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		Servings:        servings,
 		PrepTimeMinutes: prepTime,
 		Ingredients:     ingredients,
+		Steps:           steps,
 	}
 
 	if err := a.Recipes.UpdateRecipe(userID, recipeID, data); err != nil {

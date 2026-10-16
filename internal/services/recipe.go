@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"slices"
 	"strings"
 	"time"
 
@@ -54,9 +55,8 @@ type RecipeVersion struct {
 }
 
 type RecipeUpdate struct {
-	Title       string
-	Description string
-	// ImageURL        string
+	Title           string
+	Description     string
 	Tags            []string
 	Servings        int
 	PrepTimeMinutes int
@@ -72,7 +72,7 @@ var PresetTags = []string{
 	// Meal type
 	"breakfast", "brunch", "lunch", "dinner", "appetizer", "snack", "dessert", "side-dish", "soup", "salad", "sandwich", "wrap", "burger", "tacos", "pizza", "pasta", "bowl", "curry", "casserole", "stir-fry", "roast", "smoothie", "cocktail",
 	// Dietary / lifestyle
-	"vegetarian", "vegan", "pescatarian", "gluten-free", "dairy-free", "egg-free", "peanut-free", "nut-free", "soy-free", "sesame-free", "shellfish-free", "fish-free", "wheat-free", "halal", "kosher", "paleo", "keto", "low-carb", "low-sugar", "sugar-free", "high-protein", "high-fiber", "low-sodium", "low-fat", "heart-healthy", "diabetic-friendly", "anti-inflammatory", "low-FODMAP", "low-calories", "lactose-free", "grain-free",
+	"vegetarian", "vegan", "pescatarian", "gluten-free", "dairy-free", "egg-free", "peanut-free", "nut-free", "soy-free", "sesame-free", "shellfish-free", "fish-free", "wheat-free", "halal", "kosher", "paleo", "keto", "low-carb", "low-sugar", "sugar-free", "high-protein", "high-fiber", "low-sodium", "low-fat", "heart-healthy", "diabetic-friendly", "anti-inflammatory", "low-fodmap", "low-calories", "lactose-free", "grain-free",
 	// Cooking method
 	"quick", "easy", "one-pot", "one-pan", "meal-prep", "air-fryer", "slow-cooker", "instant-pot", "oven-baked", "sheet-pan", "no-bake", "skillet", "stovetop", "make-ahead", "freezer-friendly", "pressure-cooker",
 	// Cuisine
@@ -88,7 +88,7 @@ type PresetTagGroup struct {
 
 var PresetTagGroups = []PresetTagGroup{
 	{Name: "Meal type", Tags: []string{"breakfast", "brunch", "lunch", "dinner", "appetizer", "snack", "dessert", "side-dish", "soup", "salad", "sandwich", "wrap", "burger", "tacos", "pizza", "pasta", "bowl", "curry", "casserole", "stir-fry", "roast", "smoothie", "cocktail"}},
-	{Name: "Dietary", Tags: []string{"vegetarian", "vegan", "pescatarian", "gluten-free", "dairy-free", "egg-free", "peanut-free", "nut-free", "soy-free", "sesame-free", "shellfish-free", "fish-free", "wheat-free", "halal", "kosher", "paleo", "keto", "low-carb", "low-sugar", "sugar-free", "high-protein", "high-fiber", "low-sodium", "low-fat", "heart-healthy", "diabetic-friendly", "anti-inflammatory", "low-FODMAP", "low-calories", "lactose-free", "grain-free"}},
+	{Name: "Dietary", Tags: []string{"vegetarian", "vegan", "pescatarian", "gluten-free", "dairy-free", "egg-free", "peanut-free", "nut-free", "soy-free", "sesame-free", "shellfish-free", "fish-free", "wheat-free", "halal", "kosher", "paleo", "keto", "low-carb", "low-sugar", "sugar-free", "high-protein", "high-fiber", "low-sodium", "low-fat", "heart-healthy", "diabetic-friendly", "anti-inflammatory", "low-fodmap", "low-calories", "lactose-free", "grain-free"}},
 	{Name: "Cooking method", Tags: []string{"quick", "easy", "one-pot", "one-pan", "meal-prep", "air-fryer", "slow-cooker", "instant-pot", "oven-baked", "sheet-pan", "no-bake", "skillet", "stovetop", "make-ahead", "freezer-friendly", "pressure-cooker"}},
 	{Name: "Cuisine", Tags: []string{"italian", "mexican", "american", "mediterranean", "indian", "japanese", "chinese", "thai", "korean", "french", "greek", "spanish", "lebanese", "moroccan", "caribbean", "african", "vietnamese", "filipino", "brazilian", "tex-mex", "cajun", "soul-food", "middle-eastern", "latin-american"}},
 	{Name: "Flavor & occasion", Tags: []string{"spicy", "savory", "sweet", "sour", "smoky", "garlicky", "herby", "citrusy", "kid-friendly", "party-food", "date-night", "holiday", "comfort-food", "fresh", "summer", "winter", "fall", "spring"}},
@@ -268,7 +268,7 @@ func (s *RecipeService) GetIngredients(q sqlExecutor, recipeVersionID int64) ([]
 		}
 		ingredients = append(ingredients, i)
 	}
-	return ingredients, nil
+	return ingredients, rows.Err()
 }
 
 func (s *RecipeService) GetSteps(tx sqlExecutor, recipeVersionID int64) ([]Step, error) {
@@ -295,7 +295,7 @@ func (s *RecipeService) GetSteps(tx sqlExecutor, recipeVersionID int64) ([]Step,
 		}
 		steps = append(steps, st)
 	}
-	return steps, nil
+	return steps, rows.Err()
 }
 
 // GetVersions returns every version of a recipe, newest first.
@@ -537,11 +537,7 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 		return nil, 0, err
 	}
 
-	var versionID int64
-	err = s.DB.QueryRow(
-		"SELECT id FROM recipe_versionsV1 WHERE recipe_id = ? ORDER BY version_number DESC LIMIT 1",
-		recipeID,
-	).Scan(&versionID)
+	versionID, err := s.GetLatestVersionID(s.DB, recipeID)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -563,9 +559,6 @@ func (s *RecipeService) GetRecipeForView(recipeID int64) (*RecipeEditPageData, i
 	).Scan(&tagString); err != nil {
 		return nil, 0, err
 	}
-
-	// log.Printf("Raw tag string for recipe %d: %q", recipeID, tagString)
-	// log.Printf("Split tags: %#v", splitTags(tagString))
 
 	return &RecipeEditPageData{
 		Recipe: RecipeInfo{
@@ -656,20 +649,12 @@ func (s *RecipeService) DeleteRecipe(recipeID int64) error {
 	})
 }
 
-func (s *RecipeService) UpdateRecipeTitle(tx sqlExecutor, recipeID int64, title string) error {
-	_, err := tx.Exec(`
-        UPDATE recipesV1
-        SET title = ?
-        WHERE id = ?
-    `, title, recipeID)
-	return err
-}
-func (s *RecipeService) UpdateRecipeDescription(tx sqlExecutor, recipeID int64, descripton string) error {
+func (s *RecipeService) UpdateRecipeDetails(tx sqlExecutor, recipeID int64, data RecipeUpdate) error {
 	_, err := tx.Exec(`
 		UPDATE recipesV1
-		SET description = ?
+		SET title = ?, description = ?, servings = ?, prep_time_minutes = ?
 		WHERE id = ?
-	`, descripton, recipeID)
+	`, data.Title, data.Description, data.Servings, data.PrepTimeMinutes, recipeID)
 	return err
 }
 
@@ -684,24 +669,6 @@ func (s *RecipeService) UpdateRecipeTags(tx sqlExecutor, recipeID int64, tags []
 	}
 
 	return s.SaveTags(tx, recipeID, tags)
-}
-
-func (s *RecipeService) UpdateRecipeServing(tx sqlExecutor, recipeID int64, serving int) error {
-	_, err := tx.Exec(`
-		UPDATE recipesV1
-		SET servings = ?
-		WHERE id = ?
-	`, serving, recipeID)
-	return err
-}
-
-func (s *RecipeService) UpdateRecipePrepTime(tx sqlExecutor, recipeID int64, prepTimeMinutes int) error {
-	_, err := tx.Exec(`
-		UPDATE recipesV1
-		SET prep_time_minutes = ?
-		WHERE id = ?
-	`, prepTimeMinutes, recipeID)
-	return err
 }
 
 func (s *RecipeService) InsertStepAndNotes(tx sqlExecutor, versionID int64, steps []Step) error {
@@ -768,10 +735,6 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 			return err
 		}
 
-		if data.Steps == nil {
-			data.Steps = currentSteps
-		}
-
 		data.Ingredients = mergeIngredients(data.Ingredients)
 
 		ingredientsChanged := !ingredientsEqual(
@@ -803,56 +766,26 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 			}
 		}
 
-		if err := s.UpdateRecipeTitle(tx, recipeID, data.Title); err != nil {
-			return err
-		}
-
-		if err := s.UpdateRecipeDescription(tx, recipeID, data.Description); err != nil {
+		if err := s.UpdateRecipeDetails(tx, recipeID, data); err != nil {
 			return err
 		}
 
 		if err := s.UpdateRecipeTags(tx, recipeID, data.Tags); err != nil {
 			return err
 		}
-
-		if err := s.UpdateRecipeServing(tx, recipeID, data.Servings); err != nil {
-			return err
-		}
-
-		if err := s.UpdateRecipePrepTime(tx, recipeID, data.PrepTimeMinutes); err != nil {
-			return err
-		}
 		return nil
 	})
 }
 
+// compares only what the user edits; IDs differ between versions.
 func ingredientsEqual(old, updated []Ingredient) bool {
-	if len(old) != len(updated) {
-		return false
-	}
-
-	for i := range old {
-		if old[i].Name != updated[i].Name ||
-			old[i].Quantity != updated[i].Quantity ||
-			old[i].Unit != updated[i].Unit {
-			return false
-		}
-	}
-
-	return true
+	return slices.EqualFunc(old, updated, func(a, b Ingredient) bool {
+		return a.Name == b.Name && a.Quantity == b.Quantity && a.Unit == b.Unit
+	})
 }
 
 func stepAndNotesEqual(old, updated []Step) bool {
-	if len(old) != len(updated) {
-		return false
-	}
-
-	for i := range old {
-		if old[i].StepNumber != updated[i].StepNumber ||
-			old[i].Instruction != updated[i].Instruction ||
-			old[i].Notes != updated[i].Notes {
-			return false
-		}
-	}
-	return true
+	return slices.EqualFunc(old, updated, func(a, b Step) bool {
+		return a.StepNumber == b.StepNumber && a.Instruction == b.Instruction && a.Notes == b.Notes
+	})
 }
