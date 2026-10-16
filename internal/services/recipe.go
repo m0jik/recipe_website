@@ -359,10 +359,17 @@ func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
 		`SELECT
             r.id,
             r.title,
+			r.user_id,
             0 AS version_id,
             COALESCE(r.description, '') AS description,
             COALESCE(r.image_url, '') AS image_url,
-            r.user_id
+			COALESCE(
+				(SELECT GROUP_CONCAT(t.name, ',')
+				FROM tagsV1 t
+				JOIN recipeTagsV1 rt ON rt.tag_id = t.id
+				WHERE rt.recipe_id = r.id),
+				''
+			)
          FROM recipesV1 r
          WHERE r.user_id = ?
          ORDER BY r.created_at DESC`,
@@ -382,12 +389,14 @@ func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
 	var recipes []RecipeInfo
 	for rows.Next() {
 		var ri RecipeInfo
+		var tags string
 		// if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID); err != nil {
 		// 	return nil, err
 		// }
-		if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID, &ri.Description, &ri.ImageURL, &ri.UserID); err != nil {
+		if err := rows.Scan(&ri.ID, &ri.Title, &ri.UserID, &ri.VersionID, &ri.Description, &ri.ImageURL, &tags); err != nil {
 			return nil, err
 		}
+		ri.Tags = splitTags(tags)
 		recipes = append(recipes, ri)
 	}
 	if err := rows.Err(); err != nil {
