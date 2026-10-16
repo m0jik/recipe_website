@@ -23,6 +23,7 @@
     </div>
 
     <form method="POST" action="/recipes/v1/submit">
+        <button type="submit" disabled hidden aria-hidden="true"></button>
 
         <input type="hidden" name="title" value="{{ .Title }}">
         <input type="hidden" name="description" value="{{ .Description }}">
