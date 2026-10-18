@@ -195,12 +195,13 @@ func splitTags(value string) []string {
 
 func (s *RecipeService) BatchSaveIngredients(versionID int64, names, quantities, units []string) error {
 	for i, name := range names {
+		name = strings.TrimSpace(name)
 		if name == "" {
 			continue
 		}
 		qty := ""
 		if i < len(quantities) {
-			qty = quantities[i]
+			qty = strings.TrimSpace(quantities[i])
 		}
 		unit := ""
 		if i < len(units) {
@@ -234,6 +235,7 @@ func (s *RecipeService) BatchSaveSteps(versionID int64, instructions, notes, ste
 			return err
 		}
 		for _, step_ingredient := range strings.Split(strings.Trim(step_ingredients[i], "[] "), "  ") {
+			step_ingredient = strings.TrimSpace(step_ingredient)
 			if step_ingredient == "" {
 				continue
 			}
