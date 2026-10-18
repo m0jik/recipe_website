@@ -72,19 +72,15 @@
             <h2>Steps</h2>
             <ol>
                 {{range .Steps}}
-                    {{$stepID := .StepNumber}}
-                    {{$recipeID := .RecipeVersionID}}
                     <li>
                         <p>{{.Instruction}}</p>
-                        {{if $.StepIngredients}}
+                        {{if .StepIngredients}}
                             <i>Ingredients Used</i><br>
-                            {{range $.StepIngredients}}
-                                {{if and (eq .StepID $stepID) (eq .RecipeID $recipeID)}}
-                                    <ul>
-                                        <li>{{.Ingredient}}</li>
-                                    </ul>
+                            <ul>
+                                {{range .StepIngredients}}
+                                    <li>{{.Ingredient}}</li>
                                 {{end}}
-                            {{end}}
+                            </ul>
                         {{end}}
                         {{if .Notes}}
                             <small>{{.Notes}}</small>

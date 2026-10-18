@@ -71,6 +71,7 @@ type RecipeUpdate struct {
 	PrepTimeMinutes int
 	Ingredients     []Ingredient
 	Steps           []Step
+	Restored        bool
 }
 
 type RecipeService struct {
@@ -316,6 +317,18 @@ func (s *RecipeService) GetSteps(tx sqlExecutor, recipeVersionID int64) ([]Step,
 		}
 		steps = append(steps, st)
 	}
+
+	StepIngredients, err := s.GetStepIngredients(recipeVersionID)
+	if err != nil {
+		return nil, err
+	}
+	for i := range steps {
+		for _, si := range StepIngredients {
+			if si.StepID == int64(steps[i].StepNumber) {
+				steps[i].StepIngredients = append(steps[i].StepIngredients, si)
+			}
+		}
+	}
 	return steps, rows.Err()
 }
 
@@ -373,10 +386,6 @@ func (s *RecipeService) GetStepIngredients(recipeVersionID int64) ([]StepIngredi
 		return nil, err
 	}
 
-	if err := rows.Err(); err != nil {
-		log.Println("Error iterating over rows:", err)
-	}
-
 	defer func() {
 		if err := rows.Close(); err != nil {
 			log.Println("Error closing rows:", err)
@@ -390,7 +399,7 @@ func (s *RecipeService) GetStepIngredients(recipeVersionID int64) ([]StepIngredi
 		}
 		stepIngredients = append(stepIngredients, si)
 	}
-	return stepIngredients, nil
+	return stepIngredients, rows.Err()
 }
 
 func (s *RecipeService) GetRecipesByUser(userID int) ([]RecipeInfo, error) {
@@ -469,6 +478,19 @@ func (s *RecipeService) GetLatestVersionID(tx sqlExecutor, recipeID int64) (int6
 	}
 
 	return versionID, nil
+}
+
+func (s *RecipeService) GetRecipeUser(recipeID int64) (int64, error) {
+	var userID int64
+	err := s.DB.QueryRow(
+		"SELECT user_id FROM recipesV1 WHERE id = ?",
+		recipeID,
+	).Scan(&userID)
+
+	if errors.Is(err, sql.ErrNoRows) {
+		return 0, ErrRecipeNotFound
+	}
+	return userID, err
 }
 
 func (s *RecipeService) Search(query string, tagFilters []string, maxTime int) ([]RecipeInfo, error) {
@@ -682,7 +704,18 @@ func (s *RecipeService) DeleteRecipe(recipeID int64) error {
 		}
 
 		if _, err := tx.Exec(`
-			DELETE FROM instructionsV1 
+			DELETE FROM step_ingredientsV1
+			WHERE recipe_id IN (
+				SELECT id
+				FROM recipe_versionsV1
+				WHERE recipe_id = ?
+			)
+		`, recipeID); err != nil {
+			return err
+		}
+
+		if _, err := tx.Exec(`
+			DELETE FROM instructionsV1
 			WHERE recipe_version_id IN (
 				SELECT id 
 				FROM recipe_versionsV1
@@ -709,13 +742,6 @@ func (s *RecipeService) DeleteRecipe(recipeID int64) error {
 		if _, err := tx.Exec(`
 			DELETE FROM recipesV1
 			WHERE id = ?
-		`, recipeID); err != nil {
-			return err
-		}
-
-		if _, err := tx.Exec(`
-			DELETE FROM step_ingredientsV1
-			WHERE recipe_id = ?
 		`, recipeID); err != nil {
 			return err
 		}
@@ -754,6 +780,16 @@ func (s *RecipeService) InsertStepAndNotes(tx sqlExecutor, versionID int64, step
 
 		if err != nil {
 			return fmt.Errorf("failed to insert steps: %w", err)
+		}
+
+		for _, si := range step.StepIngredients {
+			_, err := tx.Exec(`
+				INSERT INTO step_ingredientsV1 (recipe_id, step_id, step_ingredient) VALUES (?, ?, ?)
+			`, versionID, step.StepNumber, si.Ingredient)
+
+			if err != nil {
+				return fmt.Errorf("failed to insert step ingredients: %w", err)
+			}
 		}
 	}
 
@@ -812,17 +848,25 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 
 		data.Ingredients = mergeIngredients(data.Ingredients)
 
-		ingredientsChanged := !ingredientsEqual(
-			currentIngredients,
-			data.Ingredients,
-		)
+		ingredientsChanged := !ingredientsEqual(currentIngredients, data.Ingredients) || !slices.Equal(stepIngredientNames(currentSteps), stepIngredientNames(data.Steps))
 
 		stepAndNotesChanged := !stepAndNotesEqual(
 			currentSteps,
 			data.Steps,
 		)
 
-		if ingredientsChanged || stepAndNotesChanged {
+		// Adding or deleting a step makes a new version; editing a step's text or note doesn't.
+		added, existing := false, 0
+		for _, step := range data.Steps {
+			if step.ID == 0 {
+				added = true
+			} else {
+				existing++
+			}
+		}
+		stepsAddedOrDeleted := added || existing < len(currentSteps)
+
+		if ingredientsChanged || stepsAddedOrDeleted || (data.Restored && stepAndNotesChanged) {
 
 			newVersionID, err := s.NewVersion(
 				tx, recipeID,
@@ -837,6 +881,26 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 			}
 			// Save the edited steps and notes
 			if err := s.InsertStepAndNotes(tx, newVersionID, data.Steps); err != nil {
+				return err
+			}
+		} else if stepAndNotesChanged {
+
+			// nnly steps or notes changed: replace them in the current version
+			if _, err := tx.Exec(`
+				DELETE FROM step_ingredientsV1
+				WHERE recipe_id = ?
+			`, currentVersionID); err != nil {
+				return err
+			}
+
+			if _, err := tx.Exec(`
+				DELETE FROM instructionsV1
+				WHERE recipe_version_id = ?
+			`, currentVersionID); err != nil {
+				return err
+			}
+
+			if err := s.InsertStepAndNotes(tx, currentVersionID, data.Steps); err != nil {
 				return err
 			}
 		}
@@ -861,6 +925,22 @@ func ingredientsEqual(old, updated []Ingredient) bool {
 
 func stepAndNotesEqual(old, updated []Step) bool {
 	return slices.EqualFunc(old, updated, func(a, b Step) bool {
-		return a.StepNumber == b.StepNumber && a.Instruction == b.Instruction && a.Notes == b.Notes
+		return a.StepNumber == b.StepNumber && a.Instruction == b.Instruction && a.Notes == b.Notes &&
+			slices.EqualFunc(a.StepIngredients, b.StepIngredients, func(x, y StepIngredient) bool {
+				return x.Ingredient == y.Ingredient
+			})
 	})
+}
+
+// stepIngredientNames lists the ingredients used by all steps, sorted, so
+// moving an ingredient from one step to another isn't an ingredient change.
+func stepIngredientNames(steps []Step) []string {
+	var names []string
+	for _, step := range steps {
+		for _, si := range step.StepIngredients {
+			names = append(names, si.Ingredient)
+		}
+	}
+	slices.Sort(names)
+	return names
 }

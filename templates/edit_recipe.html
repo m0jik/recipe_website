@@ -5,7 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>Edit Recipe</title>
         <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
-        <link rel="stylesheet" href="/static/edit_recipe.css?v=steps-3">
+        <link rel="stylesheet" href="/static/edit_recipe.css?v=restore-2">
         <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 <body>
@@ -19,7 +19,12 @@
         <button type="button" class="btn-secondary" onclick="window.location.href='/recipes/v1/{{.RecipeID}}'">Cancel</button>
         <button type="submit">Save</button>
     </div>
-    
+
+    {{if .RestoredVersion}}
+        <input type="hidden" name="restored" value="1">
+        <p class="restore-notice">Version {{.RestoredVersion}} restored. Save to keep it as a new version.</p>
+    {{end}}
+
 <div class="editor-section">
 
     <nav class="recipe-sidebar">
@@ -135,8 +140,13 @@
             <div class="existing-steps">
                 {{range .Steps}}
                     <div class="item-row">
+                        <input type="hidden" name="step_id" value="{{.ID}}">
                         <div class="field">
                             <label><textarea name="step_instruction" aria-label="Step {{.StepNumber}}">{{.Instruction}}</textarea></label>
+                        </div>
+
+                        <div class="field">
+                            <label><input type="text" name="step_ingredients" value="{{range $i, $si := .StepIngredients}}{{if $i}}, {{end}}{{$si.Ingredient}}{{end}}" placeholder="Step ingredients (comma separated)" aria-label="Ingredients for step {{.StepNumber}}"></label>
                         </div>
 
                         <div class="field">
@@ -154,10 +164,14 @@
                 {{ template "step-text-input" }}
 
                 <div class="step-add-bottom">
+                    {{ template "step-ingredients-input" }}
+                </div>
+
+                <div class="step-add-bottom">
                     {{ template "step-note-input" }}
                     <button id="step-add" type="button"
                             hx-get="/recipes/v1/step-row"
-                            hx-include="#step-text, #step-note"
+                            hx-include="#step-text, #step-note, #step-ingredients-list"
                             hx-target="#steps-list"
                             hx-swap="beforeend"
                             class="btn-secondary">

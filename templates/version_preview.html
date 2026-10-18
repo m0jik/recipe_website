@@ -1,10 +1,20 @@
 {{ define "version-preview" }}
 <div class="version-preview">
+    {{ if not .IsCurrent }}
+        <details class="restore-menu">
+            <summary class="btn-primary">Restore</summary>
+            <div class="restore-menu-dropdown">
+                <p>Loads version {{ .VersionNumber }} into the form. Nothing changes until you Save.</p>
+                <a class="btn-primary" href="/recipes/v1/edit-recipe/{{ .RecipeID }}?restore={{ .VersionID }}#ingredients-section">Restore version {{ .VersionNumber }}</a>
+            </div>
+        </details>
+    {{ end }}
+
     <h3>Ingredients</h3>
     {{ if .Ingredients }}
         <ul>
             {{ range .Ingredients }}
-                <li>{{ .Quantity }} {{ .Unit }} - {{ .Name }}</li>
+                <li>{{ .Quantity }} {{ .Unit }} {{ .Name }}</li>
             {{ end }}
         </ul>
     {{ else }}
@@ -16,8 +26,16 @@
         <ol>
             {{ range .Steps }}
                 <li>
-                    {{ .Instruction }}
-                    {{ if .Notes }}<em>- {{ .Notes }}</em>{{ end }}
+                    <p>{{ .Instruction }}</p>
+                    {{ if .StepIngredients }}
+                        <i>Ingredients Used</i>
+                        <ul>
+                            {{ range .StepIngredients }}
+                                <li>{{ .Ingredient }}</li>
+                            {{ end }}
+                        </ul>
+                    {{ end }}
+                    {{ if .Notes }}<small>{{ .Notes }}</small>{{ end }}
                 </li>
             {{ end }}
         </ol>

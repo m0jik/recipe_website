@@ -72,6 +72,7 @@ type RecipePageData struct {
 	PrepTimeMinutes int
 	Tags            []string
 	Versions        []services.RecipeVersion
+	RestoredVersion int
 }
 
 type PageOneData struct {
@@ -1587,7 +1588,7 @@ func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, ownerID, err := a.Recipes.GetRecipeForView(recipeID)
+	ownerID, err := a.Recipes.GetRecipeUser(recipeID)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -1663,6 +1664,41 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		Versions:        versions,
 	}
 
+	if restore := r.URL.Query().Get("restore"); restore != "" {
+		versionID, err := strconv.ParseInt(restore, 10, 64)
+		if err != nil || versionID < 1 {
+			http.Error(w, "Invalid version", http.StatusBadRequest)
+			return
+		}
+
+		version, err := a.Recipes.GetVersion(userID, recipeID, versionID)
+		if errors.Is(err, services.ErrRecipeNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			log.Printf("Error loading version %d of recipe %d: %v", versionID, recipeID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		pageData.Ingredients, err = a.Recipes.GetIngredients(a.Recipes.DB, versionID)
+		if err != nil {
+			log.Printf("Error loading ingredients for version %d: %v", versionID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		pageData.Steps, err = a.Recipes.GetSteps(a.Recipes.DB, versionID)
+		if err != nil {
+			log.Printf("Error loading steps for version %d: %v", versionID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		pageData.RestoredVersion = version.VersionNumber
+	}
+
 	buf := new(bytes.Buffer)
 
 	err = tpl.ExecuteTemplate(buf, "edit_recipe.html", pageData)
@@ -1700,13 +1736,20 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	_, err = a.Recipes.GetVersion(userID, recipeID, versionID)
+	version, err := a.Recipes.GetVersion(userID, recipeID, versionID)
 	if errors.Is(err, services.ErrRecipeNotFound) {
 		http.NotFound(w, r)
 		return
 	}
 	if err != nil {
 		log.Printf("Error loading version %d of recipe %d: %v", versionID, recipeID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	currentVersionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, recipeID)
+	if err != nil {
+		log.Printf("Error loading current version of recipe %d: %v", recipeID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
@@ -1726,8 +1769,12 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 	}
 
 	err = tpl.ExecuteTemplate(w, "version-preview", map[string]any{
-		"Ingredients": ingredients,
-		"Steps":       steps,
+		"RecipeID":      recipeID,
+		"VersionID":     versionID,
+		"VersionNumber": version.VersionNumber,
+		"IsCurrent":     versionID == currentVersionID,
+		"Ingredients":   ingredients,
+		"Steps":         steps,
 	})
 	if err != nil {
 		log.Printf("Error rendering version preview: %v", err)
@@ -1808,6 +1855,8 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 
 	instructions := r.PostForm["step_instruction"]
 	notes := r.PostForm["step_note"]
+	stepIngredients := r.PostForm["step_ingredients"]
+	stepIDs := r.PostForm["step_id"]
 
 	var steps []services.Step
 	for i, instruction := range instructions {
@@ -1816,8 +1865,19 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		step := services.Step{StepNumber: len(steps) + 1, Instruction: instruction}
+		if i < len(stepIDs) {
+			step.ID, _ = strconv.ParseInt(stepIDs[i], 10, 64)
+		}
 		if i < len(notes) {
 			step.Notes = strings.TrimSpace(notes[i])
+		}
+		if i < len(stepIngredients) {
+			raw := strings.ReplaceAll(strings.Trim(stepIngredients[i], "[] "), "  ", ",")
+			for _, name := range strings.Split(raw, ",") {
+				if name = strings.TrimSpace(name); name != "" {
+					step.StepIngredients = append(step.StepIngredients, services.StepIngredient{Ingredient: name})
+				}
+			}
 		}
 		steps = append(steps, step)
 	}
@@ -1830,6 +1890,7 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		PrepTimeMinutes: prepTime,
 		Ingredients:     ingredients,
 		Steps:           steps,
+		Restored:        r.PostFormValue("restored") != "",
 	}
 
 	if err := a.Recipes.UpdateRecipe(userID, recipeID, data); err != nil {

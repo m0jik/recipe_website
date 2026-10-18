@@ -1,6 +1,7 @@
 {{ define "step-row" }}
 <div class="item-row">
 
+    <input type="hidden" name="step_id"          value="">
     <input type="hidden" name="step_instruction" value="{{ .Instruction }}">
     <input type="hidden" name="step_note"        value="{{ .Note }}">
     <input type="hidden" name="step_ingredients"  value="{{ .Ingredients }}">
@@ -22,4 +23,5 @@
 
 {{ template "step-text-input" true }}
 {{ template "step-note-input" true }}
+{{ template "step-ingredients-input" true }}
 {{ end }}

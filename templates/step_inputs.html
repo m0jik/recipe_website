@@ -2,6 +2,10 @@
 <textarea id="step-text" name="step" placeholder="Describe this step..." aria-label="New step"{{if .}} hx-swap-oob="true" autofocus{{end}}></textarea>
 {{ end }}
 
+{{ define "step-ingredients-input" }}
+<input type="text" id="step-ingredients-list" name="step_ingredients" placeholder="Enter step ingredients separated by a comma..." aria-label="Step ingredients"{{if .}} hx-swap-oob="true"{{end}}>
+{{ end }}
+
 {{ define "step-note-input" }}
 <input type="text" id="step-note" name="note" placeholder="Note (optional)" aria-label="Note"{{if .}} hx-swap-oob="true"{{end}}
        onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
