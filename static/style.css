@@ -310,6 +310,7 @@ button {
     display: -webkit-box;
     -webkit-box-orient: vertical;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     overflow: hidden;
 }
 
@@ -935,7 +936,6 @@ a.tag-chip:hover,
     overflow-wrap: anywhere;
 }
 
-.recipe-description,
 .recipe-section li p,
 .recipe-section li small {
     white-space: pre-wrap;

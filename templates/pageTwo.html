@@ -41,10 +41,40 @@
                 <div id="ingredients-list" class="item-list"></div>
 
                 <div class="add-row">
-                    {{ template "ingredient-qty-input" }}
-                    {{ template "ingredient-unit-select" }}
-                    {{ template "ingredient-name-input" }}
-                    <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
+                    <input type="text" id="ing-qty" name="qty" placeholder="2" class="qty">
+
+                    <select id="ing-unit" name="unit">
+                        <option value="" disabled selected>Unit</option>
+                        <optgroup label="US">
+                            <option value="cup">cup</option>
+                            <option value="tbsp">tbsp</option>
+                            <option value="tsp">tsp</option>
+                            <option value="oz">oz</option>
+                            <option value="lb">lb</option>
+                        </optgroup>
+                        <optgroup label="Metric">
+                            <option value="ml">mL</option>
+                            <option value="liter">liter</option>
+                            <option value="grams">grams</option>
+                            <option value="kg">kg</option>
+                        </optgroup>
+                        <optgroup label="Other">
+                            <option value="piece">piece</option>
+                            <option value="pinch">pinch</option>
+                            <option value="whole">whole</option>
+                        </optgroup>
+                    </select>
+
+                    <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
+                           onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
+
+                    <button id="ing-add"
+                    type="button"
+                        hx-get="/recipes/v1/ingredient-row"
+                        hx-include="#ing-qty, #ing-unit, #ing-name"
+                        hx-target="#ingredients-list"
+                        hx-swap="beforeend"
+                        class="btn-secondary">
                         + Add
                     </button>
                 </div>
@@ -59,17 +89,32 @@
                 <div class="step-add-row">
                     {{ template "step-text-input" }}
                     <div class="step-add-bottom">
-                        {{ template "step-note-input" }}
-                        <button id="step-add" type="button"
-                                hx-get="/recipes/v1/step-row"
-                                hx-include="#step-text, #step-note"
-                                hx-target="#steps-list"
-                                hx-swap="beforeend"
-                                class="btn-secondary">
-                            + Add
-                        </button>
+
+                        <input type="text"
+                               id="step-ingredients-list"
+                               name="step_ingredients"
+                               placeholder="Enter step ingredients separated by a comma...">
 
                     </div>
+
+                    <div class="step-add-bottom">
+
+                        <input type="text"
+                            id="step-note"
+                            name="note"
+                            placeholder="Note (optional)"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
+
+                        <button id="step-add" type="button"
+                            hx-get="/recipes/v1/step-row"
+                            hx-include="#step-text, #step-note, #step-ingredients-list"
+                            hx-target="#steps-list"
+                            hx-swap="beforeend"
+                            class="btn-secondary">
+                            + Add
+                        </button>
+                    </div>
+                    
                 </div>
             </div>
 
