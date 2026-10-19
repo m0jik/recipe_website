@@ -21,7 +21,6 @@
     </div>
 
     {{if .RestoredVersion}}
-        <input type="hidden" name="restored" value="1">
         <p class="restore-notice">Version {{.RestoredVersion}} restored. Save to keep it as a new version.</p>
     {{end}}
 
@@ -140,7 +139,6 @@
             <div class="existing-steps">
                 {{range .Steps}}
                     <div class="item-row">
-                        <input type="hidden" name="step_id" value="{{.ID}}">
                         <div class="field">
                             <label><textarea name="step_instruction" aria-label="Step {{.StepNumber}}">{{.Instruction}}</textarea></label>
                         </div>

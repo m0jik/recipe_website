@@ -71,7 +71,6 @@ type RecipeUpdate struct {
 	PrepTimeMinutes int
 	Ingredients     []Ingredient
 	Steps           []Step
-	Restored        bool
 }
 
 type RecipeService struct {
@@ -850,25 +849,15 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 
 		data.Ingredients = mergeIngredients(data.Ingredients)
 
-		ingredientsChanged := !ingredientsEqual(currentIngredients, data.Ingredients) || !slices.Equal(stepIngredientNames(currentSteps), stepIngredientNames(data.Steps))
+		ingredientsChanged := !ingredientsEqual(currentIngredients, data.Ingredients)
 
 		stepAndNotesChanged := !stepAndNotesEqual(
 			currentSteps,
 			data.Steps,
 		)
 
-		// Adding or deleting a step makes a new version; editing a step's text or note doesn't.
-		added, existing := false, 0
-		for _, step := range data.Steps {
-			if step.ID == 0 {
-				added = true
-			} else {
-				existing++
-			}
-		}
-		stepsAddedOrDeleted := added || existing < len(currentSteps)
-
-		if ingredientsChanged || stepsAddedOrDeleted || (data.Restored && stepAndNotesChanged) {
+		// Any change to ingredients, steps, notes or step ingredients makes a new version.
+		if ingredientsChanged || stepAndNotesChanged {
 
 			newVersionID, err := s.NewVersion(
 				tx, recipeID,
@@ -883,26 +872,6 @@ func (s *RecipeService) UpdateRecipe(userID int, recipeID int64, data RecipeUpda
 			}
 			// Save the edited steps and notes
 			if err := s.InsertStepAndNotes(tx, newVersionID, data.Steps); err != nil {
-				return err
-			}
-		} else if stepAndNotesChanged {
-
-			// nnly steps or notes changed: replace them in the current version
-			if _, err := tx.Exec(`
-				DELETE FROM step_ingredientsV1
-				WHERE recipe_id = ?
-			`, currentVersionID); err != nil {
-				return err
-			}
-
-			if _, err := tx.Exec(`
-				DELETE FROM instructionsV1
-				WHERE recipe_version_id = ?
-			`, currentVersionID); err != nil {
-				return err
-			}
-
-			if err := s.InsertStepAndNotes(tx, currentVersionID, data.Steps); err != nil {
 				return err
 			}
 		}
@@ -932,17 +901,4 @@ func stepAndNotesEqual(old, updated []Step) bool {
 				return x.Ingredient == y.Ingredient
 			})
 	})
-}
-
-// stepIngredientNames lists the ingredients used by all steps, sorted, so
-// moving an ingredient from one step to another isn't an ingredient change.
-func stepIngredientNames(steps []Step) []string {
-	var names []string
-	for _, step := range steps {
-		for _, si := range step.StepIngredients {
-			names = append(names, si.Ingredient)
-		}
-	}
-	slices.Sort(names)
-	return names
 }

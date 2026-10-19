@@ -1856,7 +1856,6 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 	instructions := r.PostForm["step_instruction"]
 	notes := r.PostForm["step_note"]
 	stepIngredients := r.PostForm["step_ingredients"]
-	stepIDs := r.PostForm["step_id"]
 
 	var steps []services.Step
 	for i, instruction := range instructions {
@@ -1865,9 +1864,6 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 		step := services.Step{StepNumber: len(steps) + 1, Instruction: instruction}
-		if i < len(stepIDs) {
-			step.ID, _ = strconv.ParseInt(stepIDs[i], 10, 64)
-		}
 		if i < len(notes) {
 			step.Notes = strings.TrimSpace(notes[i])
 		}
@@ -1890,7 +1886,6 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		PrepTimeMinutes: prepTime,
 		Ingredients:     ingredients,
 		Steps:           steps,
-		Restored:        r.PostFormValue("restored") != "",
 	}
 
 	if err := a.Recipes.UpdateRecipe(userID, recipeID, data); err != nil {
