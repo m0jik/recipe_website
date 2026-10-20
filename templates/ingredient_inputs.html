@@ -1,0 +1,15 @@
+{{ define "ingredient-qty-input" }}
+<input type="text" id="ing-qty" name="qty" placeholder="Qty" aria-label="Quantity"{{if .}} hx-swap-oob="true" autofocus{{end}}>
+{{ end }}
+
+{{ define "ingredient-unit-select" }}
+<select id="ing-unit" name="unit" aria-label="Unit"{{if .}} hx-swap-oob="true"{{end}}>
+    <option value="" disabled selected>Unit</option>
+    {{ template "unit-options" "" }}
+</select>
+{{ end }}
+
+{{ define "ingredient-name-input" }}
+<input type="text" id="ing-name" name="name" placeholder="Ingredient name" aria-label="Ingredient"{{if .}} hx-swap-oob="true"{{end}}
+       onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
+{{ end }}

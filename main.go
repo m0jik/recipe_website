@@ -59,7 +59,7 @@ type RecipePageData struct {
 	PageData
 
 	RecipeID        int64
-	IsOwner         bool
+	OwnerID         int64
 	Added           bool
 	Title           string
 	Description     string
@@ -71,6 +71,8 @@ type RecipePageData struct {
 	Servings        int
 	PrepTimeMinutes int
 	Tags            []string
+	Versions        []services.RecipeVersion
+	RestoredVersion int
 }
 
 type PageOneData struct {
@@ -166,7 +168,10 @@ func main() {
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
 
 	//Recipe Edit
-	mux.HandleFunc("POST /recipes/v1/delete/{id}", app.handleDeleteRecipe)
+	mux.HandleFunc("POST /recipes/v1/delete-recipe/{id}", app.handleDeleteRecipe)
+	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
+	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}/version", app.handleRecipeVersion)
+	mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
 
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
@@ -926,10 +931,10 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
-	err := tpl.ExecuteTemplate(w, "ingredient-row", map[string]string{
-		"Qty":  r.URL.Query().Get("qty"),
-		"Unit": r.URL.Query().Get("unit"),
-		"Name": r.URL.Query().Get("name"),
+	err := tpl.ExecuteTemplate(w, "ingredient-row", services.Ingredient{
+		Quantity: r.URL.Query().Get("qty"),
+		Unit:     r.URL.Query().Get("unit"),
+		Name:     r.URL.Query().Get("name"),
 	})
 	if err != nil {
 		log.Printf("Error rendering ingredient row: %v", err)
@@ -966,7 +971,7 @@ func (a *App) handleTagRows(w http.ResponseWriter, r *http.Request) {
 	tag := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tag")))
 	for _, presetTag := range services.PresetTags {
 		if tag == presetTag {
-			err := tpl.ExecuteTemplate(w, "tag-row", map[string]string{"Tag": tag})
+			err := tpl.ExecuteTemplate(w, "tag-row", tag)
 			if err != nil {
 				log.Printf("Error rendering tag row: %v", err)
 				http.Error(w, "Error rendering tag row", http.StatusInternalServerError)
@@ -982,10 +987,6 @@ func (a *App) handleTagRows(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodPost:
-		if r.Method != http.MethodPost {
-			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-			return
-		}
 		if err := r.ParseForm(); err != nil {
 			http.Error(w, "could not parse form", http.StatusBadRequest)
 			return
@@ -1007,12 +1008,12 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "could not create recipe", http.StatusInternalServerError)
 			return
 		}
-		if err := a.Recipes.SaveTags(recipeID, strings.Join(r.Form["tags"], ",")); err != nil {
+		if err := a.Recipes.SaveTags(a.Recipes.DB, recipeID, r.Form["tags"]); err != nil {
 			http.Error(w, "could not save tags", http.StatusInternalServerError)
 			return
 		}
 
-		versionID, err := a.Recipes.GetLatestVersionID(recipeID)
+		versionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, recipeID)
 		if err != nil {
 			http.Error(w, "could not get version", http.StatusInternalServerError)
 			return
@@ -1082,7 +1083,6 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Recipe not found", http.StatusNotFound)
 		return
 	}
-	isOwner := loggedIn && int64(sessionUserID) == recipeOwnerID
 
 	added := false
 	if loggedIn {
@@ -1107,7 +1107,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		},
 
 		RecipeID:        id,
-		IsOwner:         isOwner,
+		OwnerID:         recipeOwnerID,
 		Added:           added,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
@@ -1244,13 +1244,13 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	versionID, err := a.Recipes.GetLatestVersionID(recipeID)
+	versionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, recipeID)
 	if err != nil {
 		http.Error(w, "recipe not found", http.StatusNotFound)
 		return
 	}
 
-	ingredients, err := a.Recipes.GetIngredients(versionID)
+	ingredients, err := a.Recipes.GetIngredients(a.Recipes.DB, versionID)
 	if err != nil {
 		log.Printf("Error loading ingredients for recipe %d: %v", recipeID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1583,12 +1583,45 @@ func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || recipeID < 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	ownerID, err := a.Recipes.GetRecipeUser(recipeID)
 	if err != nil {
 		http.NotFound(w, r)
 		return
 	}
 
-	_, ownerID, err := a.Recipes.GetRecipeForView(recipeID)
+	if ownerID != int64(userID) {
+		http.Error(w, http.StatusText(http.StatusForbidden), http.StatusForbidden)
+		return
+	}
+
+	if err := a.Recipes.DeleteRecipe(recipeID); err != nil {
+		log.Printf("Error deleting recipe %d: %v", recipeID, err)
+		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
+		return
+	}
+
+	http.Redirect(w, r, "/recipes/v1/myRecipe", http.StatusSeeOther)
+}
+
+func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || recipeID < 1 {
+		http.NotFound(w, r)
+		return
+	}
+	data, ownerID, err := a.Recipes.GetRecipeForView(recipeID)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -1599,10 +1632,271 @@ func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := a.Recipes.DeleteRecipe(recipeID); err != nil {
-		http.Error(w, "Failed to delete recipe", http.StatusInternalServerError)
+	username, err := a.Users.GetUsernameByID(userID)
+	if err != nil {
+		http.Error(w, "Invalid session", http.StatusInternalServerError)
 		return
 	}
 
-	http.Redirect(w, r, "/recipes/v1/myRecipe", http.StatusSeeOther)
+	versions, err := a.Recipes.GetVersions(recipeID)
+	if err != nil {
+		log.Printf("Error loading versions for recipe %d: %v", recipeID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	pageData := RecipePageData{
+		PageData: PageData{
+			UserID:          int64(userID),
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+		RecipeID:        recipeID,
+		CreatorUsername: username,
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+		Versions:        versions,
+	}
+
+	if restore := r.URL.Query().Get("restore"); restore != "" {
+		versionID, err := strconv.ParseInt(restore, 10, 64)
+		if err != nil || versionID < 1 {
+			http.Error(w, "Invalid version", http.StatusBadRequest)
+			return
+		}
+
+		version, err := a.Recipes.GetVersion(userID, recipeID, versionID)
+		if errors.Is(err, services.ErrRecipeNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+		if err != nil {
+			log.Printf("Error loading version %d of recipe %d: %v", versionID, recipeID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		pageData.Ingredients, err = a.Recipes.GetIngredients(a.Recipes.DB, versionID)
+		if err != nil {
+			log.Printf("Error loading ingredients for version %d: %v", versionID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		pageData.Steps, err = a.Recipes.GetSteps(a.Recipes.DB, versionID)
+		if err != nil {
+			log.Printf("Error loading steps for version %d: %v", versionID, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		pageData.RestoredVersion = version.VersionNumber
+	}
+
+	buf := new(bytes.Buffer)
+
+	err = tpl.ExecuteTemplate(buf, "edit_recipe.html", pageData)
+	if err != nil {
+		log.Printf("Error rendering edit recipe template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Cache-Control", "no-store") // instruct the browswer not to cache the response
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	_, err = buf.WriteTo(w)
+	if err != nil {
+		log.Printf("Error writing edit recipe response: %v", err)
+	}
+}
+
+func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Error(w, "Unauthorized", http.StatusUnauthorized)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || recipeID < 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	versionID, err := strconv.ParseInt(r.URL.Query().Get("version_id"), 10, 64)
+	if err != nil || versionID < 1 {
+		http.Error(w, "Invalid version", http.StatusBadRequest)
+		return
+	}
+
+	version, err := a.Recipes.GetVersion(userID, recipeID, versionID)
+	if errors.Is(err, services.ErrRecipeNotFound) {
+		http.NotFound(w, r)
+		return
+	}
+	if err != nil {
+		log.Printf("Error loading version %d of recipe %d: %v", versionID, recipeID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	currentVersionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, recipeID)
+	if err != nil {
+		log.Printf("Error loading current version of recipe %d: %v", recipeID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	ingredients, err := a.Recipes.GetIngredients(a.Recipes.DB, versionID)
+	if err != nil {
+		log.Printf("Error loading ingredients for version %d: %v", versionID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	steps, err := a.Recipes.GetSteps(a.Recipes.DB, versionID)
+	if err != nil {
+		log.Printf("Error loading steps for version %d: %v", versionID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	err = tpl.ExecuteTemplate(w, "version-preview", map[string]any{
+		"RecipeID":      recipeID,
+		"VersionID":     versionID,
+		"VersionNumber": version.VersionNumber,
+		"IsCurrent":     versionID == currentVersionID,
+		"Ingredients":   ingredients,
+		"Steps":         steps,
+	})
+	if err != nil {
+		log.Printf("Error rendering version preview: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.PathValue("id"), 10, 64)
+	if err != nil || recipeID < 1 {
+		http.NotFound(w, r)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "Invalid form", http.StatusBadRequest)
+		return
+	}
+
+	title := strings.TrimSpace(r.PostFormValue("title"))
+	if title == "" {
+		http.Error(w, "Recipe title cannot be empty", http.StatusBadRequest)
+		return
+	}
+
+	if len([]rune(title)) > 200 {
+		http.Error(w, "Recipe title cannot exceed 200 characters", http.StatusBadRequest)
+		return
+	}
+
+	description := strings.TrimSpace(r.PostFormValue("description"))
+	if len([]rune(description)) > 2000 {
+		http.Error(w, "Recipe description cannot exceed 2000 characters", http.StatusBadRequest)
+		return
+	}
+
+	tags := r.PostForm["tags"]
+
+	servings, err := strconv.Atoi(r.PostFormValue("servings"))
+	if err != nil || servings <= 0 {
+		http.Error(w, "Servings must be a positive number", http.StatusBadRequest)
+		return
+	}
+
+	prepTime, err := strconv.Atoi(r.PostFormValue("prep_time_minutes"))
+	if err != nil || prepTime < 0 {
+		http.Error(w, "Invalid preparation time", http.StatusBadRequest)
+		return
+	}
+
+	names := r.PostForm["ingredient_name"]
+	quantities := r.PostForm["ingredient_qty"]
+	units := r.PostForm["ingredient_unit"]
+
+	var ingredients []services.Ingredient
+	for i, name := range names {
+		name = strings.TrimSpace(name)
+		if name == "" {
+			continue
+		}
+		ingredient := services.Ingredient{Name: name}
+		if i < len(quantities) {
+			ingredient.Quantity = strings.TrimSpace(quantities[i])
+		}
+		if i < len(units) {
+			ingredient.Unit = units[i]
+		}
+		ingredients = append(ingredients, ingredient)
+	}
+
+	instructions := r.PostForm["step_instruction"]
+	notes := r.PostForm["step_note"]
+	stepIngredients := r.PostForm["step_ingredients"]
+
+	var steps []services.Step
+	for i, instruction := range instructions {
+		instruction = strings.TrimSpace(strings.ReplaceAll(instruction, "\r\n", "\n"))
+		if instruction == "" {
+			continue
+		}
+		step := services.Step{StepNumber: len(steps) + 1, Instruction: instruction}
+		if i < len(notes) {
+			step.Notes = strings.TrimSpace(notes[i])
+		}
+		if i < len(stepIngredients) {
+			raw := strings.ReplaceAll(strings.Trim(stepIngredients[i], "[] "), "  ", ",")
+			for _, name := range strings.Split(raw, ",") {
+				if name = strings.TrimSpace(name); name != "" {
+					step.StepIngredients = append(step.StepIngredients, services.StepIngredient{Ingredient: name})
+				}
+			}
+		}
+		steps = append(steps, step)
+	}
+
+	data := services.RecipeUpdate{
+		Title:           title,
+		Description:     description,
+		Tags:            tags,
+		Servings:        servings,
+		PrepTimeMinutes: prepTime,
+		Ingredients:     ingredients,
+		Steps:           steps,
+	}
+
+	if err := a.Recipes.UpdateRecipe(userID, recipeID, data); err != nil {
+		if errors.Is(err, services.ErrRecipeNotFound) {
+			http.NotFound(w, r)
+			return
+		}
+
+		log.Printf("Failed to update recipe: %v", err)
+		http.Error(w, "Unable to update recipe", http.StatusInternalServerError)
+		return
+	}
+	http.Redirect(w, r, "/recipes/v1/"+strconv.FormatInt(recipeID, 10), http.StatusSeeOther)
 }

@@ -14,7 +14,7 @@
 <div class="recipe-page">
 
     <div class="recipe-header">
-        {{ if .IsOwner }}
+        {{ if and .UserID (eq .UserID .OwnerID) }}
             <details class="recipe-actions">
                 <summary class="recipe-actions-button">
                     <img src="/static/icon/more.png" alt="Recipe options">
@@ -23,11 +23,14 @@
                 <div class="recipe-actions-options">
                     <form
                         method="POST"
-                        action="/recipes/v1/delete/{{ .RecipeID }}"
+                        action="/recipes/v1/delete-recipe/{{ .RecipeID }}"
                         hx-boost="true"
                         hx-confirm="Delete &quot;{{ .Title }}&quot;? This cannot be undone."
                     >
                         <button type="submit">Delete</button>
+                    </form>
+                    <form method="GET" action="/recipes/v1/edit-recipe/{{ .RecipeID }}">
+                        <button type="submit" onclick="this.closest('details').open = false;">Edit</button>
                     </form>
                 </div>
             </details>
@@ -38,9 +41,7 @@
             <h1>{{.Title}}</h1>
             <p class="recipe-author">Created by: {{.CreatorUsername}}</p>
 
-            <p class="recipe-description">
-                {{.Description}}
-            </p>
+            <p class="recipe-description">{{.Description}}</p>
 
             <p class="recipe-meta">
                 {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
@@ -71,19 +72,15 @@
             <h2>Steps</h2>
             <ol>
                 {{range .Steps}}
-                    {{$stepID := .StepNumber}}
-                    {{$recipeID := .RecipeVersionID}}
                     <li>
                         <p>{{.Instruction}}</p>
-                        {{if $.StepIngredients}}
+                        {{if .StepIngredients}}
                             <i>Ingredients Used</i><br>
-                            {{range $.StepIngredients}}
-                                {{if and (eq .StepID $stepID) (eq .RecipeID $recipeID)}}
-                                    <ul>
-                                        <li>{{.Ingredient}}</li>
-                                    </ul>
+                            <ul>
+                                {{range .StepIngredients}}
+                                    <li>{{.Ingredient}}</li>
                                 {{end}}
-                            {{end}}
+                            </ul>
                         {{end}}
                         {{if .Notes}}
                             <small>{{.Notes}}</small>

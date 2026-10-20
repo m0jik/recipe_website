@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <title>Edit Recipe</title>
+        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
+        <link rel="stylesheet" href="/static/edit_recipe.css?v=restore-2">
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+</head>
+<body>
+{{template "nav" .}}
+<div class="edit-recipe-page">
+<!-- CANCEL -->
+<!-- SAVE -->
+<form method="POST" action="/recipes/v1/save-recipe/{{.RecipeID}}">
+    <button type="submit" disabled hidden aria-hidden="true"></button>
+    <div class="save-recipe-button">
+        <button type="button" class="btn-secondary" onclick="window.location.href='/recipes/v1/{{.RecipeID}}'">Cancel</button>
+        <button type="submit">Save</button>
+    </div>
+
+    {{if .RestoredVersion}}
+        <p class="restore-notice">Version {{.RestoredVersion}} restored. Save to keep it as a new version.</p>
+    {{end}}
+
+<div class="editor-section">
+
+    <nav class="recipe-sidebar">
+        <div class="sidebar-recipe">
+            <img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}" alt="">
+            <p class="sidebar-recipe-label">Your recipe</p>
+            <p class="sidebar-recipe-title">{{.Title}}</p>
+        </div>
+        <a href="#details-section">Details</a>
+        <a href="#ingredients-section">Ingredients</a>
+        <a href="#steps-and-notes-section">Steps &amp; Notes</a>
+        <a href="#version-history-section">Version History</a>
+    </nav>
+
+    <div class="editor-content">
+
+        <!-- DETAILS -->
+        <section id="details-section">
+            <h2>Details</h2>
+            <div class="field">
+                <label>Title<input type="text" name="title" value="{{.Title}}" maxlength="200" required></label>
+            </div>
+            
+            <div class="field">
+                <label>Description<textarea name="description" maxlength="2000">{{.Description}}</textarea></label>
+            </div>
+
+            <div class="section-block">
+                <div class="section-title">Tags</div>
+
+                <div id="tags-list" class="item-list">
+                    {{range .Tags}}
+                        {{template "tag-row" .}}
+                    {{end}}
+                </div>
+                <div class="add-row">
+                    <div class="select-wrap">
+                        <select id="recipe-tag" name="tag">
+                            <option value="" disabled selected>Choose a tag</option>
+                            {{range .PresetTagGroups}}
+                                <optgroup label="{{.Name}}">
+                                    {{range .Tags}}
+                                        <option value="{{.}}">{{.}}</option>
+                                    {{end}}
+                                </optgroup>
+                            {{end}}
+                        </select>
+                    </div>
+
+                    <button id="tag-add" type="button"
+                            hx-get="/recipes/v1/tag-row"
+                            hx-include="#recipe-tag"
+                            hx-target="#tags-list"
+                            hx-swap="beforeend"
+                            class="btn-secondary">
+                        + Add
+                    </button>
+                </div>
+
+                <div class="field-row">
+                    <div class="field">
+                        <label>Servings<input type="number" name="servings" min="1" value="{{.Servings}}"></label>
+                    </div>
+                    <div class="field">
+                        <label>Prep time<input type="number" name="prep_time_minutes" value="{{.PrepTimeMinutes}}" min="0"></label>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- INGREDIENTS -->
+        <section id="ingredients-section">
+            <h2>Ingredients</h2>
+            <div class="existing-ingredients">
+                {{range .Ingredients}}
+                    <div class="item-row">
+                        <div class="field">
+                            <label><input type="text" name="ingredient_qty" value="{{.Quantity}}" aria-label="Quantity"></label>
+                        </div>
+
+                        <div class="field">
+                            <label><span class="select-wrap"><select name="ingredient_unit" aria-label="Unit">
+                            <option value="" {{if not .Unit}}selected{{end}}>Unit</option>
+                            {{ template "unit-options" .Unit }}
+                        </select></span></label>
+                        </div>
+
+                        <div class="field">
+                            <label><input type="text" name="ingredient_name" value="{{.Name}}" aria-label="Ingredient"></label>
+                        </div>
+
+                        <button type="button" class="btn-secondary" onclick="this.closest('.item-row').remove()">✕</button>
+                    </div>
+                {{end}}
+            </div>
+            <div id="ingredients-list" class="item-list"></div>
+
+            <div class="add-row">
+                {{ template "ingredient-qty-input" }}
+                <div class="select-wrap">
+                    {{ template "ingredient-unit-select" }}
+                </div>
+                {{ template "ingredient-name-input" }}
+                <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
+                    + Add
+                </button>
+            </div>
+        </section>
+
+        <!-- STEPS & NOTES -->
+        <section id="steps-and-notes-section">
+            <h2>Steps &amp; Notes</h2>
+            <div class="existing-steps">
+                {{range .Steps}}
+                    <div class="item-row">
+                        <div class="field">
+                            <label><textarea name="step_instruction" aria-label="Step {{.StepNumber}}">{{.Instruction}}</textarea></label>
+                        </div>
+
+                        <div class="field">
+                            <label><input type="text" name="step_ingredients" value="{{range $i, $si := .StepIngredients}}{{if $i}}, {{end}}{{$si.Ingredient}}{{end}}" placeholder="Step ingredients (comma separated)" aria-label="Ingredients for step {{.StepNumber}}"></label>
+                        </div>
+
+                        <div class="field">
+                            <label><input type="text" name="step_note" value="{{.Notes}}" placeholder="Note (optional)" aria-label="Note for step {{.StepNumber}}"></label>
+                        </div>
+
+                        <button type="button" class="btn-secondary" onclick="this.closest('.item-row').remove()">✕</button>
+                    </div>
+                {{end}}
+            </div>
+            <div id="steps-list" class="item-list"></div>
+
+            <div class="step-add-row">
+
+                {{ template "step-text-input" }}
+
+                <div class="step-add-bottom">
+                    {{ template "step-ingredients-input" }}
+                </div>
+
+                <div class="step-add-bottom">
+                    {{ template "step-note-input" }}
+                    <button id="step-add" type="button"
+                            hx-get="/recipes/v1/step-row"
+                            hx-include="#step-text, #step-note, #step-ingredients-list"
+                            hx-target="#steps-list"
+                            hx-swap="beforeend"
+                            class="btn-secondary">
+                        + Add
+                    </button>
+
+                </div>
+            </div>
+        </section>
+        <!-- VERSION CONTROL -->
+        <section id="version-history-section">
+            <h2>Version History</h2>
+            <div class="select-wrap">
+                <select id="recipe-version" name="version_id" aria-label="Recipe version"
+                        hx-get="/recipes/v1/edit-recipe/{{.RecipeID}}/version"
+                        hx-trigger="load, change"
+                        hx-target="#version-preview">
+                    {{range $i, $v := .Versions}}
+                        <option value="{{$v.ID}}">Version {{$v.VersionNumber}}{{if eq $i 0}} (current){{end}} · {{$v.CreatedAt.Format "Jan 2, 2006"}}</option>
+                    {{end}}
+                </select>
+            </div>
+            <div id="version-preview"></div>
+        </section>
+    </div>
+</div>
+</form>
+</div>
+</body>
+
+</html>
