@@ -156,6 +156,7 @@ func main() {
 	mux.HandleFunc("/users/v1/request_reset", app.handleRequestReset)
 	mux.HandleFunc("/users/v1/reset", app.handleReset)
 	mux.HandleFunc("/users/v1/verify", app.handleVerifyEmail)
+	mux.HandleFunc("/users/v1/cook-book", app.handleCookBook)
 
 	// Recipe
 	mux.HandleFunc("/recipes/v1/new", app.createNewRecipe)
@@ -1899,4 +1900,59 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	http.Redirect(w, r, "/recipes/v1/"+strconv.FormatInt(recipeID, 10), http.StatusSeeOther)
+}
+
+func (a *App) handleCookBook(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	var userID int64
+
+	if uid, ok := a.getUserIDFromSession(r); ok {
+		userID = int64(uid)
+		u, err := a.Users.GetUsernameByID(uid)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+
+	query := r.URL.Query().Get("query")
+	tags := normalizeTagFilters(r.URL.Query()["tag"])
+	maxTime, _ := strconv.Atoi(r.URL.Query().Get("max_time"))
+	if maxTime < 0 {
+		maxTime = 0
+	}
+
+	var recipes []services.RecipeInfo
+	var err error
+
+	if query != "" || len(tags) > 0 || maxTime > 0 {
+		recipes, err = a.Recipes.Search(query, tags, maxTime) // filtered results
+	} else {
+		recipes, err = a.Recipes.GetAllRecipes() // all recipes
+	}
+
+	if err != nil {
+		log.Printf("Error loading recipes: %v", err)
+		http.Error(w, "Failed to load recipes", http.StatusInternalServerError)
+		return
+	}
+
+	data := PageData{
+		UserID:          userID,
+		Username:        username,
+		Recipes:         recipes,
+		Query:           query,
+		SelectedTags:    tags,
+		MaxTime:         maxTime,
+		PresetTagGroups: services.PresetTagGroups,
+	}
+
+	err = tpl.ExecuteTemplate(w, "cookBook.html", data)
+
+	if err != nil {
+		log.Printf("Error rendering index template: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
 }

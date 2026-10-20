@@ -146,6 +146,17 @@ func Migrate(db *sqlx.DB) error {
 		FOREIGN KEY (recipe_id) REFERENCES instructionsV1(recipe_version_id)
 		FOREIGN KEY (step_id) REFERENCES instructionsV1(id)
 	);
+
+	CREATE TABLE IF NOT EXISTS userCookBookV1 (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		recipe_id INTEGER NOT NULL,
+		source_recipe_version_id INTEGER,
+		UNIQUE (user_id, source_recipe_version_id),
+		FOREIGN KEY (user_id) REFERENCES usersV1(id),
+		FOREIGN KEY (recipe_id) REFERENCES recipeV1(id),
+		FOREIGN KEY (source_recipe_version_id) REFERENCES recipe_versionsV1(id)
+	);
 	`
 	_, err := db.Exec(schema)
 	return err
