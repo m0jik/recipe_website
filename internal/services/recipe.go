@@ -902,3 +902,57 @@ func stepAndNotesEqual(old, updated []Step) bool {
 			})
 	})
 }
+
+func (s *RecipeService) GetCookBookRecipes(userID int) ([]RecipeInfo, error) {
+	rows, err := s.DB.Query(`
+		SELECT 
+			r.id, 
+			r.user_id, 
+			r.title, 
+			COALESCE(r.description, ''), 
+			COALESCE(r.image_url, ''), 
+			COALESCE(
+				(
+					SELECT GROUP_CONCAT(t.name, ',') 
+					FROM tagsV1 t 
+					JOIN recipeTagsV1 rt ON rt.tag_id = t.id 
+					WHERE rt.recipe_id = r.id
+				), 
+				''
+			), 
+			COALESCE(r.servings,0), 
+			COALESCE(r.prep_time_minutes, 0) 
+		FROM cookBookV1 cb 
+		JOIN recipesV1 r on r.id = cb.recipe_id 
+		WHERE cb.user_id = ? 
+		ORDER BY cb.id DESC
+	`, userID)
+
+	if err != nil {
+		return nil, err
+	}
+
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
+
+	var recipes []RecipeInfo
+
+	for rows.Next() {
+		var ri RecipeInfo
+		var tags string
+		if err := rows.Scan(&ri.ID, &ri.UserID, &ri.Title, &ri.Description, &ri.ImageURL, &tags, &ri.Servings, &ri.PrepTimeMinutes); err != nil {
+			return nil, err
+		}
+		ri.Tags = splitTags(tags)
+		recipes = append(recipes, ri)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return recipes, nil
+}

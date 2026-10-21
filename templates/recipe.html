@@ -47,7 +47,11 @@
                 {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
                 {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
             </p>
-            {{ template "shopping-btn" . }}
+
+            <div class="recipe-button-group">
+                {{ template "shopping-btn" . }}  
+                {{ template "cookbook-btn" . }}
+            </div>
 
             {{if .Tags}}
                 <p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . nil ""}}">#{{.}}</a> {{end}}</p>
