@@ -303,9 +303,9 @@
 
 /* the > that opens the per recipe breakdown */
 .row-expand {
-    display: inline-block;
+    display: inline;
     cursor: pointer;
-    padding: 4px 6px;
+    padding: 8px 10px;
     line-height: 1;
     color: #888;
 }
@@ -497,10 +497,16 @@ shopping list buttons
 /* Keep long shopping-list item names from forcing the table wider */
 .shopping-table {
     width: 100%;
-    table-layout: fixed;
+    table-layout: auto;
 }
 
 .shopping-table .col-item {
     overflow-wrap: anywhere;
     min-width: 0;
 }
+
+/* @media (max-width: 640px){
+    #shopping-table-wrap .shopping-table{
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 64px;
+    }
+} */
