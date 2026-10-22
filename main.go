@@ -1918,13 +1918,20 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCookBook(w http.ResponseWriter, r *http.Request) {
-	userID, ok := a.getUserIDFromSession(r)
-	if !ok {
-		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
-		return
+	username := ""
+	var userID int64
+
+	if uid, ok := a.getUserIDFromSession(r); ok {
+		userID = int64(uid)
+		u, err := a.Users.GetUsernameByID(uid)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
 	}
 
-	recipes, err := a.Recipes.GetCookBookRecipes(userID)
+	recipes, err := a.Recipes.GetCookBookRecipes(int(userID))
 	if err != nil {
 		log.Printf("Error retrieving cookbook for user ID %d: %v", userID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1933,7 +1940,8 @@ func (a *App) handleCookBook(w http.ResponseWriter, r *http.Request) {
 
 	data := map[string]any{
 		"Query":   "",
-		"UserID":  userID,
+		"UserID":  int(userID),
+		"Username":username,
 		"Recipes": recipes,
 	}
 
