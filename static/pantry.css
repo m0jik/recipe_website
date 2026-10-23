@@ -1,0 +1,36 @@
+/* =========================
+   PANTRY PAGE
+========================= */
+.pantry-panel {
+    background: #fff;
+    border: 1px solid #e3e3e3;
+    border-radius: 12px;
+    padding: 26px 28px 22px;
+    margin-top: 20px;
+    text-align: left;
+}
+
+.pantry-panel h2 {
+    margin: 0 0 18px;
+    font-size: 30px;
+    line-height: 1.1;
+}
+
+/* Keep pantry ingredient names and remove buttons aligned */
+.pantry-panel .item-row {
+display: flex;
+align-items: center;
+flex-wrap: nowrap;
+gap: 12px;
+}
+
+.pantry-panel .item-row span {
+flex: 1;
+min-width: 0;
+overflow-wrap: anywhere;
+}
+
+.pantry-panel .item-row .btn-remove {
+flex-shrink: 0;
+align-self: center;
+}

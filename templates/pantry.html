@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta charset="utf-8">
+        <title>Pantry</title>
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
+        <link rel="stylesheet" href="/static/pantry.css">
+    </head>
+    <body>
+        {{template "nav" .}}
+        <main class="container">
+            {{template "pantry-section" .}}
+        </main>
+    </body>
+</html>
+{{ define "pantry-section" }}
+<section class="pantry-panel" id="pantry-section">
+    <h2>Pantry</h2>
+
+    {{ if .Error }}
+        <p class="form-error" role="alert">{{ .Error }}</p>
+    {{ end }}
+
+    {{ if .Items }}
+        {{template "add-row" .}}
+        <div id="pantry-list" class="item-list">
+            {{ range .Items }}
+                {{template "pantry-row" .}}
+            {{ end }}
+        </div>
+    {{ else }}
+        <p>Pantry is empty.</p>
+        {{template "add-row" .}}
+    {{ end }}
+
+</section>
+{{ end }}
+
+{{ define "add-row" }}
+    <div class="add-row">
+        <input type="text" id="pantry-qty" name="quantity" placeholder="2" class="qty">
+
+        <select id="pantry-unit" name="unit">
+            <option value="" disabled selected>Unit</option>
+            {{ template "unit-options" "" }}
+        </select>
+
+        <input type="text" id="pantry-name" name="name" placeholder="Ingredient name"
+               onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('pantry-add').click();}">
+
+        <button id="pantry-add" type="button" hx-post="/pantry/v1/add" hx-include="#pantry-qty, #pantry-unit, #pantry-name" hx-target="#pantry-section" hx-swap="outerHTML" class="btn-secondary">
+            + Add
+        </button>
+    </div>
+{{ end }}

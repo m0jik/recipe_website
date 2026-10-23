@@ -3,4 +3,9 @@ uploads/*
 .vscode/*
 .idea/
 recipe_website
-*.db
+app.db
+config.json
+
+/tmp/
+.air.toml
+recipe_website.exe

@@ -1,30 +1,57 @@
 <!doctype html>
 <html>
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="utf-8">
     <title>{{.Title}}</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=recipe-image-size-1v=responsive-2">
+    <link rel="stylesheet" href="/static/recipe-options.css">
+    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 
 <body>
-
+    {{template "nav" .}}
 <div class="recipe-page">
 
     <div class="recipe-header">
-        <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image">
+        {{ if and .UserID (eq .UserID .OwnerID) }}
+            <details class="recipe-actions">
+                <summary class="recipe-actions-button">
+                    <img src="/static/icon/more.png" alt="Recipe options">
+                </summary>
+
+                <div class="recipe-actions-options">
+                    <form
+                        method="POST"
+                        action="/recipes/v1/delete-recipe/{{ .RecipeID }}"
+                        hx-boost="true"
+                        hx-confirm="Delete &quot;{{ .Title }}&quot;? This cannot be undone."
+                    >
+                        <button type="submit">Delete</button>
+                    </form>
+                    <form method="GET" action="/recipes/v1/edit-recipe/{{ .RecipeID }}">
+                        <button type="submit" onclick="this.closest('details').open = false;">Edit</button>
+                    </form>
+                </div>
+            </details>
+        {{ end }}
+        <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image" onerror="this.onerror=null; this.src='/static/placeholder.svg'">
 
         <div class="recipe-info">
             <h1>{{.Title}}</h1>
-            <p class="recipe-author">Created by: {{.Username}}</p>
+            <p class="recipe-author">Created by: {{.CreatorUsername}}</p>
 
-            <p class="recipe-description">
-                {{.Description}}
-            </p>
+            <p class="recipe-description">{{.Description}}</p>
 
             <p class="recipe-meta">
                 {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
                 {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
             </p>
+            {{ template "shopping-btn" . }}
+
+            {{if .Tags}}
+                <p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . nil ""}}">#{{.}}</a> {{end}}</p>
+            {{end}}
         </div>
     </div>
 
@@ -47,6 +74,14 @@
                 {{range .Steps}}
                     <li>
                         <p>{{.Instruction}}</p>
+                        {{if .StepIngredients}}
+                            <i>Ingredients Used</i><br>
+                            <ul>
+                                {{range .StepIngredients}}
+                                    <li>{{.Ingredient}}</li>
+                                {{end}}
+                            </ul>
+                        {{end}}
                         {{if .Notes}}
                             <small>{{.Notes}}</small>
                         {{end}}

@@ -1,0 +1,22 @@
+{{ define "unit-options" }}
+<optgroup label="US">
+    <option value="cup" {{if eq . "cup"}}selected{{end}}>cup</option>
+    <option value="tbsp" {{if eq . "tbsp"}}selected{{end}}>tbsp</option>
+    <option value="tsp" {{if eq . "tsp"}}selected{{end}}>tsp</option>
+    <option value="oz" {{if eq . "oz"}}selected{{end}}>oz</option>
+    <option value="lb" {{if eq . "lb"}}selected{{end}}>lb</option>
+</optgroup>
+
+<optgroup label="Metric">
+    <option value="ml" {{if eq . "ml"}}selected{{end}}>mL</option>
+    <option value="liter" {{if eq . "liter"}}selected{{end}}>liter</option>
+    <option value="grams" {{if eq . "grams"}}selected{{end}}>grams</option>
+    <option value="kg" {{if eq . "kg"}}selected{{end}}>kg</option>
+</optgroup>
+
+<optgroup label="Other">
+    <option value="piece" {{if eq . "piece"}}selected{{end}}>piece</option>
+    <option value="pinch" {{if eq . "pinch"}}selected{{end}}>pinch</option>
+    <option value="whole" {{if eq . "whole"}}selected{{end}}>whole</option>
+</optgroup>
+{{ end }}

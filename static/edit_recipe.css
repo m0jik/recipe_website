@@ -1,0 +1,400 @@
+/* The screen-tall scroll margin leaves the browser nowhere to scroll on desktop, so clicking a tab doesn't jump the page */
+.editor-content > section {
+    display: none;
+    scroll-margin-top: 100vh;
+}
+
+.editor-content > section:target {
+    display: block;
+}
+
+/* No # in the URL yet: show Details */
+.editor-content:not(:has(section:target)) #details-section {
+    display: block;
+}
+
+.edit-recipe-page {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 20px;
+}
+
+.save-recipe-button {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.save-recipe-button button {
+    padding: 10px 16px;
+    border-radius: 999px;
+    font-weight: 600;
+}
+
+.save-recipe-button button[type="submit"] {
+    background: #0f0f0f;
+}
+
+.save-recipe-button button[type="submit"]:hover {
+    background: #272727;
+}
+
+.editor-section {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.recipe-sidebar,
+.editor-content {
+    background: white;
+    border-radius: 10px;
+}
+
+.recipe-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px;
+}
+
+.sidebar-recipe {
+    margin-bottom: 8px;
+}
+
+.sidebar-recipe img {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.sidebar-recipe-label {
+    margin: 12px 4px 2px;
+    font-size: 15px;
+    font-weight: 700;
+    color: #0f0f0f;
+}
+
+.sidebar-recipe-title {
+    margin: 0 4px;
+    font-size: 13px;
+    color: #606060;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.recipe-sidebar a {
+    padding: 12px 16px;
+    border-radius: 10px;
+    font-size: 15px;
+    color: #0f0f0f;
+}
+
+.recipe-sidebar a:hover {
+    background: #f2f2f2;
+}
+
+/* Highlight the tab whose section is showing (Details when there's no # in the URL) */
+.editor-section:has(#details-section:target) a[href="#details-section"],
+.editor-section:has(#ingredients-section:target) a[href="#ingredients-section"],
+.editor-section:has(#steps-and-notes-section:target) a[href="#steps-and-notes-section"],
+.editor-section:has(#version-history-section:target) a[href="#version-history-section"],
+.editor-section:not(:has(section:target)) a[href="#details-section"] {
+    background: #f2f2f2;
+    font-weight: 700;
+}
+
+.editor-content {
+    padding: 20px;
+}
+
+.editor-content h2 {
+    margin-top: 0;
+}
+
+#details-section > .field {
+    margin-bottom: 16px;
+}
+
+#details-section .field-row {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0px, 1fr));
+    gap: 16px;
+    margin-top: 16px;
+}
+
+/* Keep above .select-wrap select, which widens the right padding */
+.editor-content .field label,
+.editor-section select,
+#ingredients-section .add-row input {
+    padding: 10px 14px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+}
+
+.editor-content .field label:focus-within,
+.editor-section select:focus,
+#ingredients-section .add-row input:focus {
+    border-color: #4a90e2;
+}
+
+/* The blue border above replaces the browser's focus outline */
+.editor-section select,
+.editor-content .field input,
+.editor-content .field textarea,
+#ingredients-section .add-row input {
+    font-family: inherit;
+    font-size: 15px;
+    color: #0f0f0f;
+    outline: none;
+}
+
+.editor-content .field label {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    font-size: 13px;
+    color: #606060;
+}
+
+.editor-content .field input,
+.editor-content .field textarea {
+    padding: 0;
+    border: none;
+}
+
+#details-section .field-row label {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+}
+
+#details-section .field-row input {
+    width: 56px;
+}
+
+.editor-section select {
+    background-color: white;
+    cursor: pointer;
+}
+
+.editor-section select:has(option[value=""]:checked) {
+    color: #606060;
+}
+
+.editor-section select option,
+.editor-section select optgroup {
+    color: #0f0f0f;
+}
+
+/* Hide the browser arrow and leave room on the right for our own */
+.select-wrap {
+    position: relative;
+}
+
+.select-wrap select {
+    appearance: none;
+    padding-right: 40px;
+}
+
+/* Our arrow: a small square showing only its right and bottom borders, rotated into a V */
+.select-wrap::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    right: 16px;
+    width: 7px;
+    height: 7px;
+    border-right: 2px solid #606060;
+    border-bottom: 2px solid #606060;
+    transform: translateY(-70%) rotate(45deg);
+    pointer-events: none;
+}
+
+#recipe-tag {
+    width: 200px;
+}
+#version-history-section .select-wrap {
+    display: inline-block;
+}
+
+#version-history-section {
+    position: relative;
+}
+
+.restore-menu {
+    position: absolute;
+    top: 0;
+    right: 0;
+}
+
+.restore-menu .btn-primary {
+    border-radius: 999px;
+    font-size: 13.333px;
+    font-weight: 600;
+}
+
+.restore-menu summary {
+    list-style: none;
+}
+
+.restore-menu summary::-webkit-details-marker {
+    display: none;
+}
+
+.restore-menu summary::after {
+    content: " ▾";
+}
+
+.restore-menu-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    right: 0;
+    width: 280px;
+    max-width: calc(100vw - 48px);
+    box-sizing: border-box;
+    background: white;
+    border: 1px solid #ddd;
+    border-radius: 8px;
+    padding: 12px 14px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    z-index: 10;
+}
+
+.restore-menu-dropdown p {
+    margin: 0 0 10px;
+    font-size: 14px;
+}
+
+.restore-menu-dropdown a {
+    display: inline-block;
+    text-decoration: none;
+}
+
+.restore-notice {
+    margin: 12px 0 0;
+    padding: 12px 16px;
+    border-radius: 10px;
+    background: #eef4fb;
+    color: #356da8;
+}
+
+.existing-ingredients,
+.existing-steps {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+/* No ingredients or steps yet: hide the empty lists so their margins don't push the add row down */
+.existing-ingredients:not(:has(.item-row)),
+#ingredients-list:empty,
+.existing-steps:not(:has(.item-row)),
+#steps-list:empty {
+    display: none;
+}
+
+#ingredients-section .add-row input::placeholder {
+    color: #606060;
+}
+
+/* Fill the Unit column, so the arrow sits at the column's right edge */
+#ingredients-section .add-row select {
+    width: 100%;
+}
+
+.existing-ingredients .item-row,
+#ingredients-section .add-row,
+.existing-steps .item-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 2fr) 64px;
+    align-items: center;
+    gap: 12px;
+    padding: 0;
+    background: none;
+}
+
+/* Step on top, then step ingredients, then note, ✕ to the right of all three */
+.existing-steps .item-row {
+    grid-template-columns: minmax(0, 1fr) 64px;
+}
+
+.existing-steps .item-row > .field {
+    grid-column: 1;
+}
+
+.existing-steps .item-row > button {
+    grid-column: 2;
+    grid-row: 1 / 4;
+}
+
+/* Line between the steps and the add row, only once there are steps above it */
+#steps-and-notes-section:has(.item-row) .step-add-row {
+    border-top: 4px solid #eee;
+    padding-top: 16px;
+}
+
+.existing-ingredients .item-row > button,
+#ingredients-section .add-row > button,
+.existing-steps .item-row > button {
+    justify-self: center;
+}
+
+/* The field already draws the box, so drop the dropdown's own */
+.editor-content .field select {
+    width: 100%;
+    padding: 0 24px 0 0;
+    border: none;
+}
+
+/* Keep the arrow as far in from the box edge as on the tag dropdown */
+.editor-content .field .select-wrap::after {
+    right: 2px;
+}
+
+/* Grey and hover come from .btn-secondary in style.css */
+.existing-ingredients .item-row > button,
+.existing-steps .item-row > button {
+    border-radius: 999px;
+    font-size: 16px;
+}
+
+@media (max-width: 640px) {
+    .editor-section {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .editor-content > section {
+        scroll-margin-top: 32px;
+    }
+
+    /* Quantity and Unit on the first line, Ingredient on the second */
+    .existing-ingredients .item-row,
+    #ingredients-section .add-row {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 64px;
+    }
+
+    /* Editable rows: ✕ to the right of both lines */
+    .existing-ingredients .item-row > .field:has([name="ingredient_name"]) {
+        grid-column: 1 / 3;
+    }
+
+    .existing-ingredients .item-row > button {
+        grid-column: 3;
+        grid-row: 1 / 3;
+    }
+
+    /* Add row: "+ Add" next to Ingredient name. Unit stretches over the button column, so its right edge lines up with "+ Add" below */
+    #ingredients-section .add-row > .select-wrap {
+        grid-column: 2 / 4;
+    }
+
+    #ing-name {
+        grid-column: 1 / 3;
+    }
+}

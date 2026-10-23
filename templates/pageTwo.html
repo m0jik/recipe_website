@@ -1,13 +1,14 @@
 <!doctype html>
 <html lang="en">
 <head>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="UTF-8">
     <title>New Recipe - Step 2</title>
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
 </head>
 <body>
-
+    {{ template "nav" .}}
 <div class="card">
 
     <div class="card-header">
@@ -22,10 +23,12 @@
     </div>
 
     <form method="POST" action="/recipes/v1/submit">
+        <button type="submit" disabled hidden aria-hidden="true"></button>
 
         <input type="hidden" name="title" value="{{ .Title }}">
         <input type="hidden" name="description" value="{{ .Description }}">
         <input type="hidden" name="image" value="{{ .Image }}">
+        {{range .Tags}}<input type="hidden" name="tags" value="{{ . }}">{{end}}
         <input type="hidden" name="servings" value="{{ .Servings }}">
         <input type="hidden" name="prep_time_minutes" value="{{ .PrepTime }}">
 
@@ -65,7 +68,13 @@
                     <input type="text" id="ing-name" name="name" placeholder="Ingredient name"
                            onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('ing-add').click();}">
 
-                    <button id="ing-add" type="button" hx-get="/recipes/v1/ingredient-row" hx-include="#ing-qty, #ing-unit, #ing-name" hx-target="#ingredients-list" hx-swap="beforeend" class="btn-secondary">
+                    <button id="ing-add"
+                    type="button"
+                        hx-get="/recipes/v1/ingredient-row"
+                        hx-include="#ing-qty, #ing-unit, #ing-name"
+                        hx-target="#ingredients-list"
+                        hx-swap="beforeend"
+                        class="btn-secondary">
                         + Add
                     </button>
                 </div>
@@ -78,28 +87,34 @@
                 <div id="steps-list" class="item-list"></div>
 
                 <div class="step-add-row">
+                    {{ template "step-text-input" }}
+                    <div class="step-add-bottom">
 
-                    <textarea id="step-text" name="step"
-                              placeholder="Describe this step..."></textarea>
+                        <input type="text"
+                               id="step-ingredients-list"
+                               name="step_ingredients"
+                               placeholder="Enter step ingredients separated by a comma...">
+
+                    </div>
 
                     <div class="step-add-bottom">
 
                         <input type="text"
-                               id="step-note"
-                               name="note"
-                               placeholder="Note (optional)"
-                               onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
+                            id="step-note"
+                            name="note"
+                            placeholder="Note (optional)"
+                            onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
 
                         <button id="step-add" type="button"
-                                hx-get="/recipes/v1/step-row"
-                                hx-include="#step-text, #step-note"
-                                hx-target="#steps-list"
-                                hx-swap="beforeend"
-                                class="btn-secondary">
+                            hx-get="/recipes/v1/step-row"
+                            hx-include="#step-text, #step-note, #step-ingredients-list"
+                            hx-target="#steps-list"
+                            hx-swap="beforeend"
+                            class="btn-secondary">
                             + Add
                         </button>
-
                     </div>
+                    
                 </div>
             </div>
 

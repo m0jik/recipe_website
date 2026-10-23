@@ -46,6 +46,21 @@ func Migrate(db *sqlx.DB) error {
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
 	);
 
+	CREATE TABLE IF NOT EXISTS tagsV1 (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		name TEXT NOT NULL UNIQUE
+	);
+
+	CREATE TABLE IF NOT EXISTS recipeTagsV1 (
+		recipe_id INTEGER NOT NULL,
+		tag_id INTEGER NOT NULL,
+		PRIMARY KEY (recipe_id, tag_id),
+		FOREIGN KEY (recipe_id) REFERENCES recipesV1(id),
+		FOREIGN KEY (tag_id) REFERENCES tagsV1(id)
+	);
+
+	CREATE INDEX IF NOT EXISTS idx_recipeTagsV1_tag_id ON recipeTagsV1(tag_id);
+
 	CREATE TABLE IF NOT EXISTS recipe_versionsV1(
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		recipe_id INTEGER NOT NULL,
@@ -70,13 +85,14 @@ func Migrate(db *sqlx.DB) error {
 		step_number INTEGER NOT NULL,
 		instruction TEXT NOT NULL,
 		notes TEXT,
+		step_ingredients TEXT,
 		UNIQUE(recipe_version_id, step_number),
 		FOREIGN KEY (recipe_version_id) REFERENCES recipe_versionsV1(id)
 	);
 
 	CREATE TABLE IF NOT EXISTS passResetV1 (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id INTERGER NOT NULL,
+		user_id INTEGER NOT NULL,
 		token TEXT NOT NULL,
 		expires_at DATETIME NOT NULL,
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
@@ -84,10 +100,51 @@ func Migrate(db *sqlx.DB) error {
 
 	CREATE TABLE IF NOT EXISTS emailVerifyV1 (
 		id INTEGER PRIMARY KEY AUTOINCREMENT,
-		user_id INTERGER NOT NULL,
+		user_id INTEGER NOT NULL,
 		token TEXT NOT NULL,
 		expires_at DATETIME NOT NULL,
 		FOREIGN KEY (user_id) REFERENCES usersV1(id)
+	);
+	
+	CREATE TABLE IF NOT EXISTS userPantryV1 (
+		user_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		quantity TEXT NOT NULL,
+		unit TEXT NOT NULL DEFAULT '',
+		PRIMARY KEY (user_id, name, unit),
+		FOREIGN KEY (user_id) REFERENCES usersV1(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS userShoppingListV2 (
+		id INTEGER PRIMARY KEY AUTOINCREMENT,
+		user_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		quantity TEXT NOT NULL,
+		unit TEXT NOT NULL DEFAULT '',
+		source_recipe_version_id INTEGER,
+		UNIQUE (user_id, name, unit, source_recipe_version_id),
+		FOREIGN KEY (user_id) REFERENCES usersV1(id),
+		FOREIGN KEY (source_recipe_version_id) REFERENCES recipe_versionsV1(id)
+	);
+		
+	-- What the shopper did to a line, as opposed to what the recipes asked for:
+	CREATE TABLE IF NOT EXISTS userShoppingStateV1 (
+		user_id INTEGER NOT NULL,
+		name TEXT NOT NULL,
+		unit TEXT NOT NULL DEFAULT '',
+		checked BOOLEAN NOT NULL DEFAULT FALSE,
+		qty_override TEXT NOT NULL DEFAULT '',
+		PRIMARY KEY (user_id, name, unit),
+		FOREIGN KEY (user_id) REFERENCES usersV1(id)
+	);
+
+	CREATE TABLE IF NOT EXISTS step_ingredientsV1 (
+	    id INTEGER PRIMARY KEY AUTOINCREMENT,
+		recipe_id INTEGER NOT NULL,
+		step_id INTEGER NOT NULL,
+		step_ingredient TEXT NOT NULL,
+		FOREIGN KEY (recipe_id) REFERENCES instructionsV1(recipe_version_id)
+		FOREIGN KEY (step_id) REFERENCES instructionsV1(id)
 	);
 	`
 	_, err := db.Exec(schema)
