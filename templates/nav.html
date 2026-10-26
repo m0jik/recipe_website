@@ -25,7 +25,7 @@
                                 <legend>{{.Name}}</legend>
                                 <div class="tag-options">
                                     {{range .Tags}}
-                                        <label><input type="checkbox" name="tag" value="{{.}}" {{if hastag . $.SelectedTags}}checked{{end}}> #{{.}}</label>
+                                        <label><input type="checkbox" name="tag" value="{{.}}" {{if hastag . $.SelectedTags}}checked{{end}}> {{.}}</label>
                                     {{end}}
                                 </div>
                             </fieldset>
