@@ -457,6 +457,15 @@ button {
     resize: vertical;
 }
 
+.form-error {
+    margin: 0;
+    color: #b42318;
+    font-size: 14px;
+}
+.form-error:empty {
+    display: none;
+}
+
 button[type="submit"] {
     background: #4a90e2;
     color: white;

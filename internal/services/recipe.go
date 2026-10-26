@@ -65,6 +65,7 @@ type RecipeVersion struct {
 
 type RecipeUpdate struct {
 	Title           string
+	ImageURL        string
 	Description     string
 	Tags            []string
 	Servings        int
@@ -754,9 +755,9 @@ func (s *RecipeService) DeleteRecipe(recipeID int64) error {
 func (s *RecipeService) UpdateRecipeDetails(tx sqlExecutor, recipeID int64, data RecipeUpdate) error {
 	_, err := tx.Exec(`
 		UPDATE recipesV1
-		SET title = ?, description = ?, servings = ?, prep_time_minutes = ?
+		SET title = ?, description = ?, image_url = COALESCE(NULLIF(?, ''), image_url), servings = ?, prep_time_minutes = ?
 		WHERE id = ?
-	`, data.Title, data.Description, data.Servings, data.PrepTimeMinutes, recipeID)
+	`, data.Title, data.Description, data.ImageURL, data.Servings, data.PrepTimeMinutes, recipeID)
 	return err
 }
 
