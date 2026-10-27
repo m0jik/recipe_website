@@ -507,6 +507,7 @@ button[type="submit"]:hover {
     display: flex;
     gap: 8px;
     align-items: center;
+    padding: 10px;
 }
 
 .add-row input,

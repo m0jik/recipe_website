@@ -2,6 +2,7 @@ package services
 
 import (
 	"database/sql"
+	"fmt"
 	"log"
 	"strings"
 
@@ -21,8 +22,9 @@ type ShoppingListItem struct {
 	Need       string
 	InPantry   string
 	ToBuy      string
+	Bought     string
+	BoughtUnit string
 	Checked    bool
-	Overridden bool
 	Sources    []ShoppingListSource
 }
 
@@ -37,7 +39,7 @@ func (i ShoppingListItem) NeedsBuying() bool {
 	return q > 0
 }
 
-// ShoppingListRecipe is a recipe the user picked, shown above the list itself.
+// ShoppingListRecipe is a recipe the user picked
 type ShoppingListRecipe struct {
 	ID       int64
 	Title    string
@@ -120,19 +122,17 @@ func (s *ShoppingListService) getItems(q sqlExecutor, userID int) ([]ShoppingLis
 
 		if st, ok := state[key]; ok {
 			items[i].Checked = st.checked
-			if st.override != "" {
-				override, _ := ParseQuantity(st.override)
-				items[i].ToBuy = FormatQuantity(override)
-				items[i].Overridden = true
-			}
+			items[i].Bought = st.bought
+			items[i].BoughtUnit = st.boughtUnit
 		}
 	}
 	return items, nil
 }
 
 type lineState struct {
-	checked  bool
-	override string
+	checked    bool
+	bought     string
+	boughtUnit string
 }
 
 // itemKey matches shopping list lines to pantry and state rows. Ingredient names are typed by hand on both sides, so they are compared loosely.
@@ -178,7 +178,7 @@ func (s *ShoppingListService) pantryAmounts(q sqlExecutor, userID int) (map[[2]s
 
 func (s *ShoppingListService) itemState(q sqlExecutor, userID int) (map[[2]string]lineState, error) {
 	rows, err := q.Query(
-		"SELECT name, unit, checked, qty_override FROM userShoppingStateV1 WHERE user_id = ?", userID,
+		"SELECT name, unit, checked, bought_qty, bought_unit FROM userShoppingStateV1 WHERE user_id = ?", userID,
 	)
 	if err != nil {
 		return nil, err
@@ -193,7 +193,7 @@ func (s *ShoppingListService) itemState(q sqlExecutor, userID int) (map[[2]strin
 	for rows.Next() {
 		var name, unit string
 		var st lineState
-		if err := rows.Scan(&name, &unit, &st.checked, &st.override); err != nil {
+		if err := rows.Scan(&name, &unit, &st.checked, &st.bought, &st.boughtUnit); err != nil {
 			return nil, err
 		}
 		state[itemKey(name, unit)] = st
@@ -246,36 +246,20 @@ func (s *ShoppingListService) SetAllChecked(userID int, checked bool) error {
 	return nil
 }
 
-// AdjustQuantity nudges how much of a line to actually buy by delta, starting from whatever is currently shown. It never goes below zero.
-func (s *ShoppingListService) AdjustQuantity(userID int, name, unit string, delta float64) error {
-	items, err := s.GetItems(userID)
-	if err != nil {
-		return err
+func (s *ShoppingListService) SetBought(userID int, name, unit, qty, qtyUnit string) error {
+	qty = strings.TrimSpace(qty)
+	if _, err := ParseQuantity(qty); err != nil {
+		return fmt.Errorf("%w: %q", ErrInvalidQuantity, qty)
 	}
-
-	key := itemKey(name, unit)
-	for _, item := range items {
-		if itemKey(item.Name, item.Unit) != key {
-			continue
-		}
-		current, err := ParseQuantity(item.ToBuy)
-		if err != nil {
-			// Nothing numeric to step, so leave the wording alone.
-			return nil
-		}
-		updated := current + delta
-		if updated < 0 {
-			updated = 0
-		}
-		_, err = s.DB.Exec(
-			`INSERT INTO userShoppingStateV1 (user_id, name, unit, qty_override)
-			 VALUES (?, ?, ?, ?)
-			 ON CONFLICT(user_id, name, unit) DO UPDATE SET qty_override = excluded.qty_override`,
-			userID, item.Name, item.Unit, FormatQuantity(updated),
-		)
-		return err
-	}
-	return nil
+	_, err := s.DB.Exec(
+		`INSERT INTO userShoppingStateV1 (user_id, name, unit, bought_qty, bought_unit)
+		 VALUES (?, ?, ?, ?, ?)
+		 ON CONFLICT(user_id, name, unit) DO UPDATE SET
+		     bought_qty = excluded.bought_qty,
+		     bought_unit = excluded.bought_unit`,
+		userID, name, unit, qty, qtyUnit,
+	)
+	return err
 }
 
 func (s *ShoppingListService) AddCheckedToPantry(userID int, pantry *PantryService) (int, error) {
@@ -291,8 +275,19 @@ func (s *ShoppingListService) AddCheckedToPantry(userID int, pantry *PantryServi
 				continue
 			}
 
-			if quantity, err := ParseQuantity(item.ToBuy); err == nil && quantity > 0 {
-				if err := pantry.addPantryItem(tx, userID, item.Name, FormatQuantity(quantity), item.Unit); err != nil {
+			// if the user does not insert the total amount they bought it would just not add nothing to the pantry
+			// unless the use add an input to the item
+			// a line ticked off without an amount typed in counts as buying what the recipes need
+			qty, unit := item.ToBuy, item.Unit
+			if item.Bought != "" {
+				qty = item.Bought
+				if item.BoughtUnit != "" {
+					unit = item.BoughtUnit
+				}
+			}
+
+			if quantity, err := ParseQuantity(qty); err == nil && quantity > 0 {
+				if err := pantry.addPantryItem(tx, userID, item.Name, FormatQuantity(quantity), unit); err != nil {
 					return err
 				}
 				moved++
@@ -309,14 +304,6 @@ func (s *ShoppingListService) AddCheckedToPantry(userID int, pantry *PantryServi
 		return 0, err
 	}
 	return moved, nil
-}
-
-func (s *ShoppingListService) clearState(q sqlExecutor, userID int, name, unit string) error {
-	_, err := q.Exec(
-		"DELETE FROM userShoppingStateV1 WHERE user_id = ? AND name = ? AND unit = ?",
-		userID, name, unit,
-	)
-	return err
 }
 
 // GetRecipes returns the recipes feeding the list, one row per recipe even when ingredients from more than one of its versions are on there.
@@ -413,7 +400,7 @@ func mergeIngredients(ingredients []Ingredient) []Ingredient {
 		if ing.Name == "" {
 			continue
 		}
-		key := [2]string{strings.ToLower(ing.Name), strings.ToLower(strings.TrimSpace(ing.Unit))}
+		key := itemKey(ing.Name, ing.Unit)
 		i, ok := seen[key]
 		if !ok {
 			seen[key] = len(merged)
@@ -437,7 +424,11 @@ func (s *ShoppingListService) removeItem(q sqlExecutor, userID int, name, unit s
 	if err != nil {
 		return err
 	}
-	return s.clearState(q, userID, name, unit)
+	_, err = q.Exec(
+		"DELETE FROM userShoppingStateV1 WHERE user_id = ? AND name = ? AND unit = ?",
+		userID, name, unit,
+	)
+	return err
 }
 
 // RemoveRecipe drops every ingredient that came from any version of a recipe.
