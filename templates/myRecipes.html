@@ -53,7 +53,7 @@
                             {{if .Tags}}
                                 <p class="recipe-tags">
                                     {{range .Tags}}
-                                        <a class="tag-chip" href="{{tagurl . $.SelectedTags $.Query}}">#{{.}}</a> 
+                                        <a class="tag-chip" href="{{tagurl . $.SelectedTags $.Query}}">{{.}}</a> 
                                     {{end}}
                                 </p>
                             {{end}}
