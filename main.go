@@ -9,6 +9,7 @@ import (
 	"encoding/hex"
 	"errors"
 	"html/template"
+	"io"
 	"log"
 	"net/http"
 	"net/url"
@@ -172,6 +173,7 @@ func main() {
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}/version", app.handleRecipeVersion)
 	mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
+	mux.HandleFunc("POST /recipes/v1/image-preview", app.handleImagePreview)
 
 	//Shopping List
 	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
@@ -1588,7 +1590,7 @@ func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ownerID, err := a.Recipes.GetRecipeUser(recipeID)
+	data, ownerID, err := a.Recipes.GetRecipeForView(recipeID)
 	if err != nil {
 		http.NotFound(w, r)
 		return
@@ -1603,6 +1605,12 @@ func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error deleting recipe %d: %v", recipeID, err)
 		http.Error(w, http.StatusText(http.StatusInternalServerError), http.StatusInternalServerError)
 		return
+	}
+
+	if data.Recipe.ImageURL != "" {
+		if err := a.Images.Store.Delete(data.Recipe.ImageURL); err != nil {
+			log.Printf("Error deleting image of recipe %d: %v", recipeID, err)
+		}
 	}
 
 	http.Redirect(w, r, "/recipes/v1/myRecipe", http.StatusSeeOther)
@@ -1797,7 +1805,7 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := r.ParseForm(); err != nil {
+	if err := r.ParseMultipartForm(32 << 20); err != nil {
 		http.Error(w, "Invalid form", http.StatusBadRequest)
 		return
 	}
@@ -1878,8 +1886,30 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		steps = append(steps, step)
 	}
 
+	var imageURL string
+	var oldImageURL string
+
+	file, header, err := r.FormFile("myfile")
+
+	if err == nil {
+		defer func() {
+			if err := file.Close(); err != nil {
+				log.Println("Error closing file;", err)
+			}
+		}()
+		imageURL, err = a.Images.Process(file, header)
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		if old, _, err := a.Recipes.GetRecipeForView(recipeID); err == nil {
+			oldImageURL = old.Recipe.ImageURL
+		}
+	}
+
 	data := services.RecipeUpdate{
 		Title:           title,
+		ImageURL:        imageURL,
 		Description:     description,
 		Tags:            tags,
 		Servings:        servings,
@@ -1898,5 +1928,74 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Unable to update recipe", http.StatusInternalServerError)
 		return
 	}
+
+	if oldImageURL != "" {
+		if err := a.Images.Store.Delete(oldImageURL); err != nil {
+			log.Printf("Error deleting old image of recipe %d: %v", recipeID, err)
+		}
+	}
+
 	http.Redirect(w, r, "/recipes/v1/"+strconv.FormatInt(recipeID, 10), http.StatusSeeOther)
+}
+
+func (a *App) handleImagePreview(w http.ResponseWriter, r *http.Request) {
+	if _, ok := a.getUserIDFromSession(r); !ok {
+		http.Error(w, "not logged in", http.StatusUnauthorized)
+		return
+	}
+
+	file, header, err := r.FormFile("myfile")
+	if err != nil {
+		http.Error(w, "No image chosen", http.StatusBadRequest)
+		return
+	}
+	defer func() {
+		if err := file.Close(); err != nil {
+			log.Println("Error closing file:", err)
+		}
+	}()
+
+	showError := func(msg string) {
+		w.Header().Set("HX-Retarget", "#image-field")
+		w.Header().Set("HX-Reswap", "outerHTML")
+		if err := tpl.ExecuteTemplate(w, "image-field", msg); err != nil {
+			log.Printf("Error rendering image field: %v", err)
+		}
+	}
+
+	if err := a.Images.ValidateSize(header.Size); err != nil {
+		showError(err.Error())
+		return
+	}
+
+	mimeType, err := a.Images.DetectType(file)
+	if err == nil {
+		err = a.Images.ValidateType(mimeType)
+	}
+	if err != nil {
+		showError("Only JPEG and PNG images are allowed")
+		return
+	}
+
+	if _, err := file.Seek(0, 0); err != nil {
+		http.Error(w, "Could not read image", http.StatusInternalServerError)
+		return
+	}
+
+	data, err := io.ReadAll(file)
+	if err != nil {
+		http.Error(w, "Could not read image", http.StatusInternalServerError)
+		return
+	}
+
+	src := template.URL("data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(data))
+	if err := tpl.ExecuteTemplate(w, "sidebar-image", src); err != nil {
+		log.Printf("Error rendering sidebar image: %v", err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if _, err := w.Write([]byte(`<p id="image-error" hx-swap-oob="innerHTML"></p>`)); err != nil {
+		log.Printf("Error writing image error reset: %v", err)
+	}
 }
