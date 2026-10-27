@@ -44,6 +44,7 @@ type App struct {
 	Images   *services.ImageService
 	Shopping *services.ShoppingListService
 	Pantry   *services.PantryService
+	CookBook *services.CookBookService
 }
 
 type PageData struct {
@@ -62,6 +63,7 @@ type RecipePageData struct {
 	RecipeID        int64
 	OwnerID         int64
 	Added           bool
+	Bookmarked      bool
 	Title           string
 	Description     string
 	ImageURL        string
@@ -146,6 +148,7 @@ func main() {
 		Images:   services.NewImageService(&services.LocalStore{Dir: "uploads"}),
 		Shopping: services.NewShoppingListService(db),
 		Pantry:   services.NewPantryService(db),
+		CookBook: services.NewCookBookService(db),
 	}
 
 	log.Println("Setting up handlers...")
@@ -189,6 +192,11 @@ func main() {
 	mux.HandleFunc("POST /pantry/v1/add", app.handlePantryAdd)
 	mux.HandleFunc("DELETE /pantry/v1/remove", app.handlePantryRemove)
 	mux.HandleFunc("GET /pantry/v1/{$}", app.handlePantry)
+
+	//Cook Book
+	mux.HandleFunc("GET /cookbook/v1", app.handleCookBook)
+	mux.HandleFunc("POST /cookbook/v1/add", app.handleCookBookAdd)
+	mux.HandleFunc("DELETE /cookbook/v1/remove", app.handleCookBookRemove)
 
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
@@ -1087,10 +1095,17 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	added := false
+	bookmarked := false
 	if loggedIn {
 		added, err = a.Shopping.HasRecipe(sessionUserID, id)
 		if err != nil {
 			log.Printf("Error checking shopping list for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		bookmarked, err = a.CookBook.HasRecipe(sessionUserID, int(id))
+		if err != nil {
+			log.Printf("Error checking cookbook for recipe %d: %v", id, err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -1111,6 +1126,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		RecipeID:        id,
 		OwnerID:         recipeOwnerID,
 		Added:           added,
+		Bookmarked:      bookmarked,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
 		ImageURL:        data.Recipe.ImageURL,
@@ -1997,5 +2013,98 @@ func (a *App) handleImagePreview(w http.ResponseWriter, r *http.Request) {
 
 	if _, err := w.Write([]byte(`<p id="image-error" hx-swap-oob="innerHTML"></p>`)); err != nil {
 		log.Printf("Error writing image error reset: %v", err)
+	}
+}
+
+func (a *App) handleCookBook(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	var userID int64
+
+	if uid, ok := a.getUserIDFromSession(r); ok {
+		userID = int64(uid)
+		u, err := a.Users.GetUsernameByID(uid)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+
+	recipes, err := a.Recipes.GetCookBookRecipes(int(userID))
+	if err != nil {
+		log.Printf("Error retrieving cookbook for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]any{
+		"Query":    "",
+		"UserID":   int(userID),
+		"Username": username,
+		"Recipes":  recipes,
+	}
+
+	if err := tpl.ExecuteTemplate(w, "cookBook.html", data); err != nil {
+		log.Printf("Error rendering cookbook: %v", err)
+	}
+
+}
+
+func (a *App) handleCookBookAdd(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.FormValue("recipe_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid recipe id", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.CookBook.AddRecipeToCookBook(userID, int(recipeID)); err != nil {
+		log.Printf("Error adding recipe %d to cookbook for user ID %d: %v", recipeID, userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tpl.ExecuteTemplate(w, "cookbook-btn", map[string]any{
+		"RecipeID":   recipeID,
+		"Bookmarked": true,
+	}); err != nil {
+		log.Printf("Error rendering cookbook button: %v", err)
+	}
+}
+
+func (a *App) handleCookBookRemove(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.URL.Query().Get("recipe_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid recipe id", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.CookBook.RemoveRecipeFromCookBook(userID, int(recipeID)); err != nil {
+		log.Printf("Error removing recipe %d from cookbook for user ID %d: %v", recipeID, userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tpl.ExecuteTemplate(w, "cookbook-btn", map[string]any{
+		"RecipeID":   recipeID,
+		"Bookmarked": false,
+	}); err != nil {
+		log.Printf("Error rendering cookbook button: %v", err)
 	}
 }
