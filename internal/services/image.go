@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"image"
 	"image/jpeg"
@@ -14,6 +15,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/gabriel-vasile/mimetype"
 	"golang.org/x/image/draw"
@@ -88,6 +90,7 @@ func RegisterCodec(mimeType string, c ImageCodec) {
 // LocalStore is the default; provide a different implementation by passing it to NewImageService.
 type ImageStore interface {
 	Save(filename string, data []byte) (string, error)
+	Delete(url string) error
 }
 
 // LocalStore saves images to a directory on disk.
@@ -104,6 +107,17 @@ func (l *LocalStore) Save(filename string, data []byte) (string, error) {
 		return "", fmt.Errorf("could not write file: %w", err)
 	}
 	return "/uploads/" + filename, nil
+}
+
+func (l *LocalStore) Delete(url string) error {
+	if !strings.HasPrefix(url, "/uploads/") {
+		return nil
+	}
+	err := os.Remove(filepath.Join(l.Dir, filepath.Base(url)))
+	if errors.Is(err, os.ErrNotExist) {
+		return nil
+	}
+	return err
 }
 
 // ImageService handles image processing pipeline.

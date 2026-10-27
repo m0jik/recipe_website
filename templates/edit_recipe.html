@@ -13,7 +13,7 @@
 <div class="edit-recipe-page">
 <!-- CANCEL -->
 <!-- SAVE -->
-<form method="POST" action="/recipes/v1/save-recipe/{{.RecipeID}}">
+<form method="POST" action="/recipes/v1/save-recipe/{{.RecipeID}}"  enctype="multipart/form-data" >
     <button type="submit" disabled hidden aria-hidden="true"></button>
     <div class="save-recipe-button">
         <button type="button" class="btn-secondary" onclick="window.location.href='/recipes/v1/{{.RecipeID}}'">Cancel</button>
@@ -28,7 +28,9 @@
 
     <nav class="recipe-sidebar">
         <div class="sidebar-recipe">
-            <img src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}" alt="">
+            {{block "sidebar-image" (or .ImageURL "/static/placeholder.svg")}}
+                <img id="sidebar-image" src="{{.}}" alt="">
+            {{end}}
             <p class="sidebar-recipe-label">Your recipe</p>
             <p class="sidebar-recipe-title">{{.Title}}</p>
         </div>
@@ -50,6 +52,18 @@
             <div class="field">
                 <label>Description<textarea name="description" maxlength="2000">{{.Description}}</textarea></label>
             </div>
+
+            {{block "image-field" ""}}
+                <div class="field" id="image-field">
+                    <label>Image<input type="file" name="myfile" accept="image/jpeg,image/png"
+                                       hx-post="/recipes/v1/image-preview"
+                                       hx-encoding="multipart/form-data"
+                                       hx-params="myfile"
+                                       hx-target="#sidebar-image"
+                                       hx-swap="outerHTML"></label>
+                    <p id="image-error" class="form-error" role="alert">{{.}}</p>
+                </div>
+            {{end}}
 
             <div class="section-block">
                 <div class="section-title">Tags</div>
