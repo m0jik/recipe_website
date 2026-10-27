@@ -2053,7 +2053,7 @@ func (a *App) handleCookBook(w http.ResponseWriter, r *http.Request) {
 func (a *App) handleCookBookAdd(w http.ResponseWriter, r *http.Request) {
 	userID, ok := a.getUserIDFromSession(r)
 	if !ok {
-		http.Redirect(w, r, "/users/v1/login", http.StatusSeeOther)
+		w.Header().Set("HX-Redirect", "/users/v1/login")
 		return
 	}
 
