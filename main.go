@@ -198,6 +198,10 @@ func main() {
 	mux.HandleFunc("POST /cookbook/v1/add", app.handleCookBookAdd)
 	mux.HandleFunc("DELETE /cookbook/v1/remove", app.handleCookBookRemove)
 
+	//Cooking Mode
+	mux.HandleFunc("/cooking-mode/v1/{id}", app.handleCookingMode)
+	mux.HandleFunc("/cooking-mode/v1/{id}/steps", app.handleCookingModeSteps)
+
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
 
@@ -2108,3 +2112,36 @@ func (a *App) handleCookBookRemove(w http.ResponseWriter, r *http.Request) {
 		log.Printf("Error rendering cookbook button: %v", err)
 	}
 }
+
+func (a *App) handleCookingMode(w http.ResponseWriter, r *http.Request) {
+	// username := ""
+	// sessionUserID, loggedIn := a.getUserIDFromSession(r)
+	// if loggedIn {
+	// 	u, err := a.Users.GetUsernameByID(sessionUserID)
+	// 	if err != nil {
+	// 		http.Error(w, "Invalid session", http.StatusInternalServerError)
+	// 		return
+	// 	}
+	// 	username = u
+	// }
+	// idStr := strings.TrimPrefix(r.URL.Path, "/recipes/v1/")
+	// id, err := strconv.ParseInt(idStr, 10, 64)
+	// if err != nil {
+	// 	http.NotFound(w, r)
+	// 	return
+	// }
+
+}
+
+func (a *App) handleCookingModeSteps(w http.ResponseWriter, r *http.Request) {
+
+}
+
+// switch r.Method {
+// 		case http.MethodGet:
+// 			return
+// 		case http.MethodPost:
+// 			return
+// 		default:
+// 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
+// 	}
