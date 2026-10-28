@@ -441,6 +441,9 @@ func (s *ShoppingListService) AddRecipeIngredients(userID int, versionID int64, 
 			return err
 		}
 	}
+	if err := s.removeUnusedState(tx, userID); err != nil {
+		return err
+	}
 	return tx.Commit()
 }
 
@@ -483,17 +486,37 @@ func (s *ShoppingListService) removeItem(q sqlExecutor, userID int, name, unit s
 	return err
 }
 
-// RemoveRecipe drops every ingredient that came from any version of a recipe.
-func (s *ShoppingListService) RemoveRecipe(userID int, recipeID int64) error {
-	_, err := s.DB.Exec(
-		`DELETE FROM userShoppingListV2
+func (s *ShoppingListService) removeUnusedState(q sqlExecutor, userID int) error {
+	_, err := q.Exec(
+		`DELETE FROM userShoppingStateV1
 		 WHERE user_id = ?
-		   AND source_recipe_version_id IN (
-		       SELECT id FROM recipe_versionsV1 WHERE recipe_id = ?
+		   AND NOT EXISTS (
+		       SELECT 1 FROM userShoppingListV2 sl
+		       WHERE sl.user_id = userShoppingStateV1.user_id
+		         AND LOWER(TRIM(sl.name)) = LOWER(TRIM(userShoppingStateV1.name))
+		         AND LOWER(TRIM(sl.unit)) = LOWER(TRIM(userShoppingStateV1.unit))
 		   )`,
-		userID, recipeID,
+		userID,
 	)
 	return err
+}
+
+// RemoveRecipe drops every ingredient that came from any version of a recipe.
+func (s *ShoppingListService) RemoveRecipe(userID int, recipeID int64) error {
+	return withTx(s.DB, func(tx sqlExecutor) error {
+		_, err := tx.Exec(
+			`DELETE FROM userShoppingListV2
+			 WHERE user_id = ?
+			   AND source_recipe_version_id IN (
+			       SELECT id FROM recipe_versionsV1 WHERE recipe_id = ?
+			   )`,
+			userID, recipeID,
+		)
+		if err != nil {
+			return err
+		}
+		return s.removeUnusedState(tx, userID)
+	})
 }
 
 func totalQuantity(sources []ShoppingListSource) string {
