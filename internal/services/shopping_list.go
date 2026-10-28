@@ -275,9 +275,6 @@ func (s *ShoppingListService) AddCheckedToPantry(userID int, pantry *PantryServi
 				continue
 			}
 
-			// if the user does not insert the total amount they bought it would just not add nothing to the pantry
-			// unless the use add an input to the item
-			// a line ticked off without an amount typed in counts as buying what the recipes need
 			qty, unit := item.ToBuy, item.Unit
 			if item.Bought != "" {
 				qty = item.Bought
@@ -338,6 +335,61 @@ func (s *ShoppingListService) GetRecipes(userID int) ([]ShoppingListRecipe, erro
 		return nil, err
 	}
 	return recipes, nil
+}
+
+func (s *ShoppingListService) OutdatedRecipes(userID int, recipeService *RecipeService) (map[int64]bool, error) {
+	rows, err := s.DB.Query(
+		`SELECT rv.recipe_id, MAX(sl.source_recipe_version_id)
+		 FROM userShoppingListV2 sl
+		 JOIN recipe_versionsV1 rv ON rv.id = sl.source_recipe_version_id
+		 WHERE sl.user_id = ?
+		 GROUP BY rv.recipe_id`,
+		userID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Println("Error closing rows:", err)
+		}
+	}()
+
+	savedVersions := make(map[int64]int64)
+	for rows.Next() {
+		var recipeID, versionID int64
+		if err := rows.Scan(&recipeID, &versionID); err != nil {
+			return nil, err
+		}
+		savedVersions[recipeID] = versionID
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	outdated := make(map[int64]bool)
+	for recipeID, savedID := range savedVersions {
+		latestID, err := recipeService.GetLatestVersionID(s.DB, recipeID)
+		if err != nil {
+			return nil, err
+		}
+		if latestID == savedID {
+			continue
+		}
+
+		saved, err := recipeService.GetIngredients(s.DB, savedID)
+		if err != nil {
+			return nil, err
+		}
+		latest, err := recipeService.GetIngredients(s.DB, latestID)
+		if err != nil {
+			return nil, err
+		}
+		if !ingredientsEqual(saved, latest) {
+			outdated[recipeID] = true
+		}
+	}
+	return outdated, nil
 }
 
 func (s *ShoppingListService) HasRecipe(userID int, recipeID int64) (bool, error) {

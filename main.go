@@ -1234,8 +1234,16 @@ func (a *App) handleShoppingList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	outdated, err := a.Shopping.OutdatedRecipes(userID, a.Recipes)
+	if err != nil {
+		log.Printf("Error checking shopping list recipes for changes for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	data := shoppingListData(items, recipes, needOnly)
 	data["Username"] = username
+	data["Outdated"] = outdated
 	err = tpl.ExecuteTemplate(w, "shoppingList.html", data)
 	if err != nil {
 		log.Printf("Error rendering shopping list template: %v", err)
@@ -1278,6 +1286,12 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 	if err := a.Shopping.AddRecipeIngredients(userID, versionID, ingredients); err != nil {
 		log.Printf("Error adding recipe %d to shopping list for user ID %d: %v", recipeID, userID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// The shopping list page updates a recipe to its newest ingredients and redraws the whole section.
+	if r.URL.Query().Get("render") == "section" {
+		a.renderShoppingListSection(w, userID, needOnlyFrom(r))
 		return
 	}
 
@@ -1492,7 +1506,16 @@ func (a *App) renderShoppingListSection(w http.ResponseWriter, userID int, needO
 		return
 	}
 
-	if err := tpl.ExecuteTemplate(w, "shopping-list-section", shoppingListData(items, recipes, needOnly)); err != nil {
+	outdated, err := a.Shopping.OutdatedRecipes(userID, a.Recipes)
+	if err != nil {
+		log.Printf("Error checking shopping list recipes for changes for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := shoppingListData(items, recipes, needOnly)
+	data["Outdated"] = outdated
+	if err := tpl.ExecuteTemplate(w, "shopping-list-section", data); err != nil {
 		log.Printf("Error rendering shopping list section: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
