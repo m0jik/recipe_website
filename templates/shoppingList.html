@@ -60,7 +60,6 @@
                                 </span>
                             {{ end }}
                             {{ if index $.Outdated .ID }}
-                                <span class="selected-recipe-outdated">Update shopping list</span>
                                 <button type="button" class="btn-secondary"
                                         hx-post="/shopping-list/v1/add?recipe_id={{ .ID }}&render=section{{ if $.NeedOnly }}&need_only=1{{ end }}"
                                         hx-target="#shopping-list-section"

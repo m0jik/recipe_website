@@ -61,8 +61,7 @@
     text-decoration: underline;
 }
 
-.selected-recipe-servings,
-.selected-recipe-outdated {
+.selected-recipe-servings {
     color: #666;
     font-size: 13px;
 }
