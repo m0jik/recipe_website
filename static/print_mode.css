@@ -1,0 +1,165 @@
+/* =========================
+   GLOBAL BASE
+========================= */
+*, *::before, *::after {
+    box-sizing: border-box;
+}
+
+html {
+    width: 100%;
+}
+
+body {
+    font-family: Arial, sans-serif;
+    background: #f4f4f4;
+    margin: 0;
+    width: 100%;
+    min-width: 0;
+    overflow-x: hidden;
+}
+
+input[type="hidden"] {
+    display: none;
+}
+
+a {
+    color: #4a90e2;
+    text-decoration: none;
+}
+
+button {
+    font-family: inherit;
+    background-color: #333;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 16px;
+}
+
+/* =========================
+   RECIPE VIEW PAGE
+========================= */
+.recipe-page {
+    max-width: 900px;
+    margin: 40px auto;
+}
+
+.recipe-header {
+    display: flex;
+    gap: 20px;
+    background: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.recipe-image {
+    width: 240px;
+    height: 240px;
+    object-fit: cover;
+    border-radius: 10px;
+    flex-shrink: 0;
+}
+
+.recipe-info h1 {
+    margin-top: 0;
+    margin-bottom: 12px;
+    text-align: left;
+}
+
+.recipe-author {
+    font-size: 14px;
+    color: #666;
+    margin-bottom: 10px;
+}
+
+.recipe-description {
+    margin-top: 10px;
+    color: #333;
+}
+
+.recipe-content {
+    display: grid;
+    gap: 20px;
+}
+
+.recipe-section {
+    background: white;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
+.recipe-section h2 {
+    margin-top: 0;
+}
+
+.recipe-section h3 {
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.recipe-section p {
+    margin-top: 0;
+    margin-bottom: 0;
+    padding-bottom: 4px;
+}
+
+.recipe-section ul,
+.recipe-section ol {
+    padding-left: 20px;
+    margin-top: 0;
+    margin-bottom: 0;
+}
+
+.recipe-section li {
+    margin-bottom: 4px;
+}
+
+.recipe-meta {
+    margin-top: 0;
+    margin-bottom: 0;
+    text-align: right;
+}
+
+/* Prevent long recipe text from overflowing on any screen */
+.recipe-info,
+.recipe-section,
+.recipe-description,
+.recipe-section li,
+.recipe-section li p,
+.recipe-section li small {
+    min-width: 0;
+    max-width: 100%;
+    overflow-wrap: anywhere;
+}
+
+.recipe-section li p,
+.recipe-section li small {
+    white-space: pre-wrap;
+}
+
+a {
+    font-family: inherit;
+    background-color: #777;
+    color: white;
+    padding: 10px 20px;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+    font-size: 16px;
+    margin-top: 16px;
+}
+
+@media print {
+    .no-print {
+        display: none !important;
+    }
+
+    @page {
+        margin-top: 0;
+    }
+}

@@ -1,5 +1,7 @@
 {{ define "cooking-mode-btn" }}
-    <a class="shopping-btn" href="/cooking-mode/v1/{{ .RecipeID }}">
+    <a style="margin-top: 0px" class="print-btn"
+    href="/cooking-mode/v1/{{ .RecipeID }}"
+    title="Enter cooking mode">
         <img src="/static/icon/CookingMode.png" alt="">
     </a>
 {{ end }}

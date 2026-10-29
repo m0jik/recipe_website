@@ -5,15 +5,21 @@
     <input type="hidden" name="step_note"        value="{{ .Note }}">
     <input type="hidden" name="step_ingredients"  value="{{ .Ingredients }}">
 
-    <span><p>{{ .Instruction }}</p>
-        <p>{{ if .Note }}<em>{{ .Note }}</em>{{ end }}</p></span>
+    <span>
+        <p>{{ .Instruction }}</p>
+        <p>{{ if .Note }}<em>{{ .Note }}</em>{{ end }}</p>
+    </span>
 
-    {{ if .Ingredients }}
-        <ul>
-        {{ range .Ingredients }}
-            <li>{{ . }}</li>
+    {{ with .Ingredients }}
+        {{ if gt (len .) 0 }}
+            <ul>
+                {{ range . }}
+                    {{ if ne . "" }}
+                        <li>{{ . }}</li>
+                    {{ end }}
+                {{ end }}
+            </ul>
         {{ end }}
-        </ul>
     {{ end }}
 
     <button type="button" class="btn-remove" onclick="this.closest('.item-row').remove()">X</button>

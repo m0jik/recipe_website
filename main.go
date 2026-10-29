@@ -193,7 +193,7 @@ func main() {
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
 
 	//Print Mode
-	mux.HandleFunc("/recipes/v1/print/", app.handlePrintMode)
+	mux.HandleFunc("/print-mode/v1/{id}", app.handlePrintMode)
 
 	//Recipe Edit
 	mux.HandleFunc("POST /recipes/v1/delete-recipe/{id}", app.handleDeleteRecipe)
@@ -1194,7 +1194,7 @@ func (a *App) handlePrintMode(w http.ResponseWriter, r *http.Request) {
 		username = u
 	}
 
-	idStr := strings.TrimPrefix(r.URL.Path, "/recipes/v1/print/")
+	idStr := strings.TrimPrefix(r.URL.Path, "/print-mode/v1/")
 	id, err := strconv.ParseInt(idStr, 10, 64)
 	if err != nil {
 		http.NotFound(w, r)

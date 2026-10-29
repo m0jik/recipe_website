@@ -4,98 +4,69 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="utf-8">
     <title>{{.Title}}</title>
-    <link rel="stylesheet" href="/static/style.css?v=recipe-image-size-1v=responsive-2">
-    <link rel="stylesheet" href="/static/recipe-options.css">
+    <link rel="stylesheet" href="/static/print_mode.css?v=recipe-layout-3">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
 
 <body>
-    {{template "nav" .}}
-<div class="recipe-page">
-
-    <div class="recipe-header">
-        {{ if and .UserID (eq .UserID .OwnerID) }}
-            <details class="recipe-actions">
-                <summary class="recipe-actions-button">
-                    <img src="/static/icon/more.png" alt="Recipe options">
-                </summary>
-
-                <div class="recipe-actions-options">
-                    <form
-                        method="POST"
-                        action="/recipes/v1/delete-recipe/{{ .RecipeID }}"
-                        hx-boost="true"
-                        hx-confirm="Delete &quot;{{ .Title }}&quot;? This cannot be undone."
-                    >
-                        <button type="submit">Delete</button>
-                    </form>
-                    <form method="GET" action="/recipes/v1/edit-recipe/{{ .RecipeID }}">
-                        <button type="submit" onclick="this.closest('details').open = false;">Edit</button>
-                    </form>
-                </div>
-            </details>
-        {{ end }}
-        <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image" onerror="this.onerror=null; this.src='/static/placeholder.svg'">
-
-        <div class="recipe-info">
-            <h1>{{.Title}}</h1>
-            <p class="recipe-author">Created by: {{.CreatorUsername}}</p>
-
-            <p class="recipe-description">{{.Description}}</p>
-
-            <p class="recipe-meta">
-                {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
-                {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
-            </p>
-            {{ template "shopping-btn" . }}
-            {{ template "print-btn" . }}
-
-            {{if .Tags}}
-                <p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . nil ""}}">#{{.}}</a> {{end}}</p>
-            {{end}}
+    <div class="recipe-page">
+        <div class="recipe-info" style="display: flex;">
+            <h1 style="flex: 1;">{{.Title}}</h1>
+            <div style="flex: 1">
+                <p class="recipe-meta">
+                    {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span><br>{{end}}
+                    {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
+                </p>
+            </div>
         </div>
-    </div>
+        <div class="recipe-content">
 
-    <div class="recipe-content">
-
-        <section class="recipe-section">
-            <h2>Ingredients</h2>
-            <ul>
-                {{range .Ingredients}}
-                    <li>{{.Quantity}} {{.Unit}} {{.Name}}</li>
-                {{else}}
-                    <li>No ingredients added</li>
-                {{end}}
-            </ul>
-        </section>
-
-        <section class="recipe-section">
-            <h2>Steps</h2>
-            <ol>
-                {{range .Steps}}
-                    <li>
-                        <p>{{.Instruction}}</p>
-                        {{if .StepIngredients}}
-                            <i>Ingredients Used</i><br>
+            <section class="recipe-section">
+                <ul style="column-count: 2">
+                    {{range .Ingredients}}
+                        <li>{{.Quantity}} {{.Unit}} {{.Name}}</li>
+                    {{else}}
+                        <li>No ingredients added</li>
+                    {{end}}
+                </ul>
+            </section>
+        
+            {{range .Steps}}
+                <section class="recipe-section">
+                    <h3>Step {{.StepNumber}}</h3>
+                    {{if .StepIngredients}}
+                        <div style="float: left; width: 25%;">
                             <ul>
                                 {{range .StepIngredients}}
                                     <li>{{.Ingredient}}</li>
                                 {{end}}
                             </ul>
-                        {{end}}
-                        {{if .Notes}}
-                            <small>{{.Notes}}</small>
-                        {{end}}
-                    </li>
-                {{else}}
+                        </div>
+                        <div style="float: right; width: 75%;">
+                            <p style="padding-left: 8px;">{{.Instruction}}</p>
+                            {{if .Notes}}
+                                <small style="padding-left: 16px;">{{.Notes}}</small>
+                            {{end}}
+                        </div>
+                    {{else}}
+                        <div style="float: left; width: 100%;">
+                            <p>{{.Instruction}}</p>
+                            {{if .Notes}}
+                                <small>{{.Notes}}</small>
+                            {{end}}
+                        </div>
+                    {{end}}
+                </section>
+            {{else}}
+                <section class="recipe-section"><
                     <li>No steps added</li>
-                {{end}}
-            </ol>
-        </section>
+                </section>
+            {{end}}
 
+        </div>
+        <button class="no-print" onclick="window.print()">Print this recipe</button>
+        <a href="/recipes/v1/{{.RecipeID}}" class="no-print">Return to standard view</a>
     </div>
-
-</div>
 
 </body>
 </html>
