@@ -62,7 +62,6 @@
     box-shadow: 0 2px 6px rgba(53, 123, 216, 0.22);
 }
 
-/* Main three-column grid */
 .cooking-mode-content {
     display: grid;
     grid-template-columns: minmax(220px, 0.9fr) minmax(240px, 1fr) minmax(0, 1.5fr);
@@ -82,7 +81,6 @@
     box-shadow: 0 4px 16px rgba(0, 0, 0, 0.045);
 }
 
-/* Compact recipe information card */
 .cooking-mode-recipe-header {
     display: flex;
     flex-direction: column;
@@ -185,7 +183,6 @@
     color: #fff;
 }
 
-/* Ingredient and instruction cards */
 .cooking-mode-section-heading {
     display: flex;
     align-items: center;
@@ -346,73 +343,6 @@
     line-height: 1.6;
     list-style: none;
 }
-
-/* Tablet: recipe card across the top, ingredients and instructions beneath */
-@media (max-width: 1050px) {
-    .cooking-mode-content {
-        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
-        gap: 18px;
-    }
-
-    .cooking-mode-recipe-header {
-        grid-column: 1 / -1;
-        display: grid;
-        grid-template-columns: minmax(180px, 0.75fr) minmax(0, 1.25fr);
-        align-items: center;
-        gap: 20px;
-    }
-
-    .cooking-mode-recipe-image { height: 210px; }
-}
-
-@media (max-width: 680px) {
-    .cooking-mode-page {
-        width: calc(100% - 24px);
-        margin: 18px auto 30px;
-    }
-
-    .cooking-mode-actions { margin-bottom: 16px; }
-
-    .cooking-mode-button-group { gap: 8px; }
-
-    .cooking-mode-recipe-btn,
-    .cooking-mode-steps-btn {
-        flex: 1;
-        min-width: 0;
-        padding: 10px 12px;
-        font-size: 15px;
-    }
-
-    .cooking-mode-content { grid-template-columns: minmax(0, 1fr); gap: 16px; }
-
-    .cooking-mode-recipe-header {
-        grid-column: auto;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        padding: 16px;
-    }
-
-    .cooking-mode-recipe-image { height: 220px; max-height: 280px; }
-    .cooking-mode-recipe-info h1 { font-size: 26px; }
-
-    .cooking-mode-section { padding: 18px; }
-}
-
-@media (max-width: 420px) {
-    .cooking-mode-recipe-image { height: 190px; }
-    .cooking-mode-recipe-info h1 { font-size: 23px; }
-    .cooking-mode-section { padding: 15px; }
-    .cooking-mode-section-heading h2 { font-size: 19px; }
-    .cooking-mode-step { padding-left: 38px; }
-    .cooking-mode-ingredient-list > li { gap: 8px; }
-}
-
-/* ========================================
-   Step-by-Step Cooking Screen
-   These selectors are scoped to the steps page so the recipe overview
-   keeps its existing layout and spacing.
-======================================== */
 
 body.cooking-mode-steps-body {
     width: 100%;
@@ -723,7 +653,6 @@ body.cooking-mode-steps-body {
     margin-top: 0;
 }
 
-/* Three-column recipe overview only */
 .cooking-mode-page .cooking-mode-content {
     display: grid;
     grid-template-columns:
@@ -895,11 +824,68 @@ body.cooking-mode-steps-body {
     }
 }
 
-
-
 @media (max-width: 900px) {
     .cooking-mode-page .cooking-mode-content {
         grid-template-columns: minmax(0, 1fr);
     }
 }
 
+@media (max-width: 1050px) {
+    .cooking-mode-content {
+        grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+        gap: 18px;
+    }
+
+    .cooking-mode-recipe-header {
+        grid-column: 1 / -1;
+        display: grid;
+        grid-template-columns: minmax(180px, 0.75fr) minmax(0, 1.25fr);
+        align-items: center;
+        gap: 20px;
+    }
+
+    .cooking-mode-recipe-image { height: 210px; }
+}
+
+@media (max-width: 680px) {
+    .cooking-mode-page {
+        width: calc(100% - 24px);
+        margin: 18px auto 30px;
+    }
+
+    .cooking-mode-actions { margin-bottom: 16px; }
+
+    .cooking-mode-button-group { gap: 8px; }
+
+    .cooking-mode-recipe-btn,
+    .cooking-mode-steps-btn {
+        flex: 1;
+        min-width: 0;
+        padding: 10px 12px;
+        font-size: 15px;
+    }
+
+    .cooking-mode-content { grid-template-columns: minmax(0, 1fr); gap: 16px; }
+
+    .cooking-mode-recipe-header {
+        grid-column: auto;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding: 16px;
+    }
+
+    .cooking-mode-recipe-image { height: 220px; max-height: 280px; }
+    .cooking-mode-recipe-info h1 { font-size: 26px; }
+
+    .cooking-mode-section { padding: 18px; }
+}
+
+@media (max-width: 420px) {
+    .cooking-mode-recipe-image { height: 190px; }
+    .cooking-mode-recipe-info h1 { font-size: 23px; }
+    .cooking-mode-section { padding: 15px; }
+    .cooking-mode-section-heading h2 { font-size: 19px; }
+    .cooking-mode-step { padding-left: 38px; }
+    .cooking-mode-ingredient-list > li { gap: 8px; }
+}

@@ -4,15 +4,12 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <meta charset="utf-8">
         <title>Cooking Mode Recipe</title>
-
         <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
         <link rel="stylesheet" href="/static/cooking_mode.css?v=recipe-layout-3">
-
         <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     </head>
     <body>
         {{template "nav" .}}
-
         <main class="cooking-mode-page">
             <div class="cooking-mode-actions">
                 <div class="cooking-mode-button-group">
@@ -20,36 +17,27 @@
                     {{ template "cooking-mode-steps-btn" . }}
                 </div>
             </div>
-
             <div class="cooking-mode-content">
-
-                <!-- LEFT COLUMN: Recipe overview -->
                 <aside class="cooking-mode-recipes-column">
                     <div class="cooking-mode-column-heading">
                         <h2>Recipes</h2>
                     </div>
-
                     <article class="cooking-mode-recipe-card">
                         <div class="cooking-mode-image-container">
                             <img
                                 class="cooking-mode-recipe-image"
                                 src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}"
                                 alt="Recipe Image"
-                                onerror="this.onerror=null; this.src='/static/placeholder.svg'"
-                            >
+                                onerror="this.onerror=null; this.src='/static/placeholder.svg'">
                         </div>
-
                         <div class="cooking-mode-recipe-info">
                             <h1>{{.Title}}</h1>
-
                             <p class="cooking-mode-author">
                                 Created by: {{.CreatorUsername}}
                             </p>
-
                             {{if .Description}}
                                 <p class="cooking-mode-description">{{.Description}}</p>
                             {{end}}
-
                             <div class="cooking-mode-meta">
                                 {{if .Servings}}
                                     <span class="cooking-mode-meta-item">
@@ -57,7 +45,6 @@
                                         {{.Servings}}
                                     </span>
                                 {{end}}
-
                                 {{if .PrepTimeMinutes}}
                                     <span class="cooking-mode-meta-item">
                                         <strong>Prep time</strong>
@@ -65,7 +52,6 @@
                                     </span>
                                 {{end}}
                             </div>
-
                             {{if .Tags}}
                                 <div class="cooking-mode-tags">
                                     {{range .Tags}}
@@ -76,17 +62,12 @@
                             {{end}}
                         </div>
                     </article>
-
-                    <!-- Additional recipe cards can go here later -->
                 </aside>
-
-                <!-- MIDDLE COLUMN: Instructions -->
                 <section class="cooking-mode-section cooking-mode-steps">
                     <div class="cooking-mode-section-heading">
                         <span class="cooking-mode-section-number">01</span>
                         <h2>Instructions</h2>
                     </div>
-
                     <ol class="cooking-mode-step-list">
                         {{range .Steps}}
                             <li class="cooking-mode-step">
@@ -94,7 +75,6 @@
                                     <p class="cooking-mode-instruction">
                                         {{.Instruction}}
                                     </p>
-
                                     {{if .StepIngredients}}
                                         <div class="cooking-mode-step-ingredients">
                                             <strong>Ingredients used</strong>
@@ -105,7 +85,6 @@
                                             </ul>
                                         </div>
                                     {{end}}
-
                                     {{if .Notes}}
                                         <p class="cooking-mode-step-notes">
                                             <strong>Note:</strong> {{.Notes}}
@@ -120,14 +99,11 @@
                         {{end}}
                     </ol>
                 </section>
-
-                <!-- RIGHT COLUMN: Ingredients -->
                 <section class="cooking-mode-section cooking-mode-ingredients">
                     <div class="cooking-mode-section-heading">
                         <span class="cooking-mode-section-number">02</span>
                         <h2>Ingredients</h2>
                     </div>
-
                     <ul class="cooking-mode-ingredient-list">
                         {{range .Ingredients}}
                             <li>
@@ -145,7 +121,6 @@
                         {{end}}
                     </ul>
                 </section>
-
             </div>
         </main>
     </body>
