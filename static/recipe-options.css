@@ -78,6 +78,7 @@
 
     cursor: pointer;
 }
+
 .recipe-actions-options button:hover {
     background: #f5f5f5;
 }

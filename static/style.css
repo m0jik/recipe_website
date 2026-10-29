@@ -629,6 +629,29 @@ button[type="submit"]:hover {
     background: #fdecea;
 }
 
+.print-btn {
+    align-self: flex-start;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.print-btn:hover {
+    background: #f4f4f4;
+}
+
+.print-btn img {
+    display: block;
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
 /* =========================
    TAG FILTERS AND TAG CHIPS
 ========================= */

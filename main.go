@@ -192,6 +192,9 @@ func main() {
 	mux.HandleFunc("/recipes/v1/myRecipe", app.handleMyRecipes)
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
 
+	//Print Mode
+	mux.HandleFunc("/print-mode/v1/{id}", app.handlePrintMode)
+
 	//Recipe Edit
 	mux.HandleFunc("POST /recipes/v1/delete-recipe/{id}", app.handleDeleteRecipe)
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
@@ -1173,6 +1176,67 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 	err = tpl.ExecuteTemplate(&buf, "recipe.html", pageData)
 	if err != nil {
 		log.Printf("Error rendering recipe template: %v", err)
+		http.Error(w, "Template error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(buf.Bytes())
+}
+
+func (a *App) handlePrintMode(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	sessionUserID, loggedIn := a.getUserIDFromSession(r)
+	if loggedIn {
+		u, err := a.Users.GetUsernameByID(sessionUserID)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/print-mode/v1/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	data, recipeOwnerID, err := a.Recipes.GetRecipeForView(id)
+	if err != nil {
+		http.Error(w, "Recipe not found", http.StatusNotFound)
+		return
+	}
+
+	creatorusername, err := a.Users.GetUsernameByID(int(recipeOwnerID))
+	if err != nil {
+		creatorusername = "Unknown"
+	}
+
+	pageData := RecipePageData{
+		PageData: PageData{
+			UserID:          int64(sessionUserID),
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		RecipeID:        id,
+		OwnerID:         recipeOwnerID,
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		StepIngredients: data.StepIngredients,
+		CreatorUsername: creatorusername,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+	}
+
+	var buf bytes.Buffer
+	err = tpl.ExecuteTemplate(&buf, "printing_mode.html", pageData)
+	if err != nil {
+		log.Printf("Error rendering printing mode template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)
 		return
 	}

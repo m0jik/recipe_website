@@ -21,6 +21,9 @@
                 </summary>
 
                 <div class="recipe-actions-options">
+                    <form method="GET" action="/recipes/v1/edit-recipe/{{ .RecipeID }}">
+                        <button style="color: black;" type="submit" onclick="this.closest('details').open = false;">Edit</button>
+                    </form>
                     <form
                         method="POST"
                         action="/recipes/v1/delete-recipe/{{ .RecipeID }}"
@@ -28,9 +31,6 @@
                         hx-confirm="Delete &quot;{{ .Title }}&quot;? This cannot be undone."
                     >
                         <button type="submit">Delete</button>
-                    </form>
-                    <form method="GET" action="/recipes/v1/edit-recipe/{{ .RecipeID }}">
-                        <button type="submit" onclick="this.closest('details').open = false;">Edit</button>
                     </form>
                 </div>
             </details>
@@ -52,6 +52,7 @@
                 {{ template "shopping-btn" . }}  
                 {{ template "cookbook-btn" . }}
                 {{ template "cooking-mode-btn" . }}
+                {{ template "print-btn" . }}
             </div>
 
             {{if .Tags}}
