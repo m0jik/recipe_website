@@ -23,7 +23,7 @@ import (
 
 // MaxImageBytes and MaxImageWidth can be updated
 const (
-	MaxImageBytes = 2 << 20 // 2 MB
+	MaxImageBytes = 16 << 20 // 16 MB
 	MaxImageWidth = 1280
 )
 

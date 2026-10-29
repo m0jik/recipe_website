@@ -24,9 +24,9 @@
             <h2>Shopping List</h2>
             <p class="shopping-intro">
                 {{ if .NeedOnly }}
-                    Showing only items you need to buy. Quantities are adjusted based on what you already have in your pantry.
+                    Only what you still need to buy.
                 {{ else }}
-                    Everything your recipes call for. Quantities are adjusted based on what you already have in your pantry.
+                    All recipe ingredients, adjusted for your pantry.
                 {{ end }}
             </p>
         </div>
@@ -59,6 +59,12 @@
                                     {{ .Servings }} serving{{ if ne .Servings 1 }}s{{ end }}
                                 </span>
                             {{ end }}
+                            {{ if index $.Outdated .ID }}
+                                <button type="button" class="btn-secondary"
+                                        hx-post="/shopping-list/v1/add?recipe_id={{ .ID }}&render=section{{ if $.NeedOnly }}&need_only=1{{ end }}"
+                                        hx-target="#shopping-list-section"
+                                        hx-swap="outerHTML">Update ingredients</button>
+                            {{ end }}
                         </div>
                         <button type="button" class="btn-remove"
                                 title="Remove {{ .Title }} from your list"
@@ -67,7 +73,7 @@
                                 hx-swap="outerHTML">&#10005;</button>
                     </div>
                 {{ end }}
-                <a class="add-more-recipes" href="/">+ Add More Recipes</a>
+                <a class="add-more-recipes" href="/">+ Add Recipes</a>
             </div>
         </div>
     {{ end }}
@@ -92,8 +98,7 @@
                         <th class="col-item">Item</th>
                         <th class="col-num">Need</th>
                         <th class="col-num">In Pantry</th>
-                        <th class="col-num">To Buy</th>
-                        <th class="col-adjust">Qty Adjust</th>
+                        <th class="col-adjust">Buying</th>
                     </tr>
                 </thead>
 
@@ -124,41 +129,36 @@
 
                             <td class="col-item">{{ $item.Name }}</td>
 
-                            <td class="col-num">
+                            <td class="col-num" data-label="Need">
                                 {{ if $item.Need }}{{ $item.Need }}{{ else }}&mdash;{{ end }}
                                 {{ if $item.Unit }} {{ $item.Unit }}{{ end }}
                             </td>
 
-                            <td class="col-num in-pantry">
+                            <td class="col-num in-pantry" data-label="In Pantry">
                                 {{ $item.InPantry }}{{ if and $item.Unit (ne $item.InPantry "0") }} {{ $item.Unit }}{{ end }}
                             </td>
 
-                            <td class="col-num to-buy{{ if $item.NeedsBuying }} needs-buying{{ end }}">
-                                {{ if $item.ToBuy }}{{ $item.ToBuy }}{{ else }}&mdash;{{ end }}
-                                {{ if $item.Unit }} {{ $item.Unit }}{{ end }}
-                                {{ if $item.Overridden }}<span class="override-flag" title="You set this amount by hand">*</span>{{ end }}
-                            </td>
-
-                            <td class="col-adjust">
-                                <div class="qty-stepper">
-                                    <button type="button" class="qty-btn"
-                                            aria-label="Buy less {{ $item.Name }}"
-                                            hx-post="/shopping-list/v1/qty?name={{ $item.Name | urlquery }}&unit={{ $item.Unit | urlquery }}&delta=-1{{ if $.NeedOnly }}&need_only=1{{ end }}"
-                                            hx-target="#shopping-list-section"
-                                            hx-swap="outerHTML">&minus;</button>
-                                    <span class="qty-value">{{ if $item.ToBuy }}{{ $item.ToBuy }}{{ else }}&mdash;{{ end }}</span>
-                                    <button type="button" class="qty-btn"
-                                            aria-label="Buy more {{ $item.Name }}"
-                                            hx-post="/shopping-list/v1/qty?name={{ $item.Name | urlquery }}&unit={{ $item.Unit | urlquery }}&delta=1{{ if $.NeedOnly }}&need_only=1{{ end }}"
-                                            hx-target="#shopping-list-section"
-                                            hx-swap="outerHTML">+</button>
-                                </div>
+                            <td class="col-adjust" data-label="Buying">
+                                <form class="qty-adjust"
+                                      hx-post="/shopping-list/v1/qty?name={{ $item.Name | urlquery }}&unit={{ $item.Unit | urlquery }}"
+                                      hx-trigger="change"
+                                      hx-swap="none"
+                                      hx-sync="closest section:queue all">
+                                    <input type="text" name="qty" class="qty-input" inputmode="decimal"
+                                           value="{{ $item.Bought }}" placeholder="0"
+                                           pattern="\d*\.?\d+|(\d+ )?\d+/\d+"
+                                           aria-label="How much {{ $item.Name }} you bought">
+                                    <select name="qty_unit" class="qty-unit" aria-label="Unit of {{ $item.Name }} you bought">
+                                        <option value="" disabled selected>Unit</option>
+                                        {{ template "unit-options" (or $item.BoughtUnit $item.Unit) }}
+                                    </select>
+                                </form>
                             </td>
 
                         </tr>
 
                         <tr class="shopping-detail">
-                            <td colspan="7">
+                            <td colspan="6">
                                 <div class="detail-box">
                                     <p class="detail-title">Used in these recipes:</p>
                                     <ul class="detail-sources">
@@ -195,14 +195,9 @@
                 hx-post="/shopping-list/v1/to-pantry{{ if .NeedOnly }}?need_only=1{{ end }}"
                 hx-target="#shopping-list-section"
                 hx-swap="outerHTML"
+                hx-sync="closest section:queue all"
             >
-                <button
-                    type="submit"
-                    class="btn-primary to-pantry-btn"
-                    title="Add everything still to buy to your pantry"
-                >
-                    Add all to pantry
-                </button>
+                <button type="submit" class="btn-primary to-pantry-btn" title="Add the items you ticked off to your pantry">Add to pantry</button>
             </form>
         </div>
     {{ else if .NeedOnly }}
