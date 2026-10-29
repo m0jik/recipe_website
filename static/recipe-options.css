@@ -4,6 +4,7 @@
 
 .recipe-card {
     position: relative;
+    padding-right: 56px;
 }
 
 .recipe-actions {

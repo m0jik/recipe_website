@@ -320,6 +320,21 @@ button {
     font-size: 14px;
 }
 
+.recipe-button-group {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 8px;
+    margin-top: 15px;
+}
+
+.recipe-button-group .shopping-btn,
+.recipe-button-group .cookbook-btn {
+    align-self: auto;
+    margin-top: 0;
+    flex-shrink: 0;
+}
+
 /* =========================
    RECIPE VIEW PAGE
 ========================= */
@@ -507,6 +522,7 @@ button[type="submit"]:hover {
     display: flex;
     gap: 8px;
     align-items: center;
+    padding: 10px;
 }
 
 .add-row input,
@@ -751,6 +767,34 @@ a.tag-chip:hover,
 .recipe-tag-picker {
     display: grid;
     gap: 10px;
+}
+
+.cookbook-btn {
+    align-self: flex-start;
+    margin-top: 15px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    background: #fff;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+.cookbook-btn:hover {
+    background: #f4f4f4;
+}
+
+.cookbook-btn img {
+    display: block;
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+.cookbook-btn-added:hover {
+    background: #fdecea;
 }
 
 /* =========================

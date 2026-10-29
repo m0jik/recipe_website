@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+    <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+        <meta charset="utf-8">
+        <title>Cooking Mode - Steps</title>
+        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
+        <link rel="stylesheet" href="/static/cooking_mode.css?v=responsive-2">
+        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+    </head>
+    <body class="cooking-mode-steps-body">
+        {{template "nav" .}}
+        <main class="cooking-mode-page cooking-mode-steps-page">
+            <div class="cooking-mode-actions">
+                <div class="cooking-mode-button-group">
+                    {{template "cooking-mode-recipe-btn-inactive" .}}
+                    {{template "cooking-mode-steps-btn-active" .}}
+                </div>
+            </div>
+            <header class="cooking-mode-steps-header">
+                <p class="cooking-mode-step-counter">
+                    Step {{.StepNumber}} of {{.TotalSteps}}
+                </p>
+            </header>
+            <section class="cooking-mode-current-step">
+                {{with (index .Steps .StepIndex)}}
+                    <div class="cooking-mode-step-content">
+                        <p class="cooking-mode-instruction">
+                            {{.Instruction}}
+                        </p>
+                        {{if .Notes}}
+                            <div class="cooking-mode-step-notes">
+                                <strong>Notes</strong>
+                                <p>{{.Notes}}</p>
+                            </div>
+                        {{end}}
+                    </div>
+                {{end}}
+                {{if .HasPrevious}}
+                    <a class="cooking-mode-tap-zone cooking-mode-tap-previous"
+                    href="/cooking-mode/v1/{{.RecipeID}}/steps?step={{.PreviousStep}}"
+                    aria-label="Previous step">
+                        <span aria-hidden="true">‹</span>
+                    </a>
+                {{end}}
+                {{if .HasNext}}
+                    <a class="cooking-mode-tap-zone cooking-mode-tap-next"
+                    href="/cooking-mode/v1/{{.RecipeID}}/steps?step={{.NextStep}}"
+                    aria-label="Next step">
+                        <span aria-hidden="true">›</span>
+                    </a>
+                {{else}}
+                    <a class="cooking-mode-tap-zone cooking-mode-tap-next"
+                    href="/cooking-mode/v1/{{.RecipeID}}"
+                    aria-label="Finish cooking steps">
+                        <span aria-hidden="true">✓</span>
+                    </a>
+                {{end}}
+            </section>
+            <nav class="cooking-mode-step-navigation" aria-label="Step navigation">
+                {{if .HasPrevious}}
+                    <a class="cooking-mode-step-button"
+                    href="/cooking-mode/v1/{{.RecipeID}}/steps?step={{.PreviousStep}}">
+                        ← Previous
+                    </a>
+                {{else}}
+                    <span class="cooking-mode-step-button cooking-mode-step-disabled">
+                        ← Previous
+                    </span>
+                {{end}}
+                {{if .HasNext}}
+                    <a class="cooking-mode-step-button cooking-mode-step-primary"
+                    href="/cooking-mode/v1/{{.RecipeID}}/steps?step={{.NextStep}}">
+                        Next →
+                    </a>
+                {{else}}
+                    <a class="cooking-mode-step-button cooking-mode-step-primary"
+                    href="/cooking-mode/v1/{{.RecipeID}}">
+                        Finish ✓
+                    </a>
+                {{end}}
+            </nav>
+            <p class="cooking-mode-mobile-hint">
+                Tap the left side to go back or the right side to continue.
+            </p>
+        </main>
+    </body>
+</html>

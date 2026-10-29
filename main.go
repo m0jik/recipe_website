@@ -44,6 +44,7 @@ type App struct {
 	Images   *services.ImageService
 	Shopping *services.ShoppingListService
 	Pantry   *services.PantryService
+	CookBook *services.CookBookService
 }
 
 type PageData struct {
@@ -56,24 +57,46 @@ type PageData struct {
 	PresetTagGroups []services.PresetTagGroup
 }
 
+type CookingModeStep struct {
+	RecipeID     int64
+	RecipeTitle  string
+	OriginalStep int
+	Instruction  string
+	Notes        string
+	Ingredients  []services.StepIngredient
+}
+
 type RecipePageData struct {
 	PageData
 
-	RecipeID        int64
-	OwnerID         int64
-	Added           bool
-	Title           string
-	Description     string
-	ImageURL        string
-	Ingredients     []services.Ingredient
-	Steps           []services.Step
-	StepIngredients []services.StepIngredient
-	CreatorUsername string
-	Servings        int
-	PrepTimeMinutes int
-	Tags            []string
-	Versions        []services.RecipeVersion
-	RestoredVersion int
+	RecipeID            int64
+	OwnerID             int64
+	Added               bool
+	Bookmarked          bool
+	Title               string
+	Description         string
+	ImageURL            string
+	Ingredients         []services.Ingredient
+	Steps               []services.Step
+	StepIngredients     []services.StepIngredient
+	CreatorUsername     string
+	Servings            int
+	PrepTimeMinutes     int
+	Tags                []string
+	Versions            []services.RecipeVersion
+	RestoredVersion     int
+	StepIndex           int
+	StepNumber          int
+	TotalSteps          int
+	PreviousStep        int
+	NextStep            int
+	HasPrevious         bool
+	HasNext             bool
+	IsMultiRecipe       bool
+	SessionID           string
+	SessionRecipes      []RecipePageData
+	CombinedIngredients []services.Ingredient
+	OrderedSteps        []CookingModeStep
 }
 
 type PageOneData struct {
@@ -146,6 +169,7 @@ func main() {
 		Images:   services.NewImageService(&services.LocalStore{Dir: "uploads"}),
 		Shopping: services.NewShoppingListService(db),
 		Pantry:   services.NewPantryService(db),
+		CookBook: services.NewCookBookService(db),
 	}
 
 	log.Println("Setting up handlers...")
@@ -192,6 +216,20 @@ func main() {
 	mux.HandleFunc("POST /pantry/v1/add", app.handlePantryAdd)
 	mux.HandleFunc("DELETE /pantry/v1/remove", app.handlePantryRemove)
 	mux.HandleFunc("GET /pantry/v1/{$}", app.handlePantry)
+
+	//Cook Book
+	mux.HandleFunc("GET /cookbook/v1", app.handleCookBook)
+	mux.HandleFunc("POST /cookbook/v1/add", app.handleCookBookAdd)
+	mux.HandleFunc("DELETE /cookbook/v1/remove", app.handleCookBookRemove)
+
+	//Cooking Mode
+	mux.HandleFunc("/cooking-mode/v1/{id}", app.handleCookingMode)
+	mux.HandleFunc("/cooking-mode/v1/{id}/steps", app.handleCookingModeSteps)
+
+	// Multiple recipe planning and sessions
+	// mux.HandleFunc("/cooking-mode/multiple", app.handleMultipleCookingMode)
+	// mux.HandleFunc("/cooking-mode/session/{id}", app.handleCookingSession)
+	// mux.HandleFunc("/cooking-mode/session/{id}/steps", app.handleCookingSessionSteps)
 
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
@@ -1090,10 +1128,17 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	added := false
+	bookmarked := false
 	if loggedIn {
 		added, err = a.Shopping.HasRecipe(sessionUserID, id)
 		if err != nil {
 			log.Printf("Error checking shopping list for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		bookmarked, err = a.CookBook.HasRecipe(sessionUserID, int(id))
+		if err != nil {
+			log.Printf("Error checking cookbook for recipe %d: %v", id, err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
@@ -1114,6 +1159,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		RecipeID:        id,
 		OwnerID:         recipeOwnerID,
 		Added:           added,
+		Bookmarked:      bookmarked,
 		Title:           data.Recipe.Title,
 		Description:     data.Recipe.Description,
 		ImageURL:        data.Recipe.ImageURL,
@@ -1282,8 +1328,16 @@ func (a *App) handleShoppingList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	outdated, err := a.Shopping.OutdatedRecipes(userID, a.Recipes)
+	if err != nil {
+		log.Printf("Error checking shopping list recipes for changes for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	data := shoppingListData(items, recipes, needOnly)
 	data["Username"] = username
+	data["Outdated"] = outdated
 	err = tpl.ExecuteTemplate(w, "shoppingList.html", data)
 	if err != nil {
 		log.Printf("Error rendering shopping list template: %v", err)
@@ -1326,6 +1380,12 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 	if err := a.Shopping.AddRecipeIngredients(userID, versionID, ingredients); err != nil {
 		log.Printf("Error adding recipe %d to shopping list for user ID %d: %v", recipeID, userID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// The shopping list page updates a recipe to its newest ingredients and redraws the whole section.
+	if r.URL.Query().Get("render") == "section" {
+		a.renderShoppingListSection(w, userID, needOnlyFrom(r))
 		return
 	}
 
@@ -1421,7 +1481,7 @@ func (a *App) handleShoppingListCheckAll(w http.ResponseWriter, r *http.Request)
 	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
 }
 
-// handleShoppingListQty nudges how much of a line to actually buy, for when the shopper wants a different amount than the recipes worked out.
+// handleShoppingListQty saves how much of the shopper bought and in what unit, ready for when it goes into the pantry.
 func (a *App) handleShoppingListQty(w http.ResponseWriter, r *http.Request) {
 	userID, ok := a.getUserIDFromSession(r)
 	if !ok {
@@ -1429,22 +1489,24 @@ func (a *App) handleShoppingListQty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	delta, err := strconv.ParseFloat(r.URL.Query().Get("delta"), 64)
-	if err != nil {
-		http.Error(w, "invalid delta", http.StatusBadRequest)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
 		return
 	}
 
 	name := r.URL.Query().Get("name")
 	unit := r.URL.Query().Get("unit")
 
-	if err := a.Shopping.AdjustQuantity(userID, name, unit, delta); err != nil {
-		log.Printf("Error adjusting shopping list quantity for user ID %d: %v", userID, err)
+	if err := a.Shopping.SetBought(userID, name, unit, r.FormValue("qty"), r.FormValue("qty_unit")); err != nil {
+		if errors.Is(err, services.ErrInvalidQuantity) {
+			http.Error(w, "invalid quantity", http.StatusBadRequest)
+			return
+		}
+		log.Printf("Error setting shopping list quantity for user ID %d: %v", userID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
-	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *App) handleShoppingListToPantry(w http.ResponseWriter, r *http.Request) {
@@ -1538,7 +1600,16 @@ func (a *App) renderShoppingListSection(w http.ResponseWriter, userID int, needO
 		return
 	}
 
-	if err := tpl.ExecuteTemplate(w, "shopping-list-section", shoppingListData(items, recipes, needOnly)); err != nil {
+	outdated, err := a.Shopping.OutdatedRecipes(userID, a.Recipes)
+	if err != nil {
+		log.Printf("Error checking shopping list recipes for changes for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := shoppingListData(items, recipes, needOnly)
+	data["Outdated"] = outdated
+	if err := tpl.ExecuteTemplate(w, "shopping-list-section", data); err != nil {
 		log.Printf("Error rendering shopping list section: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -2062,4 +2133,289 @@ func (a *App) handleImagePreview(w http.ResponseWriter, r *http.Request) {
 	if _, err := w.Write([]byte(`<p id="image-error" hx-swap-oob="innerHTML"></p>`)); err != nil {
 		log.Printf("Error writing image error reset: %v", err)
 	}
+}
+
+func (a *App) handleCookBook(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	var userID int64
+
+	if uid, ok := a.getUserIDFromSession(r); ok {
+		userID = int64(uid)
+		u, err := a.Users.GetUsernameByID(uid)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+
+	recipes, err := a.Recipes.GetCookBookRecipes(int(userID))
+	if err != nil {
+		log.Printf("Error retrieving cookbook for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := map[string]any{
+		"Query":    "",
+		"UserID":   int(userID),
+		"Username": username,
+		"Recipes":  recipes,
+	}
+
+	if err := tpl.ExecuteTemplate(w, "cookBook.html", data); err != nil {
+		log.Printf("Error rendering cookbook: %v", err)
+	}
+
+}
+
+func (a *App) handleCookBookAdd(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.FormValue("recipe_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid recipe id", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.CookBook.AddRecipeToCookBook(userID, int(recipeID)); err != nil {
+		log.Printf("Error adding recipe %d to cookbook for user ID %d: %v", recipeID, userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tpl.ExecuteTemplate(w, "cookbook-btn", map[string]any{
+		"RecipeID":   recipeID,
+		"Bookmarked": true,
+	}); err != nil {
+		log.Printf("Error rendering cookbook button: %v", err)
+	}
+}
+
+func (a *App) handleCookBookRemove(w http.ResponseWriter, r *http.Request) {
+	userID, ok := a.getUserIDFromSession(r)
+	if !ok {
+		w.Header().Set("HX-Redirect", "/users/v1/login")
+		return
+	}
+
+	recipeID, err := strconv.ParseInt(r.URL.Query().Get("recipe_id"), 10, 64)
+	if err != nil {
+		http.Error(w, "invalid recipe id", http.StatusBadRequest)
+		return
+	}
+
+	if err := a.CookBook.RemoveRecipeFromCookBook(userID, int(recipeID)); err != nil {
+		log.Printf("Error removing recipe %d from cookbook for user ID %d: %v", recipeID, userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	if err := tpl.ExecuteTemplate(w, "cookbook-btn", map[string]any{
+		"RecipeID":   recipeID,
+		"Bookmarked": false,
+	}); err != nil {
+		log.Printf("Error rendering cookbook button: %v", err)
+	}
+}
+
+func (a *App) handleCookingMode(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	sessionUserID, loggedIn := a.getUserIDFromSession(r)
+	if loggedIn {
+		u, err := a.Users.GetUsernameByID(sessionUserID)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+	idStr := strings.TrimPrefix(r.URL.Path, "/cooking-mode/v1/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	data, recipeOwnerID, err := a.Recipes.GetRecipeForView(id)
+	if err != nil {
+		http.Error(w, "Recipe not found", http.StatusNotFound)
+		return
+	}
+
+	added := false
+	bookmarked := false
+	if loggedIn {
+		added, err = a.Shopping.HasRecipe(sessionUserID, id)
+		if err != nil {
+			log.Printf("Error checking shopping list for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		bookmarked, err = a.CookBook.HasRecipe(sessionUserID, int(id))
+		if err != nil {
+			log.Printf("Error checking cookbook for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	creatorusername, err := a.Users.GetUsernameByID(int(recipeOwnerID))
+	if err != nil {
+		creatorusername = "Unknown"
+	}
+
+	pageData := RecipePageData{
+		PageData: PageData{
+			UserID:          int64(sessionUserID),
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		RecipeID:        id,
+		OwnerID:         recipeOwnerID,
+		Added:           added,
+		Bookmarked:      bookmarked,
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		StepIngredients: data.StepIngredients,
+		CreatorUsername: creatorusername,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+	}
+
+	var buf bytes.Buffer
+	err = tpl.ExecuteTemplate(&buf, "cooking_mode_recipe.html", pageData)
+	if err != nil {
+		log.Printf("Error rendering recipe template: %v", err)
+		http.Error(w, "Template error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(buf.Bytes())
+
+}
+
+func (a *App) handleCookingModeSteps(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	sessionUserID, loggedIn := a.getUserIDFromSession(r)
+
+	if loggedIn {
+		u, err := a.Users.GetUsernameByID(sessionUserID)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/cooking-mode/v1/")
+	idStr = strings.TrimSuffix(idStr, "/steps")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		http.NotFound(w, r)
+		return
+	}
+
+	data, recipeOwnerID, err := a.Recipes.GetRecipeForView(id)
+	if err != nil {
+		http.Error(w, "Recipe not found", http.StatusNotFound)
+		return
+	}
+
+	totalSteps := len(data.Steps)
+	if totalSteps == 0 {
+		http.Error(w, "This recipe has no instructions yet", http.StatusNotFound)
+		return
+	}
+
+	stepNumber := 1
+	if rawStep := r.URL.Query().Get("step"); rawStep != "" {
+		parsedStep, parseErr := strconv.Atoi(rawStep)
+		if parseErr != nil || parsedStep < 1 || parsedStep > totalSteps {
+			http.Error(w, "Invalid step number", http.StatusBadRequest)
+			return
+		}
+		stepNumber = parsedStep
+	}
+
+	stepIndex := stepNumber - 1
+
+	creatorUsername, err := a.Users.GetUsernameByID(int(recipeOwnerID))
+	if err != nil {
+		creatorUsername = "Unknown"
+	}
+
+	added := false
+	bookmarked := false
+
+	if loggedIn {
+		added, err = a.Shopping.HasRecipe(sessionUserID, id)
+		if err != nil {
+			log.Printf("Error checking shopping list for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		bookmarked, err = a.CookBook.HasRecipe(sessionUserID, int(id))
+		if err != nil {
+			log.Printf("Error checking cookbook for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	pageData := RecipePageData{
+		PageData: PageData{
+			UserID:          int64(sessionUserID),
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		RecipeID:        id,
+		OwnerID:         recipeOwnerID,
+		Added:           added,
+		Bookmarked:      bookmarked,
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		StepIngredients: data.StepIngredients,
+		CreatorUsername: creatorUsername,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+
+		StepIndex:    stepIndex,
+		StepNumber:   stepNumber,
+		TotalSteps:   totalSteps,
+		PreviousStep: stepNumber - 1,
+		NextStep:     stepNumber + 1,
+		HasPrevious:  stepNumber > 1,
+		HasNext:      stepNumber < totalSteps,
+	}
+
+	var buf bytes.Buffer
+	err = tpl.ExecuteTemplate(&buf, "cooking_mode_step-by-step.html", pageData)
+	if err != nil {
+		log.Printf("Error rendering cooking mode steps template: %v", err)
+		http.Error(w, "Template error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(buf.Bytes())
 }
