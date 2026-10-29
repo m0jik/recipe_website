@@ -6,7 +6,7 @@
         <title>Cooking Mode Recipe</title>
 
         <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
-        <link rel="stylesheet" href="/static/cooking_mode.css?v=responsive-2">
+        <link rel="stylesheet" href="/static/cooking_mode.css?v=recipe-layout-3">
 
         <script src="https://unpkg.com/htmx.org@1.9.12"></script>
     </head>
@@ -14,7 +14,6 @@
         {{template "nav" .}}
 
         <main class="cooking-mode-page">
-
             <div class="cooking-mode-actions">
                 <div class="cooking-mode-button-group">
                     {{ template "cooking-mode-recipe-btn" . }}
@@ -22,81 +21,69 @@
                 </div>
             </div>
 
-            <div class="cooking-mode-recipe-header">
-                <div class="cooking-mode-image-container">
-                    <img
-                        class="cooking-mode-recipe-image"
-                        src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}"
-                        alt="Recipe Image"
-                        onerror="this.onerror=null; this.src='/static/placeholder.svg'"
-                    >
-                </div>
-
-                <div class="cooking-mode-recipe-info">
-                    <h1>{{.Title}}</h1>
-
-                    <p class="cooking-mode-author">
-                        Created by: {{.CreatorUsername}}
-                    </p>
-
-                    {{if .Description}}
-                        <p class="cooking-mode-description">{{.Description}}</p>
-                    {{end}}
-
-                    <div class="cooking-mode-meta">
-                        {{if .Servings}}
-                            <span class="cooking-mode-meta-item">
-                                <strong>Servings</strong>
-                                {{.Servings}}
-                            </span>
-                        {{end}}
-
-                        {{if .PrepTimeMinutes}}
-                            <span class="cooking-mode-meta-item">
-                                <strong>Prep time</strong>
-                                {{.PrepTimeMinutes}} min
-                            </span>
-                        {{end}}
-                    </div>
-
-                    {{if .Tags}}
-                        <div class="cooking-mode-tags">
-                            {{range .Tags}}
-                                <a class="cooking-mode-tag"
-                                   href="{{tagurl . nil ""}}">{{.}}</a>
-                            {{end}}
-                        </div>
-                    {{end}}
-                </div>
-            </div>
-
             <div class="cooking-mode-content">
 
-                <section class="cooking-mode-section cooking-mode-ingredients">
-                    <div class="cooking-mode-section-heading">
-                        <span class="cooking-mode-section-number">01</span>
-                        <h2>Ingredients</h2>
+                <!-- LEFT COLUMN: Recipe overview -->
+                <aside class="cooking-mode-recipes-column">
+                    <div class="cooking-mode-column-heading">
+                        <h2>Recipes</h2>
                     </div>
 
-                    <ul class="cooking-mode-ingredient-list">
-                        {{range .Ingredients}}
-                            <li>
-                                <span class="cooking-mode-ingredient-name">{{.Name}}</span>
-                                <span class="cooking-mode-ingredient-quantity">
-                                    {{.Quantity}} {{.Unit}}
-                                </span>
-                            </li>
-                        {{else}}
-                            <li class="cooking-mode-empty">
-                                No ingredients added yet.
-                            </li>
-                        {{end}}
-                    </ul>
-                </section>
+                    <article class="cooking-mode-recipe-card">
+                        <div class="cooking-mode-image-container">
+                            <img
+                                class="cooking-mode-recipe-image"
+                                src="{{if .ImageURL}}{{.ImageURL}}{{else}}/static/placeholder.svg{{end}}"
+                                alt="Recipe Image"
+                                onerror="this.onerror=null; this.src='/static/placeholder.svg'"
+                            >
+                        </div>
 
+                        <div class="cooking-mode-recipe-info">
+                            <h1>{{.Title}}</h1>
+
+                            <p class="cooking-mode-author">
+                                Created by: {{.CreatorUsername}}
+                            </p>
+
+                            {{if .Description}}
+                                <p class="cooking-mode-description">{{.Description}}</p>
+                            {{end}}
+
+                            <div class="cooking-mode-meta">
+                                {{if .Servings}}
+                                    <span class="cooking-mode-meta-item">
+                                        <strong>Servings</strong>
+                                        {{.Servings}}
+                                    </span>
+                                {{end}}
+
+                                {{if .PrepTimeMinutes}}
+                                    <span class="cooking-mode-meta-item">
+                                        <strong>Prep time</strong>
+                                        {{.PrepTimeMinutes}} min
+                                    </span>
+                                {{end}}
+                            </div>
+
+                            {{if .Tags}}
+                                <div class="cooking-mode-tags">
+                                    {{range .Tags}}
+                                        <a class="cooking-mode-tag"
+                                        href="{{tagurl . nil ""}}">{{.}}</a>
+                                    {{end}}
+                                </div>
+                            {{end}}
+                        </div>
+                    </article>
+
+                    <!-- Additional recipe cards can go here later -->
+                </aside>
+
+                <!-- MIDDLE COLUMN: Instructions -->
                 <section class="cooking-mode-section cooking-mode-steps">
                     <div class="cooking-mode-section-heading">
-                        <span class="cooking-mode-section-number">02</span>
+                        <span class="cooking-mode-section-number">01</span>
                         <h2>Instructions</h2>
                     </div>
 
@@ -132,6 +119,31 @@
                             </li>
                         {{end}}
                     </ol>
+                </section>
+
+                <!-- RIGHT COLUMN: Ingredients -->
+                <section class="cooking-mode-section cooking-mode-ingredients">
+                    <div class="cooking-mode-section-heading">
+                        <span class="cooking-mode-section-number">02</span>
+                        <h2>Ingredients</h2>
+                    </div>
+
+                    <ul class="cooking-mode-ingredient-list">
+                        {{range .Ingredients}}
+                            <li>
+                                <span class="cooking-mode-ingredient-name">
+                                    {{.Name}}
+                                </span>
+                                <span class="cooking-mode-ingredient-quantity">
+                                    {{.Quantity}} {{.Unit}}
+                                </span>
+                            </li>
+                        {{else}}
+                            <li class="cooking-mode-empty">
+                                No ingredients added yet.
+                            </li>
+                        {{end}}
+                    </ul>
                 </section>
 
             </div>

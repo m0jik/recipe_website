@@ -57,32 +57,46 @@ type PageData struct {
 	PresetTagGroups []services.PresetTagGroup
 }
 
+type CookingModeStep struct {
+	RecipeID     int64
+	RecipeTitle  string
+	OriginalStep int
+	Instruction  string
+	Notes        string
+	Ingredients  []services.StepIngredient
+}
+
 type RecipePageData struct {
 	PageData
 
-	RecipeID        int64
-	OwnerID         int64
-	Added           bool
-	Bookmarked      bool
-	Title           string
-	Description     string
-	ImageURL        string
-	Ingredients     []services.Ingredient
-	Steps           []services.Step
-	StepIngredients []services.StepIngredient
-	CreatorUsername string
-	Servings        int
-	PrepTimeMinutes int
-	Tags            []string
-	Versions        []services.RecipeVersion
-	RestoredVersion int
-	StepIndex       int
-	StepNumber      int
-	TotalSteps      int
-	PreviousStep    int
-	NextStep        int
-	HasPrevious     bool
-	HasNext         bool
+	RecipeID            int64
+	OwnerID             int64
+	Added               bool
+	Bookmarked          bool
+	Title               string
+	Description         string
+	ImageURL            string
+	Ingredients         []services.Ingredient
+	Steps               []services.Step
+	StepIngredients     []services.StepIngredient
+	CreatorUsername     string
+	Servings            int
+	PrepTimeMinutes     int
+	Tags                []string
+	Versions            []services.RecipeVersion
+	RestoredVersion     int
+	StepIndex           int
+	StepNumber          int
+	TotalSteps          int
+	PreviousStep        int
+	NextStep            int
+	HasPrevious         bool
+	HasNext             bool
+	IsMultiRecipe       bool
+	SessionID           string
+	SessionRecipes      []RecipePageData
+	CombinedIngredients []services.Ingredient
+	OrderedSteps        []CookingModeStep
 }
 
 type PageOneData struct {
@@ -208,6 +222,11 @@ func main() {
 	//Cooking Mode
 	mux.HandleFunc("/cooking-mode/v1/{id}", app.handleCookingMode)
 	mux.HandleFunc("/cooking-mode/v1/{id}/steps", app.handleCookingModeSteps)
+
+	// Multiple recipe planning and sessions
+	// mux.HandleFunc("/cooking-mode/multiple", app.handleMultipleCookingMode)
+	// mux.HandleFunc("/cooking-mode/session/{id}", app.handleCookingSession)
+	// mux.HandleFunc("/cooking-mode/session/{id}/steps", app.handleCookingSessionSteps)
 
 	// path
 	mux.Handle("/uploads/", http.StripPrefix("/uploads/", http.FileServer(http.Dir("uploads"))))
