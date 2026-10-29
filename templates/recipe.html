@@ -49,6 +49,8 @@
             </p>
             {{ template "shopping-btn" . }}
 
+            <a href="/recipes/v1/print/{{ .RecipeID }}">Print Mode</a>
+
             {{if .Tags}}
                 <p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . nil ""}}">#{{.}}</a> {{end}}</p>
             {{end}}

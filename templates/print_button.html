@@ -1,0 +1,22 @@
+{{ define "print-btn" }}
+{{ if .Added }}
+<button class="print-btn print-btn-enabled" type="button"
+        title="Load this recipe's standard viewing mode"
+        aria-label="Load this recipe's standard viewing mode"
+        hx-get="/recipes/v1/{{ .RecipeID }}"
+        hx-target="this"
+        hx-swap="outerHTML">
+    Standard View
+</button>
+{{ else }}
+<button class="print-btn" type="button"
+        title="Load this recipe's printing mode"
+        aria-label="Load this recipe's printing mode"
+        hx-get="/recipes/v1/{{ .RecipeID }}/print"
+        hx-vals='{"recipe_id": "{{ .RecipeID }}"}'
+        hx-target="this"
+        hx-swap="outerHTML">
+        Printing Mode
+</button>
+{{ end }}
+{{ end }}
