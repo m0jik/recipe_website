@@ -1245,8 +1245,16 @@ func (a *App) handleShoppingList(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	outdated, err := a.Shopping.OutdatedRecipes(userID, a.Recipes)
+	if err != nil {
+		log.Printf("Error checking shopping list recipes for changes for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
 	data := shoppingListData(items, recipes, needOnly)
 	data["Username"] = username
+	data["Outdated"] = outdated
 	err = tpl.ExecuteTemplate(w, "shoppingList.html", data)
 	if err != nil {
 		log.Printf("Error rendering shopping list template: %v", err)
@@ -1289,6 +1297,12 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 	if err := a.Shopping.AddRecipeIngredients(userID, versionID, ingredients); err != nil {
 		log.Printf("Error adding recipe %d to shopping list for user ID %d: %v", recipeID, userID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	// The shopping list page updates a recipe to its newest ingredients and redraws the whole section.
+	if r.URL.Query().Get("render") == "section" {
+		a.renderShoppingListSection(w, userID, needOnlyFrom(r))
 		return
 	}
 
@@ -1384,7 +1398,7 @@ func (a *App) handleShoppingListCheckAll(w http.ResponseWriter, r *http.Request)
 	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
 }
 
-// handleShoppingListQty nudges how much of a line to actually buy, for when the shopper wants a different amount than the recipes worked out.
+// handleShoppingListQty saves how much of the shopper bought and in what unit, ready for when it goes into the pantry.
 func (a *App) handleShoppingListQty(w http.ResponseWriter, r *http.Request) {
 	userID, ok := a.getUserIDFromSession(r)
 	if !ok {
@@ -1392,22 +1406,24 @@ func (a *App) handleShoppingListQty(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	delta, err := strconv.ParseFloat(r.URL.Query().Get("delta"), 64)
-	if err != nil {
-		http.Error(w, "invalid delta", http.StatusBadRequest)
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "could not parse form", http.StatusBadRequest)
 		return
 	}
 
 	name := r.URL.Query().Get("name")
 	unit := r.URL.Query().Get("unit")
 
-	if err := a.Shopping.AdjustQuantity(userID, name, unit, delta); err != nil {
-		log.Printf("Error adjusting shopping list quantity for user ID %d: %v", userID, err)
+	if err := a.Shopping.SetBought(userID, name, unit, r.FormValue("qty"), r.FormValue("qty_unit")); err != nil {
+		if errors.Is(err, services.ErrInvalidQuantity) {
+			http.Error(w, "invalid quantity", http.StatusBadRequest)
+			return
+		}
+		log.Printf("Error setting shopping list quantity for user ID %d: %v", userID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
-
-	a.renderShoppingListSection(w, userID, needOnlyFrom(r))
+	w.WriteHeader(http.StatusNoContent)
 }
 
 func (a *App) handleShoppingListToPantry(w http.ResponseWriter, r *http.Request) {
@@ -1501,7 +1517,16 @@ func (a *App) renderShoppingListSection(w http.ResponseWriter, userID int, needO
 		return
 	}
 
-	if err := tpl.ExecuteTemplate(w, "shopping-list-section", shoppingListData(items, recipes, needOnly)); err != nil {
+	outdated, err := a.Shopping.OutdatedRecipes(userID, a.Recipes)
+	if err != nil {
+		log.Printf("Error checking shopping list recipes for changes for user ID %d: %v", userID, err)
+		http.Error(w, "Internal server error", http.StatusInternalServerError)
+		return
+	}
+
+	data := shoppingListData(items, recipes, needOnly)
+	data["Outdated"] = outdated
+	if err := tpl.ExecuteTemplate(w, "shopping-list-section", data); err != nil {
 		log.Printf("Error rendering shopping list section: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
