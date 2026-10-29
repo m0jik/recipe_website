@@ -76,6 +76,13 @@ type RecipePageData struct {
 	Tags            []string
 	Versions        []services.RecipeVersion
 	RestoredVersion int
+	StepIndex       int
+	StepNumber      int
+	TotalSteps      int
+	PreviousStep    int
+	NextStep        int
+	HasPrevious     bool
+	HasNext         bool
 }
 
 type PageOneData struct {
@@ -2114,34 +2121,193 @@ func (a *App) handleCookBookRemove(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleCookingMode(w http.ResponseWriter, r *http.Request) {
-	// username := ""
-	// sessionUserID, loggedIn := a.getUserIDFromSession(r)
-	// if loggedIn {
-	// 	u, err := a.Users.GetUsernameByID(sessionUserID)
-	// 	if err != nil {
-	// 		http.Error(w, "Invalid session", http.StatusInternalServerError)
-	// 		return
-	// 	}
-	// 	username = u
-	// }
-	// idStr := strings.TrimPrefix(r.URL.Path, "/recipes/v1/")
-	// id, err := strconv.ParseInt(idStr, 10, 64)
-	// if err != nil {
-	// 	http.NotFound(w, r)
-	// 	return
-	// }
+	username := ""
+	sessionUserID, loggedIn := a.getUserIDFromSession(r)
+	if loggedIn {
+		u, err := a.Users.GetUsernameByID(sessionUserID)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+	idStr := strings.TrimPrefix(r.URL.Path, "/cooking-mode/v1/")
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil {
+		http.NotFound(w, r)
+		return
+	}
+
+	data, recipeOwnerID, err := a.Recipes.GetRecipeForView(id)
+	if err != nil {
+		http.Error(w, "Recipe not found", http.StatusNotFound)
+		return
+	}
+
+	added := false
+	bookmarked := false
+	if loggedIn {
+		added, err = a.Shopping.HasRecipe(sessionUserID, id)
+		if err != nil {
+			log.Printf("Error checking shopping list for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+		bookmarked, err = a.CookBook.HasRecipe(sessionUserID, int(id))
+		if err != nil {
+			log.Printf("Error checking cookbook for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	creatorusername, err := a.Users.GetUsernameByID(int(recipeOwnerID))
+	if err != nil {
+		creatorusername = "Unknown"
+	}
+
+	pageData := RecipePageData{
+		PageData: PageData{
+			UserID:          int64(sessionUserID),
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		RecipeID:        id,
+		OwnerID:         recipeOwnerID,
+		Added:           added,
+		Bookmarked:      bookmarked,
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		StepIngredients: data.StepIngredients,
+		CreatorUsername: creatorusername,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+	}
+
+	var buf bytes.Buffer
+	err = tpl.ExecuteTemplate(&buf, "cooking_mode_recipe.html", pageData)
+	if err != nil {
+		log.Printf("Error rendering recipe template: %v", err)
+		http.Error(w, "Template error", http.StatusInternalServerError)
+		return
+	}
+	w.Write(buf.Bytes())
 
 }
 
 func (a *App) handleCookingModeSteps(w http.ResponseWriter, r *http.Request) {
+	username := ""
+	sessionUserID, loggedIn := a.getUserIDFromSession(r)
 
+	if loggedIn {
+		u, err := a.Users.GetUsernameByID(sessionUserID)
+		if err != nil {
+			http.Error(w, "Invalid session", http.StatusInternalServerError)
+			return
+		}
+		username = u
+	}
+
+	idStr := strings.TrimPrefix(r.URL.Path, "/cooking-mode/v1/")
+	idStr = strings.TrimSuffix(idStr, "/steps")
+
+	id, err := strconv.ParseInt(idStr, 10, 64)
+	if err != nil || id <= 0 {
+		http.NotFound(w, r)
+		return
+	}
+
+	data, recipeOwnerID, err := a.Recipes.GetRecipeForView(id)
+	if err != nil {
+		http.Error(w, "Recipe not found", http.StatusNotFound)
+		return
+	}
+
+	totalSteps := len(data.Steps)
+	if totalSteps == 0 {
+		http.Error(w, "This recipe has no instructions yet", http.StatusNotFound)
+		return
+	}
+
+	stepNumber := 1
+	if rawStep := r.URL.Query().Get("step"); rawStep != "" {
+		parsedStep, parseErr := strconv.Atoi(rawStep)
+		if parseErr != nil || parsedStep < 1 || parsedStep > totalSteps {
+			http.Error(w, "Invalid step number", http.StatusBadRequest)
+			return
+		}
+		stepNumber = parsedStep
+	}
+
+	stepIndex := stepNumber - 1
+
+	creatorUsername, err := a.Users.GetUsernameByID(int(recipeOwnerID))
+	if err != nil {
+		creatorUsername = "Unknown"
+	}
+
+	added := false
+	bookmarked := false
+
+	if loggedIn {
+		added, err = a.Shopping.HasRecipe(sessionUserID, id)
+		if err != nil {
+			log.Printf("Error checking shopping list for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+
+		bookmarked, err = a.CookBook.HasRecipe(sessionUserID, int(id))
+		if err != nil {
+			log.Printf("Error checking cookbook for recipe %d: %v", id, err)
+			http.Error(w, "Internal server error", http.StatusInternalServerError)
+			return
+		}
+	}
+
+	pageData := RecipePageData{
+		PageData: PageData{
+			UserID:          int64(sessionUserID),
+			Username:        username,
+			PresetTagGroups: services.PresetTagGroups,
+		},
+
+		RecipeID:        id,
+		OwnerID:         recipeOwnerID,
+		Added:           added,
+		Bookmarked:      bookmarked,
+		Title:           data.Recipe.Title,
+		Description:     data.Recipe.Description,
+		ImageURL:        data.Recipe.ImageURL,
+		Ingredients:     data.Ingredients,
+		Steps:           data.Steps,
+		StepIngredients: data.StepIngredients,
+		CreatorUsername: creatorUsername,
+		Servings:        data.Recipe.Servings,
+		PrepTimeMinutes: data.Recipe.PrepTimeMinutes,
+		Tags:            data.Recipe.Tags,
+
+		StepIndex:    stepIndex,
+		StepNumber:   stepNumber,
+		TotalSteps:   totalSteps,
+		PreviousStep: stepNumber - 1,
+		NextStep:     stepNumber + 1,
+		HasPrevious:  stepNumber > 1,
+		HasNext:      stepNumber < totalSteps,
+	}
+
+	var buf bytes.Buffer
+	err = tpl.ExecuteTemplate(&buf, "cooking_mode_step-by-step.html", pageData)
+	if err != nil {
+		log.Printf("Error rendering cooking mode steps template: %v", err)
+		http.Error(w, "Template error", http.StatusInternalServerError)
+		return
+	}
+
+	w.Write(buf.Bytes())
 }
-
-// switch r.Method {
-// 		case http.MethodGet:
-// 			return
-// 		case http.MethodPost:
-// 			return
-// 		default:
-// 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
-// 	}

@@ -1,5 +1,33 @@
 {{ define "cooking-mode-btn" }}
-<button class="shopping-btn" type="button" href="cooking_mode_recipe.html">
-    <img src="/static/icon/CookingMode.png" alt="">
-</button>
+    <a class="shopping-btn" href="/cooking-mode/v1/{{ .RecipeID }}">
+        <img src="/static/icon/CookingMode.png" alt="">
+    </a>
+{{ end }}
+
+{{ define "cooking-mode-recipe-btn" }}
+    <a class="cooking-mode-recipe-btn cooking-mode-active"
+       href="/cooking-mode/v1/{{ .RecipeID }}">
+        <span>Recipe</span>
+    </a>
+{{ end }}
+
+{{ define "cooking-mode-steps-btn" }}
+    <a class="cooking-mode-steps-btn"
+       href="/cooking-mode/v1/{{ .RecipeID }}/steps">
+        <span>Step-by-Step</span>
+    </a>
+{{ end }}
+
+{{ define "cooking-mode-recipe-btn-inactive" }}
+    <a class="cooking-mode-recipe-btn"
+       href="/cooking-mode/v1/{{ .RecipeID }}">
+        <span>Recipe</span>
+    </a>
+{{ end }}
+
+{{ define "cooking-mode-steps-btn-active" }}
+    <a class="cooking-mode-steps-btn cooking-mode-active"
+       href="/cooking-mode/v1/{{ .RecipeID }}/steps">
+        <span>Step-by-Step</span>
+    </a>
 {{ end }}
