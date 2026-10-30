@@ -19,7 +19,6 @@ func New(path string) (*sqlx.DB, error) {
 func Migrate(db *sqlx.DB) error {
 	schema := `
 	CREATE TABLE IF NOT EXISTS usersV1 (
-		id INTEGER PRIMARY KEY AUTOINCREMENT,
 		username TEXT NOT NULL UNIQUE,
 		password_hash TEXT NOT NULL,
 		email TEXT NOT NULL UNIQUE,
@@ -31,7 +30,7 @@ func Migrate(db *sqlx.DB) error {
 		id TEXT PRIMARY KEY,
 		user_id INTEGER NOT NULL,
 		expires_at DATETIME NOT NULL,
-		FOREIGN KEY(user_id) REFERENCES usersV1(id)
+		FOREIGN KEY(user_id) REFERENCES usersV1(username)
 	);
 
 	CREATE TABLE IF NOT EXISTS recipesV1 (

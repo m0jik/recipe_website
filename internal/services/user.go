@@ -10,15 +10,15 @@ import (
 
 var ErrUserExists = errors.New("user already exists")
 
-type UserService struct {
+type UserServiceV1 struct {
 	DB *sqlx.DB
 }
 
-func NewUserService(db *sqlx.DB) *UserService {
-	return &UserService{DB: db}
+func NewUserService(db *sqlx.DB) *UserServiceV1 {
+	return &UserServiceV1{DB: db}
 }
 
-func (s *UserService) CreateUser(username, email, passwordHash string) (int, error) {
+func (s *UserServiceV1) CreateUser(username, email, passwordHash string) (int, error) {
 	// _, err := s.DB.Exec(
 	// 	"INSERT INTO usersV1(username, email, password_hash) VALUES (?, ?, ?)",
 	// 	username,
@@ -47,7 +47,7 @@ func (s *UserService) CreateUser(username, email, passwordHash string) (int, err
 	return int(id), nil
 }
 
-func (s *UserService) GetUserCredentials(email string) (int, string, error) {
+func (s *UserServiceV1) GetUserCredentials(email string) (int, string, error) {
 	var (
 		id   int
 		hash string
@@ -65,7 +65,7 @@ func (s *UserService) GetUserCredentials(email string) (int, string, error) {
 	return id, hash, nil
 }
 
-func (s *UserService) GetUsernameByID(id int) (string, error) {
+func (s *UserServiceV1) GetUsernameByID(id int) (string, error) {
 	var username string
 
 	row := s.DB.QueryRow(
@@ -80,7 +80,7 @@ func (s *UserService) GetUsernameByID(id int) (string, error) {
 	return username, nil
 }
 
-func (s *UserService) CreateSession(sessionID string, id int, expires string) error {
+func (s *UserServiceV1) CreateSession(sessionID string, id int, expires string) error {
 	_, err := s.DB.Exec(
 		"INSERT INTO sessionsV1(id, user_id, expires_at) VALUES (?, ?, ?)",
 		sessionID,
@@ -90,7 +90,7 @@ func (s *UserService) CreateSession(sessionID string, id int, expires string) er
 	return err
 }
 
-func (s *UserService) DeleteSession(val string) error {
+func (s *UserServiceV1) DeleteSession(val string) error {
 	_, err := s.DB.Exec(
 		"DELETE FROM sessionsV1 WHERE id = ?",
 		val,
@@ -98,7 +98,7 @@ func (s *UserService) DeleteSession(val string) error {
 	return err
 }
 
-func (s *UserService) GetUserID(val string) (int, string, error) {
+func (s *UserServiceV1) GetUserID(val string) (int, string, error) {
 	var (
 		id      int
 		expires string
@@ -116,7 +116,7 @@ func (s *UserService) GetUserID(val string) (int, string, error) {
 	return id, expires, nil
 }
 
-func (s *UserService) GetUserIDByEmail(email string) (int, error) {
+func (s *UserServiceV1) GetUserIDByEmail(email string) (int, error) {
 	var id int
 
 	row := s.DB.QueryRow(
@@ -131,7 +131,7 @@ func (s *UserService) GetUserIDByEmail(email string) (int, error) {
 	return id, nil
 }
 
-func (s *UserService) CreatePasswordReset(userID int, token, expires string) error {
+func (s *UserServiceV1) CreatePasswordReset(userID int, token, expires string) error {
 	_, err := s.DB.Exec(
 		"INSERT INTO passResetV1(user_id, token, expires_at) VALUES (?, ?, ?)",
 		userID,
@@ -141,7 +141,7 @@ func (s *UserService) CreatePasswordReset(userID int, token, expires string) err
 	return err
 }
 
-func (s *UserService) GetPasswordReset(token string) (int, string, error) {
+func (s *UserServiceV1) GetPasswordReset(token string) (int, string, error) {
 	var (
 		userID  int
 		expires string
@@ -159,7 +159,7 @@ func (s *UserService) GetPasswordReset(token string) (int, string, error) {
 	return userID, expires, nil
 }
 
-func (s *UserService) UpdatePassword(userID int, hash string) error {
+func (s *UserServiceV1) UpdatePassword(userID int, hash string) error {
 	_, err := s.DB.Exec(
 		"UPDATE usersV1 SET password_hash = ? WHERE id = ?",
 		hash,
@@ -168,7 +168,7 @@ func (s *UserService) UpdatePassword(userID int, hash string) error {
 	return err
 }
 
-func (s *UserService) DeletePasswordReset(token string) error {
+func (s *UserServiceV1) DeletePasswordReset(token string) error {
 	_, err := s.DB.Exec(
 		"DELETE FROM passResetV1 WHERE token = ?",
 		token,
@@ -176,7 +176,7 @@ func (s *UserService) DeletePasswordReset(token string) error {
 	return err
 }
 
-func (s *UserService) GetEmailByUsername(username string) (string, error) {
+func (s *UserServiceV1) GetEmailByUsername(username string) (string, error) {
 	var email string
 
 	row := s.DB.QueryRow(
@@ -191,7 +191,7 @@ func (s *UserService) GetEmailByUsername(username string) (string, error) {
 	return email, nil
 }
 
-func (s *UserService) CreateEmailVerification(userID int, token, expires string) error {
+func (s *UserServiceV1) CreateEmailVerification(userID int, token, expires string) error {
 	_, err := s.DB.Exec(
 		"INSERT INTO emailVerifyV1(user_id, token, expires_at) VALUES (?, ?, ?)",
 		userID,
@@ -202,7 +202,7 @@ func (s *UserService) CreateEmailVerification(userID int, token, expires string)
 	return err
 }
 
-func (s *UserService) GetEmailVerification(token string) (int, string, error) {
+func (s *UserServiceV1) GetEmailVerification(token string) (int, string, error) {
 	var (
 		userID  int
 		expires string
@@ -220,7 +220,7 @@ func (s *UserService) GetEmailVerification(token string) (int, string, error) {
 	return userID, expires, nil
 }
 
-func (s *UserService) DeleteEmailVerification(token string) error {
+func (s *UserServiceV1) DeleteEmailVerification(token string) error {
 	_, err := s.DB.Exec(
 		"DELETE FROM emailVerifyV1 WHERE token = ?",
 		token,
@@ -229,7 +229,7 @@ func (s *UserService) DeleteEmailVerification(token string) error {
 	return err
 }
 
-func (s *UserService) MarkEmailVerified(userID int) error {
+func (s *UserServiceV1) MarkEmailVerified(userID int) error {
 	_, err := s.DB.Exec(
 		"UPDATE usersV1 SET is_verified = TRUE WHERE id = ?",
 		userID,
@@ -238,7 +238,7 @@ func (s *UserService) MarkEmailVerified(userID int) error {
 	return err
 }
 
-func (s *UserService) IsUserVerified(userID int) (bool, error) {
+func (s *UserServiceV1) IsUserVerified(userID int) (bool, error) {
 	var isVerified bool
 
 	row := s.DB.QueryRow(
@@ -253,7 +253,7 @@ func (s *UserService) IsUserVerified(userID int) (bool, error) {
 	return isVerified, nil
 }
 
-func (s *UserService) VerifyEmail(token string) error {
+func (s *UserServiceV1) VerifyEmail(token string) error {
 	userID, _, err := s.GetEmailVerification(token)
 	if err != nil {
 		return err
@@ -264,7 +264,7 @@ func (s *UserService) VerifyEmail(token string) error {
 	return s.DeleteEmailVerification(token)
 }
 
-func (s *UserService) ValidPassword(p string) bool {
+func (s *UserServiceV1) ValidPassword(p string) bool {
 	if len(p) < 8 {
 		return false
 	}

@@ -38,8 +38,8 @@ const cookieName = "session_id"
 type App struct {
 	DB       *sqlx.DB
 	Cfg      *config.Config
-	Users    *services.UserService
-	Recipes  *services.RecipeService
+	Users    *services.UserServiceV1
+	Recipes  *services.RecipeServiceV1
 	Email    services.EmailSender
 	Images   *services.ImageService
 	Shopping *services.ShoppingListService
@@ -50,7 +50,7 @@ type App struct {
 type PageData struct {
 	UserID          int64
 	Username        string
-	Recipes         []services.RecipeInfo
+	Recipes         []services.RecipeV1
 	Query           string
 	SelectedTags    []string
 	MaxTime         int
@@ -63,7 +63,7 @@ type CookingModeStep struct {
 	OriginalStep int
 	Instruction  string
 	Notes        string
-	Ingredients  []services.StepIngredient
+	Ingredients  []services.RecipeStepIngredientV1
 }
 
 type RecipePageData struct {
@@ -76,14 +76,14 @@ type RecipePageData struct {
 	Title               string
 	Description         string
 	ImageURL            string
-	Ingredients         []services.Ingredient
-	Steps               []services.Step
-	StepIngredients     []services.StepIngredient
+	Ingredients         []services.IngredientV1
+	Steps               []services.RecipeStepV1
+	StepIngredients     []services.RecipeStepIngredientV1
 	CreatorUsername     string
 	Servings            int
 	PrepTimeMinutes     int
 	Tags                []string
-	Versions            []services.RecipeVersion
+	Versions            []services.RecipeVersionV1
 	RestoredVersion     int
 	StepIndex           int
 	StepNumber          int
@@ -95,7 +95,7 @@ type RecipePageData struct {
 	IsMultiRecipe       bool
 	SessionID           string
 	SessionRecipes      []RecipePageData
-	CombinedIngredients []services.Ingredient
+	CombinedIngredients []services.IngredientV1
 	OrderedSteps        []CookingModeStep
 }
 
@@ -117,9 +117,9 @@ type PageTwoData struct {
 	Tags            []string
 	Servings        string
 	PrepTime        string
-	Ingredients     []services.Ingredient
-	Steps           []services.Step
-	StepIngredients []services.StepIngredient
+	Ingredients     []services.IngredientV1
+	Steps           []services.RecipeStepV1
+	StepIngredients []services.RecipeStepIngredientV1
 }
 
 func main() {
@@ -384,7 +384,7 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		maxTime = 0
 	}
 
-	var recipes []services.RecipeInfo
+	var recipes []services.RecipeV1
 	var err error
 
 	if query != "" || len(tags) > 0 || maxTime > 0 {
@@ -974,10 +974,11 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
-	err := tpl.ExecuteTemplate(w, "ingredient-row", services.Ingredient{
-		Quantity: r.URL.Query().Get("qty"),
-		Unit:     r.URL.Query().Get("unit"),
-		Name:     r.URL.Query().Get("name"),
+	err := tpl.ExecuteTemplate(w, "ingredient-row", services.IngredientV1{
+		Name:    r.URL.Query().Get("qty"),
+		Aliases: r.URL.Query()["aliases"],
+		Amount:  r.URL.Query().Get("name"),
+		Unit:    r.URL.Query().Get("unit"),
 	})
 	if err != nil {
 		log.Printf("Error rendering ingredient row: %v", err)
@@ -1046,17 +1047,17 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 
 		// needs to be fixed becasue
 		// - bachSaveIngredients and BatchSaveSteps commits the instant it runs (no transaction wrapping any of this)
-		recipeID, err := a.Recipes.CreateRecipe(userID, r.FormValue("title"), r.FormValue("image"), r.FormValue("description"), servings, prepTimeMinutes)
+		err := a.Recipes.CreateRecipe(userID, r.FormValue("title"), r.FormValue("image"), r.FormValue("primaryName"), r.FormValue("variantName"), r.FormValue("creatorID"), r.FormValue("description"), servings, prepTimeMinutes)
 		if err != nil {
 			http.Error(w, "could not create recipe", http.StatusInternalServerError)
 			return
 		}
-		if err := a.Recipes.SaveTags(a.Recipes.DB, recipeID, r.Form["tags"]); err != nil {
+		if err := a.Recipes.SaveTags(a.Recipes.DB, r.FormValue("primaryName"), r.FormValue("variantName"), r.FormValue("creatorID"), r.Form["tags"]); err != nil {
 			http.Error(w, "could not save tags", http.StatusInternalServerError)
 			return
 		}
 
-		versionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, recipeID)
+		versionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, r.FormValue("primaryName"), r.FormValue("variantName"), r.FormValue("creatorID"))
 		if err != nil {
 			http.Error(w, "could not get version", http.StatusInternalServerError)
 			return
@@ -1144,7 +1145,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	creatorusername, err := a.Users.GetUsernameByID(int(recipeOwnerID))
+	creatorusername, err := a.Users.GetUsernameByID(string(recipeOwnerID))
 	if err != nil {
 		creatorusername = "Unknown"
 	}
@@ -1890,7 +1891,7 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	currentVersionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, recipeID)
+	currentVersionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, primaryName, variantName, creatorID)
 	if err != nil {
 		log.Printf("Error loading current version of recipe %d: %v", recipeID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)

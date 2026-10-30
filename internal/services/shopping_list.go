@@ -9,14 +9,14 @@ import (
 	"github.com/jmoiron/sqlx"
 )
 
-type ShoppingListSource struct {
+type ShoppingListSourceV1 struct {
 	RecipeID    int64
 	RecipeTitle string
 	ImageURL    string
 	Quantity    string
 }
 
-type ShoppingListItem struct {
+type ShoppingListItemV1 struct {
 	Name       string
 	Unit       string
 	Need       string
@@ -25,10 +25,16 @@ type ShoppingListItem struct {
 	Bought     string
 	BoughtUnit string
 	Checked    bool
-	Sources    []ShoppingListSource
+	Sources    []ShoppingListSourceV1
 }
 
-func (i ShoppingListItem) NeedsBuying() bool {
+type RecipeKeyV1 struct {
+	PrimaryName string
+	VariantName string
+	CreatorID   string
+}
+
+func (i ShoppingListItemV1) NeedsBuying() bool {
 	if i.Checked {
 		return false
 	}
@@ -55,11 +61,11 @@ func NewShoppingListService(db *sqlx.DB) *ShoppingListService {
 	return &ShoppingListService{DB: db}
 }
 
-func (s *ShoppingListService) GetItems(userID int) ([]ShoppingListItem, error) {
+func (s *ShoppingListService) GetItems(userID int) ([]ShoppingListItemV1, error) {
 	return s.getItems(s.DB, userID)
 }
 
-func (s *ShoppingListService) getItems(q sqlExecutor, userID int) ([]ShoppingListItem, error) {
+func (s *ShoppingListService) getItems(q sqlExecutor, userID int) ([]ShoppingListItemV1, error) {
 	rows, err := q.Query(
 		`SELECT sl.name, sl.unit, sl.quantity,
 		        COALESCE(r.id, 0), COALESCE(r.title, ''), COALESCE(r.image_url, '')
@@ -79,10 +85,10 @@ func (s *ShoppingListService) getItems(q sqlExecutor, userID int) ([]ShoppingLis
 		}
 	}()
 
-	var items []ShoppingListItem
+	var items []ShoppingListItemV1
 	for rows.Next() {
 		var name, unit string
-		var src ShoppingListSource
+		var src ShoppingListSourceV1
 		if err := rows.Scan(&name, &unit, &src.Quantity, &src.RecipeID, &src.RecipeTitle, &src.ImageURL); err != nil {
 			return nil, err
 		}
@@ -91,10 +97,10 @@ func (s *ShoppingListService) getItems(q sqlExecutor, userID int) ([]ShoppingLis
 			items[last].Sources = append(items[last].Sources, src)
 			continue
 		}
-		items = append(items, ShoppingListItem{
+		items = append(items, ShoppingListItemV1{
 			Name:    name,
 			Unit:    unit,
-			Sources: []ShoppingListSource{src},
+			Sources: []ShoppingListSourceV1{src},
 		})
 	}
 	if err := rows.Err(); err != nil {
@@ -337,7 +343,7 @@ func (s *ShoppingListService) GetRecipes(userID int) ([]ShoppingListRecipe, erro
 	return recipes, nil
 }
 
-func (s *ShoppingListService) OutdatedRecipes(userID int, recipeService *RecipeService) (map[int64]bool, error) {
+func (s *ShoppingListService) OutdatedRecipes(userID int, recipeService *RecipeServiceV1) (map[RecipeKeyV1]bool, error) {
 	rows, err := s.DB.Query(
 		`SELECT rv.recipe_id, MAX(sl.source_recipe_version_id)
 		 FROM userShoppingListV2 sl
@@ -355,21 +361,22 @@ func (s *ShoppingListService) OutdatedRecipes(userID int, recipeService *RecipeS
 		}
 	}()
 
-	savedVersions := make(map[int64]int64)
+	savedVersions := make(map[RecipeKeyV1]int64)
 	for rows.Next() {
-		var recipeID, versionID int64
-		if err := rows.Scan(&recipeID, &versionID); err != nil {
+		var versionID int64
+		var recipeKey RecipeKeyV1
+		if err := rows.Scan(&recipeKey.PrimaryName, &recipeKey.VariantName, &recipeKey.CreatorID, &versionID); err != nil {
 			return nil, err
 		}
-		savedVersions[recipeID] = versionID
+		savedVersions[recipeKey] = versionID
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 
-	outdated := make(map[int64]bool)
-	for recipeID, savedID := range savedVersions {
-		latestID, err := recipeService.GetLatestVersionID(s.DB, recipeID)
+	outdated := make(map[RecipeKeyV1]bool)
+	for recipeKey, savedID := range savedVersions {
+		latestID, err := recipeService.GetLatestVersionID(s.DB, recipeKey.PrimaryName, recipeKey.VariantName, recipeKey.CreatorID)
 		if err != nil {
 			return nil, err
 		}
@@ -386,7 +393,7 @@ func (s *ShoppingListService) OutdatedRecipes(userID int, recipeService *RecipeS
 			return nil, err
 		}
 		if !ingredientsEqual(saved, latest) {
-			outdated[recipeID] = true
+			outdated[recipeKey] = true
 		}
 	}
 	return outdated, nil
@@ -405,7 +412,7 @@ func (s *ShoppingListService) HasRecipe(userID int, recipeID int64) (bool, error
 	return exists, err
 }
 
-func (s *ShoppingListService) AddRecipeIngredients(userID int, versionID int64, ingredients []Ingredient) error {
+func (s *ShoppingListService) AddRecipeIngredients(userID int, versionID int64, ingredients []IngredientV1) error {
 	tx, err := s.DB.Begin()
 	if err != nil {
 		return err
@@ -435,7 +442,7 @@ func (s *ShoppingListService) AddRecipeIngredients(userID int, versionID int64, 
 			 VALUES (?, ?, ?, ?, ?)
 			 ON CONFLICT(user_id, name, unit, source_recipe_version_id)
 			 DO UPDATE SET quantity = excluded.quantity`,
-			userID, ing.Name, ing.Quantity, ing.Unit, versionID,
+			userID, ing.Name, ing.Amount, ing.Unit, versionID,
 		)
 		if err != nil {
 			return err
@@ -447,8 +454,8 @@ func (s *ShoppingListService) AddRecipeIngredients(userID int, versionID int64, 
 	return tx.Commit()
 }
 
-func mergeIngredients(ingredients []Ingredient) []Ingredient {
-	var merged []Ingredient
+func mergeIngredients(ingredients []IngredientV1) []IngredientV1 {
+	var merged []IngredientV1
 	seen := make(map[[2]string]int, len(ingredients))
 
 	for _, ing := range ingredients {
@@ -462,10 +469,10 @@ func mergeIngredients(ingredients []Ingredient) []Ingredient {
 			merged = append(merged, ing)
 			continue
 		}
-		if qty, _, ok := CombineQuantities(merged[i].Quantity, merged[i].Unit, ing.Quantity, ing.Unit); ok {
-			merged[i].Quantity = qty
+		if amnt, _, ok := CombineQuantities(merged[i].Amount, merged[i].Unit, ing.Amount, ing.Unit); ok {
+			merged[i].Amount = amnt
 		} else {
-			merged[i].Quantity = merged[i].Quantity + " + " + ing.Quantity
+			merged[i].Amount = merged[i].Amount + " + " + ing.Amount
 		}
 	}
 	return merged
@@ -519,7 +526,7 @@ func (s *ShoppingListService) RemoveRecipe(userID int, recipeID int64) error {
 	})
 }
 
-func totalQuantity(sources []ShoppingListSource) string {
+func totalQuantity(sources []ShoppingListSourceV1) string {
 	var total float64
 	for _, src := range sources {
 		q, err := ParseQuantity(src.Quantity)
