@@ -25,7 +25,7 @@ func NewPantryService(db *sqlx.DB) *PantryService {
 	return &PantryService{DB: db}
 }
 
-func (s *PantryService) GetPantryItems(userID int) ([]PantryIngredient, error) {
+func (s *PantryService) GetPantryItems(userID string) ([]PantryIngredient, error) {
 	rows, err := s.DB.Query(
 		"SELECT rowid, name, quantity, unit FROM userPantryV1 WHERE user_id = ? ORDER BY name, unit",
 		userID,
@@ -54,11 +54,11 @@ func (s *PantryService) GetPantryItems(userID int) ([]PantryIngredient, error) {
 	return items, nil
 }
 
-func (s *PantryService) AddPantryItem(userID int, name, quantity, unit string) error {
+func (s *PantryService) AddPantryItem(userID string, name, quantity, unit string) error {
 	return s.addPantryItem(s.DB, userID, name, quantity, unit)
 }
 
-func (s *PantryService) addPantryItem(q sqlExecutor, userID int, name, quantity, unit string) error {
+func (s *PantryService) addPantryItem(q sqlExecutor, userID string, name, quantity, unit string) error {
 	if _, err := ParseQuantity(quantity); err != nil {
 		return fmt.Errorf("%w: %q", ErrInvalidQuantity, quantity)
 	}
@@ -104,7 +104,7 @@ func (s *PantryService) addPantryItem(q sqlExecutor, userID int, name, quantity,
 	return err
 }
 
-func (s *PantryService) RemovePantryItem(userID int, name, unit string) error {
+func (s *PantryService) RemovePantryItem(userID string, name, unit string) error {
 	_, err := s.DB.Exec("DELETE FROM userPantryV1 WHERE user_id = ? AND name = ? AND unit = ?", userID, name, unit)
 	return err
 }

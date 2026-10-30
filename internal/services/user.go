@@ -65,7 +65,7 @@ func (s *UserServiceV1) GetUserCredentials(email string) (int, string, error) {
 	return id, hash, nil
 }
 
-func (s *UserServiceV1) GetUsernameByID(id int) (string, error) {
+func (s *UserServiceV1) GetUsernameByID(id string) (string, error) {
 	var username string
 
 	row := s.DB.QueryRow(
@@ -98,9 +98,9 @@ func (s *UserServiceV1) DeleteSession(val string) error {
 	return err
 }
 
-func (s *UserServiceV1) GetUserID(val string) (int, string, error) {
+func (s *UserServiceV1) GetUserID(val string) (string, string, error) {
 	var (
-		id      int
+		id      string
 		expires string
 	)
 
@@ -110,7 +110,7 @@ func (s *UserServiceV1) GetUserID(val string) (int, string, error) {
 	)
 
 	if err := row.Scan(&id, &expires); err != nil {
-		return -1, "", err
+		return "", "", err
 	}
 
 	return id, expires, nil

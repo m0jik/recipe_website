@@ -61,11 +61,11 @@ func NewShoppingListService(db *sqlx.DB) *ShoppingListService {
 	return &ShoppingListService{DB: db}
 }
 
-func (s *ShoppingListService) GetItems(userID int) ([]ShoppingListItemV1, error) {
+func (s *ShoppingListService) GetItems(userID string) ([]ShoppingListItemV1, error) {
 	return s.getItems(s.DB, userID)
 }
 
-func (s *ShoppingListService) getItems(q sqlExecutor, userID int) ([]ShoppingListItemV1, error) {
+func (s *ShoppingListService) getItems(q sqlExecutor, userID string) ([]ShoppingListItemV1, error) {
 	rows, err := q.Query(
 		`SELECT sl.name, sl.unit, sl.quantity,
 		        COALESCE(r.id, 0), COALESCE(r.title, ''), COALESCE(r.image_url, '')
@@ -149,7 +149,7 @@ func itemKey(name, unit string) [2]string {
 	}
 }
 
-func (s *ShoppingListService) pantryAmounts(q sqlExecutor, userID int) (map[[2]string]string, error) {
+func (s *ShoppingListService) pantryAmounts(q sqlExecutor, userID string) (map[[2]string]string, error) {
 	rows, err := q.Query(
 		"SELECT name, unit, quantity FROM userPantryV1 WHERE user_id = ?", userID,
 	)
@@ -182,7 +182,7 @@ func (s *ShoppingListService) pantryAmounts(q sqlExecutor, userID int) (map[[2]s
 	return amounts, rows.Err()
 }
 
-func (s *ShoppingListService) itemState(q sqlExecutor, userID int) (map[[2]string]lineState, error) {
+func (s *ShoppingListService) itemState(q sqlExecutor, userID string) (map[[2]string]lineState, error) {
 	rows, err := q.Query(
 		"SELECT name, unit, checked, bought_qty, bought_unit FROM userShoppingStateV1 WHERE user_id = ?", userID,
 	)
@@ -223,7 +223,7 @@ func remainingToBuy(need, inPantry string) string {
 }
 
 // SetChecked ticks a line off in the aisle, or puts it back.
-func (s *ShoppingListService) SetChecked(userID int, name, unit string, checked bool) error {
+func (s *ShoppingListService) SetChecked(userID string, name, unit string, checked bool) error {
 	_, err := s.DB.Exec(
 		`INSERT INTO userShoppingStateV1 (user_id, name, unit, checked)
 		 VALUES (?, ?, ?, ?)
@@ -234,7 +234,7 @@ func (s *ShoppingListService) SetChecked(userID int, name, unit string, checked 
 }
 
 // SetAllChecked ticks off every line currently on the list, or clears them all, for the select all box in the table header.
-func (s *ShoppingListService) SetAllChecked(userID int, checked bool) error {
+func (s *ShoppingListService) SetAllChecked(userID string, checked bool) error {
 	if !checked {
 		_, err := s.DB.Exec("UPDATE userShoppingStateV1 SET checked = 0 WHERE user_id = ?", userID)
 		return err
@@ -252,7 +252,7 @@ func (s *ShoppingListService) SetAllChecked(userID int, checked bool) error {
 	return nil
 }
 
-func (s *ShoppingListService) SetBought(userID int, name, unit, qty, qtyUnit string) error {
+func (s *ShoppingListService) SetBought(userID string, name, unit, qty, qtyUnit string) error {
 	qty = strings.TrimSpace(qty)
 	if _, err := ParseQuantity(qty); err != nil {
 		return fmt.Errorf("%w: %q", ErrInvalidQuantity, qty)
@@ -268,7 +268,7 @@ func (s *ShoppingListService) SetBought(userID int, name, unit, qty, qtyUnit str
 	return err
 }
 
-func (s *ShoppingListService) AddCheckedToPantry(userID int, pantry *PantryService) (int, error) {
+func (s *ShoppingListService) AddCheckedToPantry(userID string, pantry *PantryService) (int, error) {
 	var moved int
 	err := withTx(s.DB, func(tx sqlExecutor) error {
 		items, err := s.getItems(tx, userID)
@@ -310,7 +310,7 @@ func (s *ShoppingListService) AddCheckedToPantry(userID int, pantry *PantryServi
 }
 
 // GetRecipes returns the recipes feeding the list, one row per recipe even when ingredients from more than one of its versions are on there.
-func (s *ShoppingListService) GetRecipes(userID int) ([]ShoppingListRecipe, error) {
+func (s *ShoppingListService) GetRecipes(userID string) ([]ShoppingListRecipe, error) {
 	rows, err := s.DB.Query(
 		`SELECT DISTINCT r.id, r.title, COALESCE(r.image_url, ''), COALESCE(r.servings, 0)
 		 FROM userShoppingListV2 sl
@@ -343,7 +343,7 @@ func (s *ShoppingListService) GetRecipes(userID int) ([]ShoppingListRecipe, erro
 	return recipes, nil
 }
 
-func (s *ShoppingListService) OutdatedRecipes(userID int, recipeService *RecipeServiceV1) (map[RecipeKeyV1]bool, error) {
+func (s *ShoppingListService) OutdatedRecipes(userID string, recipeService *RecipeServiceV1) (map[RecipeKeyV1]bool, error) {
 	rows, err := s.DB.Query(
 		`SELECT rv.recipe_id, MAX(sl.source_recipe_version_id)
 		 FROM userShoppingListV2 sl
@@ -399,7 +399,7 @@ func (s *ShoppingListService) OutdatedRecipes(userID int, recipeService *RecipeS
 	return outdated, nil
 }
 
-func (s *ShoppingListService) HasRecipe(userID int, recipeID int64) (bool, error) {
+func (s *ShoppingListService) HasRecipe(userID, primaryName, variantName, creatorID string) (bool, error) {
 	var exists bool
 	err := s.DB.QueryRow(
 		`SELECT EXISTS (
@@ -407,12 +407,12 @@ func (s *ShoppingListService) HasRecipe(userID int, recipeID int64) (bool, error
 		     JOIN recipe_versionsV1 rv ON rv.id = sl.source_recipe_version_id
 		     WHERE sl.user_id = ? AND rv.recipe_id = ?
 		 )`,
-		userID, recipeID,
+		userID, primaryName, variantName, creatorID,
 	).Scan(&exists)
 	return exists, err
 }
 
-func (s *ShoppingListService) AddRecipeIngredients(userID int, versionID int64, ingredients []IngredientV1) error {
+func (s *ShoppingListService) AddRecipeIngredients(userID string, versionID int64, ingredients []IngredientV1) error {
 	tx, err := s.DB.Begin()
 	if err != nil {
 		return err
@@ -478,7 +478,7 @@ func mergeIngredients(ingredients []IngredientV1) []IngredientV1 {
 	return merged
 }
 
-func (s *ShoppingListService) removeItem(q sqlExecutor, userID int, name, unit string) error {
+func (s *ShoppingListService) removeItem(q sqlExecutor, userID string, name, unit string) error {
 	_, err := q.Exec(
 		"DELETE FROM userShoppingListV2 WHERE user_id = ? AND name = ? AND unit = ?",
 		userID, name, unit,
@@ -493,7 +493,7 @@ func (s *ShoppingListService) removeItem(q sqlExecutor, userID int, name, unit s
 	return err
 }
 
-func (s *ShoppingListService) removeUnusedState(q sqlExecutor, userID int) error {
+func (s *ShoppingListService) removeUnusedState(q sqlExecutor, userID string) error {
 	_, err := q.Exec(
 		`DELETE FROM userShoppingStateV1
 		 WHERE user_id = ?
@@ -509,7 +509,7 @@ func (s *ShoppingListService) removeUnusedState(q sqlExecutor, userID int) error
 }
 
 // RemoveRecipe drops every ingredient that came from any version of a recipe.
-func (s *ShoppingListService) RemoveRecipe(userID int, recipeID int64) error {
+func (s *ShoppingListService) RemoveRecipe(userID string, recipeID int64) error {
 	return withTx(s.DB, func(tx sqlExecutor) error {
 		_, err := tx.Exec(
 			`DELETE FROM userShoppingListV2

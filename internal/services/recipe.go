@@ -106,7 +106,7 @@ func NewRecipeService(db *sqlx.DB) *RecipeServiceV1 {
 	return &RecipeServiceV1{DB: db}
 }
 
-func (s *RecipeServiceV1) CreateRecipe(userID int, title, imageURL string, primaryName, variantName, creatorID, description string, servings int, prepTimeMinutes int) error {
+func (s *RecipeServiceV1) CreateRecipe(userID string, title, imageURL string, primaryName, variantName, creatorID, description string, servings int, prepTimeMinutes int) error {
 	_, err := s.DB.Exec(
 		"INSERT INTO recipesV1(user_id, title, image_url, description, servings, prep_time_minutes) VALUES (?, ?, ?, ?, ?, ?)",
 		userID,
@@ -326,10 +326,10 @@ func (s *RecipeServiceV1) GetSteps(tx sqlExecutor, recipeVersionID int64) ([]Rec
 }
 
 // GetVersions returns every version of a recipe, newest first.
-func (s *RecipeServiceV1) GetVersions(recipeID int64) ([]RecipeVersionV1, error) {
+func (s *RecipeServiceV1) GetVersions(primaryName, variantName, creatorID string) ([]RecipeVersionV1, error) {
 	var versions []RecipeVersionV1
 	rows, err := s.DB.Query(
-		"SELECT id, version_number, created_at FROM recipe_versionsV1 WHERE recipe_id = ? ORDER BY version_number DESC", recipeID,
+		"SELECT id, version_number, created_at FROM recipe_versionsV1 WHERE recipe_id = ? ORDER BY version_number DESC", primaryName, variantName, creatorID,
 	)
 	if err != nil {
 		return nil, err
@@ -352,14 +352,14 @@ func (s *RecipeServiceV1) GetVersions(recipeID int64) ([]RecipeVersionV1, error)
 }
 
 // GetVersion returns one version of a recipe, only if the recipe belongs to userID.
-func (s *RecipeServiceV1) GetVersion(userID int, recipeID int64, versionID int64) (RecipeVersionV1, error) {
+func (s *RecipeServiceV1) GetVersion(userID, primaryName, variantName, creatorID string, versionID int64) (RecipeVersionV1, error) {
 	var v RecipeVersionV1
 	err := s.DB.QueryRow(`
 		SELECT rv.id, rv.version_number, rv.created_at
 		FROM recipe_versionsV1 rv
 		JOIN recipesV1 r ON r.id = rv.recipe_id
 		WHERE rv.id = ? AND rv.recipe_id = ? AND r.user_id = ?
-	`, versionID, recipeID, userID).Scan(&v.RecipeID, &v.VersionNumber, &v.CreatedAt)
+	`, versionID, primaryName, variantName, creatorID, userID).Scan(&v.RecipeID, &v.VersionNumber, &v.CreatedAt)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return v, ErrRecipeNotFound
@@ -395,7 +395,7 @@ func (s *RecipeServiceV1) GetStepIngredients(recipeVersionID int64) ([]RecipeSte
 	return stepIngredients, rows.Err()
 }
 
-func (s *RecipeServiceV1) GetRecipesByUser(userID int) ([]RecipeV1, error) {
+func (s *RecipeServiceV1) GetRecipesByUser(userID string) ([]RecipeV1, error) {
 	rows, err := s.DB.Query(
 		// `SELECT r.id, r.title, COALESCE(rv.id, 0)
 		//  FROM recipesV1 r
@@ -656,7 +656,7 @@ func (s *RecipeServiceV1) GetRecipeForView(primaryName, variantName, creatorID s
 	}, creatorID, nil
 }
 
-func (s *RecipeServiceV1) DeleteRecipe(recipeID int64) error {
+func (s *RecipeServiceV1) DeleteRecipe(primaryName, variantName, creatorID string) error {
 	return withTx(s.DB, func(tx sqlExecutor) error {
 
 		if _, err := tx.Exec(`
@@ -666,7 +666,7 @@ func (s *RecipeServiceV1) DeleteRecipe(recipeID int64) error {
 				FROM recipe_versionsV1
 				WHERE recipe_id = ?
 			)
-		`, recipeID); err != nil {
+		`, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
@@ -690,7 +690,7 @@ func (s *RecipeServiceV1) DeleteRecipe(recipeID int64) error {
 				FROM recipe_versionsV1
 				WHERE recipe_id = ?
 			)
-		`, recipeID); err != nil {
+		`, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
@@ -701,7 +701,7 @@ func (s *RecipeServiceV1) DeleteRecipe(recipeID int64) error {
 				FROM recipe_versionsV1
 				WHERE recipe_id = ?
 			)
-		`, recipeID); err != nil {
+		`, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
@@ -712,28 +712,28 @@ func (s *RecipeServiceV1) DeleteRecipe(recipeID int64) error {
 				FROM recipe_versionsV1
 				WHERE recipe_id = ?
 			)
-		`, recipeID); err != nil {
+		`, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
 		if _, err := tx.Exec(`
 			DELETE FROM recipe_versionsV1
 			WHERE recipe_id = ?
-		`, recipeID); err != nil {
+		`, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
 		if _, err := tx.Exec(`
 			DELETE FROM recipeTagsV1
 			WHERE recipe_id = ?
-		`, recipeID); err != nil {
+		`, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
 		if _, err := tx.Exec(`
 			DELETE FROM recipesV1
 			WHERE id = ?
-		`, recipeID); err != nil {
+		`, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
@@ -802,7 +802,7 @@ func (s *RecipeServiceV1) InsertVersionIngredients(tx sqlExecutor, primaryName, 
 	return nil
 }
 
-func (s *RecipeServiceV1) UpdateRecipe(userID int, primaryName, variantName, creatorID string, data RecipeUpdateV1) error {
+func (s *RecipeServiceV1) UpdateRecipe(userID, primaryName, variantName, creatorID string, data RecipeUpdateV1) error {
 	return withTx(s.DB, func(tx sqlExecutor) error {
 
 		var exists int
@@ -888,7 +888,7 @@ func stepsEqual(old, updated []RecipeStepV1) bool {
 	})
 }
 
-func (s *RecipeServiceV1) GetCookBookRecipes(userID int) ([]RecipeV1, error) {
+func (s *RecipeServiceV1) GetCookBookRecipes(userID string) ([]RecipeV1, error) {
 	rows, err := s.DB.Query(`
 		SELECT 
 			r.id, 

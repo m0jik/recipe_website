@@ -52,27 +52,27 @@ func (s *CookBookService) GetCookBookByUserID(userID int) ([]cookBook, error) {
 	return recipes, nil
 }
 
-func (s *CookBookService) AddRecipeToCookBook(userID, recipeID int) error {
+func (s *CookBookService) AddRecipeToCookBook(userID, primaryName, variantName, creatorID string) error {
 	_, err := s.db.Exec(
 		"INSERT INTO cookBookV1 (user_id, recipe_id) VALUES (?, ?) ON CONFLICT(user_id, recipe_id) DO NOTHING",
-		userID, recipeID,
+		userID, primaryName, variantName, creatorID,
 	)
 
 	return err
 }
 
-func (s *CookBookService) RemoveRecipeFromCookBook(userID, recipeID int) error {
+func (s *CookBookService) RemoveRecipeFromCookBook(userID, primaryName, variantName, creatorID string) error {
 	_, err := s.db.Exec(
 		"DELETE FROM cookBookV1 where user_id = ? and recipe_id = ?",
-		userID, recipeID,
+		userID, primaryName, variantName, creatorID,
 	)
 
 	return err
 }
 
-func (s *CookBookService) HasRecipe(userID, recipeID int) (bool, error) {
+func (s *CookBookService) HasRecipe(userID, primaryName, variantName, creatorID string) (bool, error) {
 	var count int
-	err := s.db.Get(&count, "SELECT COUNT(*) FROM cookBookV1 WHERE user_id = ? AND recipe_id = ?", userID, recipeID)
+	err := s.db.Get(&count, "SELECT COUNT(*) FROM cookBookV1 WHERE user_id = ? AND recipe_id = ?", userID, primaryName, variantName, creatorID)
 	if err != nil {
 		return false, err
 	}
