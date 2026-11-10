@@ -107,24 +107,13 @@ func NewRecipeService(db *sqlx.DB) *RecipeServiceV1 {
 }
 
 func (s *RecipeServiceV1) CreateRecipe(userID string, title, imageURL string, primaryName, variantName, creatorID, description string, servings int, prepTimeMinutes int) error {
-	_, err := s.DB.Exec(
-		"INSERT INTO recipesV1(user_id, title, image_url, description, servings, prep_time_minutes) VALUES (?, ?, ?, ?, ?, ?)",
-		userID,
-		title,
-		imageURL,
-		description,
-		servings,
-		prepTimeMinutes,
-	)
+
+	_, err := InsertRecipeIntoRecipesTable(s, userID, title, imageURL, primaryName, variantName, creatorID, description, servings, prepTimeMinutes)
 	if err != nil {
 		return err
 	}
 
-	_, err = s.DB.Exec( // creates the first version
-		`INSERT INTO recipe_versionsV1 (recipe_id, version_number)
-         VALUES (?, 1)`,
-		primaryName, variantName, creatorID,
-	)
+	_, err = InsertRecipeIntoRecipeVersionsTable(s, primaryName, variantName, creatorID)
 	if err != nil {
 		return err
 	}
@@ -152,10 +141,7 @@ func (s *RecipeServiceV1) SaveTags(tx sqlExecutor, primaryName, variantName, cre
 		}
 		seen[tag] = struct{}{}
 
-		_, err := tx.Exec(`
-			INSERT INTO tagsV1(name) VALUES (?) ON CONFLICT(name) DO NOTHING`,
-			tag,
-		)
+		_, err := InsertTagsIntoTagsTable(tx, tag)
 		if err != nil {
 			return err
 		}
@@ -169,10 +155,7 @@ func (s *RecipeServiceV1) SaveTags(tx sqlExecutor, primaryName, variantName, cre
 			return err
 		}
 
-		if _, err := tx.Exec(
-			`INSERT OR IGNORE INTO recipeTagsV1(recipe_id, tag_id) VALUES (?, ?)`,
-			primaryName, variantName, creatorID, tagID,
-		); err != nil {
+		if _, err := InsertRecipeIntoRecipeTagsTable(tx, primaryName, variantName, creatorID, tagID); err != nil {
 			return err
 		}
 	}
@@ -200,10 +183,7 @@ func (s *RecipeServiceV1) BatchSaveIngredients(versionID int64, names, quantitie
 		if i < len(units) {
 			unit = units[i]
 		}
-		_, err := s.DB.Exec(
-			"INSERT INTO ingredientsV1 (recipe_version_id, name, quantity, unit) VALUES (?, ?, ?, ?)",
-			versionID, name, qty, unit,
-		)
+		_, err := InsertIntoIngredientsTable(s, versionID, name, qty, unit)
 		if err != nil {
 			return err
 		}
@@ -220,10 +200,7 @@ func (s *RecipeServiceV1) BatchSaveSteps(versionID int64, instructions, notes, s
 		if i < len(notes) {
 			note = notes[i]
 		}
-		_, err := s.DB.Exec(
-			"INSERT INTO instructionsV1 (recipe_version_id, step_number, instruction, notes) VALUES (?, ?, ?, ?)",
-			versionID, i+1, instruction, note,
-		)
+		_, err := InsertIntoInstructionsTable(s, versionID, i, instruction, note)
 		if err != nil {
 			return err
 		}
@@ -232,10 +209,7 @@ func (s *RecipeServiceV1) BatchSaveSteps(versionID int64, instructions, notes, s
 			if step_ingredient == "" {
 				continue
 			}
-			_, err := s.DB.Exec(
-				"INSERT INTO step_ingredientsV1 (recipe_id, step_id, step_ingredient) VALUES (?, ?, ?)",
-				versionID, i+1, step_ingredient,
-			)
+			_, err := InsertIntoStepIngredientsTable(s, versionID, i, step_ingredient)
 			if err != nil {
 				return err
 			}
@@ -246,17 +220,11 @@ func (s *RecipeServiceV1) BatchSaveSteps(versionID int64, instructions, notes, s
 
 func (s *RecipeServiceV1) NewVersion(tx sqlExecutor, primaryName, variantName, creatorID string) (int64, error) {
 	var maxVersion int
-	if err := tx.QueryRow(
-		"SELECT COALESCE(MAX(version_number), 0) FROM recipe_versionsV1 WHERE recipe_id = ?",
-		primaryName, variantName, creatorID,
-	).Scan(&maxVersion); err != nil {
+	if err := GetLargestVersionNumber(tx, primaryName, variantName, creatorID).Scan(&maxVersion); err != nil {
 		return 0, err
 	}
 
-	result, err := tx.Exec(
-		"INSERT INTO recipe_versionsV1 (recipe_id, version_number) VALUES (?, ?)",
-		primaryName, variantName, creatorID, maxVersion+1,
-	)
+	result, err := InsertNewRecipeVersionIntoRecipeVersionTable(tx, primaryName, variantName, creatorID, maxVersion)
 	if err != nil {
 		return 0, err
 	}
@@ -265,9 +233,7 @@ func (s *RecipeServiceV1) NewVersion(tx sqlExecutor, primaryName, variantName, c
 
 func (s *RecipeServiceV1) GetIngredients(q sqlExecutor, recipeVersionID int64) ([]IngredientV1, error) {
 	var ingredients []IngredientV1
-	rows, err := q.Query(
-		"SELECT id, recipe_version_id, name, quantity, unit FROM ingredientsV1 WHERE recipe_version_id = ? ORDER BY id", recipeVersionID,
-	)
+	rows, err := GetIngredientsFromIngredientsTable(q, recipeVersionID)
 	if err != nil {
 		return nil, err
 	}
@@ -290,11 +256,7 @@ func (s *RecipeServiceV1) GetIngredients(q sqlExecutor, recipeVersionID int64) (
 
 func (s *RecipeServiceV1) GetSteps(tx sqlExecutor, recipeVersionID int64) ([]RecipeStepV1, error) {
 	var steps []RecipeStepV1
-	rows, err := tx.Query(`
-		SELECT id, recipe_version_id, step_number, instruction, COALESCE(notes, '') 
-		FROM instructionsV1 WHERE recipe_version_id = ? 
-		ORDER BY step_number
-		`, recipeVersionID)
+	rows, err := GetStepsFromInstructionsTable(tx, recipeVersionID)
 	if err != nil {
 		return nil, err
 	}
@@ -328,9 +290,7 @@ func (s *RecipeServiceV1) GetSteps(tx sqlExecutor, recipeVersionID int64) ([]Rec
 // GetVersions returns every version of a recipe, newest first.
 func (s *RecipeServiceV1) GetVersions(primaryName, variantName, creatorID string) ([]RecipeVersionV1, error) {
 	var versions []RecipeVersionV1
-	rows, err := s.DB.Query(
-		"SELECT id, version_number, created_at FROM recipe_versionsV1 WHERE recipe_id = ? ORDER BY version_number DESC", primaryName, variantName, creatorID,
-	)
+	rows, err := GetVersionsFromRecipeVersionsTable(s, primaryName, variantName, creatorID)
 	if err != nil {
 		return nil, err
 	}
@@ -354,13 +314,7 @@ func (s *RecipeServiceV1) GetVersions(primaryName, variantName, creatorID string
 // GetVersion returns one version of a recipe, only if the recipe belongs to userID.
 func (s *RecipeServiceV1) GetVersion(userID, primaryName, variantName, creatorID string, versionID int64) (RecipeVersionV1, error) {
 	var v RecipeVersionV1
-	err := s.DB.QueryRow(`
-		SELECT rv.id, rv.version_number, rv.created_at
-		FROM recipe_versionsV1 rv
-		JOIN recipesV1 r ON r.id = rv.recipe_id
-		WHERE rv.id = ? AND rv.recipe_id = ? AND r.user_id = ?
-	`, versionID, primaryName, variantName, creatorID, userID).Scan(&v.RecipeID, &v.VersionNumber, &v.CreatedAt)
-
+	err := GetVersionBelongingToUserID(s, versionID, primaryName, variantName, creatorID, userID).Scan(&v.RecipeID, &v.VersionNumber, &v.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return v, ErrRecipeNotFound
 	}
@@ -369,12 +323,7 @@ func (s *RecipeServiceV1) GetVersion(userID, primaryName, variantName, creatorID
 
 func (s *RecipeServiceV1) GetStepIngredients(recipeVersionID int64) ([]RecipeStepIngredientV1, error) {
 	var stepIngredients []RecipeStepIngredientV1
-	rows, err := s.DB.Query(
-		`SELECT id, recipe_id, step_id, step_ingredient
-		 FROM step_ingredientsV1
-		 WHERE recipe_id = ?
-		`, recipeVersionID,
-	)
+	rows, err := GetStepIngredientsFromStepIngredientsTable(s, recipeVersionID)
 	if err != nil {
 		return nil, err
 	}
@@ -396,32 +345,7 @@ func (s *RecipeServiceV1) GetStepIngredients(recipeVersionID int64) ([]RecipeSte
 }
 
 func (s *RecipeServiceV1) GetRecipesByUser(userID string) ([]RecipeV1, error) {
-	rows, err := s.DB.Query(
-		// `SELECT r.id, r.title, COALESCE(rv.id, 0)
-		//  FROM recipesV1 r
-		//  LEFT JOIN recipe_versionsV1 rv ON rv.recipe_id = r.id
-		//    AND rv.version_number = (SELECT MAX(version_number) FROM recipe_versionsV1 WHERE recipe_id = r.id)
-		//  WHERE r.user_id = ?
-		//  ORDER BY r.created_at DESC`,
-		`SELECT
-            r.id,
-            r.title,
-			r.user_id,
-            0 AS version_id,
-            COALESCE(r.description, '') AS description,
-            COALESCE(r.image_url, '') AS image_url,
-			COALESCE(
-				(SELECT GROUP_CONCAT(t.name, ',')
-				FROM tagsV1 t
-				JOIN recipeTagsV1 rt ON rt.tag_id = t.id
-				WHERE rt.recipe_id = r.id),
-				''
-			)
-         FROM recipesV1 r
-         WHERE r.user_id = ?
-         ORDER BY r.created_at DESC`,
-		userID,
-	)
+	rows, err := GetRecipesByUserID(s, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -456,13 +380,7 @@ func (s *RecipeServiceV1) GetLatestVersionID(tx sqlExecutor, primaryName, varian
 
 	var versionID int64
 
-	err := tx.QueryRow(` //TODO: More database fixes
-        SELECT id
-        FROM recipe_versionsV1
-        WHERE recipe_id = ?
-        ORDER BY version_number DESC
-        LIMIT 1
-    `, primaryName, variantName, creatorID).Scan(&versionID)
+	err := GetLatestVersionIDFromRecipeVersionsTable(tx, primaryName, variantName, creatorID).Scan(&versionID)
 
 	if err != nil {
 		return 0, fmt.Errorf(
@@ -475,10 +393,7 @@ func (s *RecipeServiceV1) GetLatestVersionID(tx sqlExecutor, primaryName, varian
 
 func (s *RecipeServiceV1) GetRecipeUser(recipeID int64) (int64, error) {
 	var userID int64
-	err := s.DB.QueryRow(
-		"SELECT user_id FROM recipesV1 WHERE id = ?",
-		recipeID,
-	).Scan(&userID)
+	err := GetUserFromRecipesTable(s, recipeID).Scan(&userID)
 
 	if errors.Is(err, sql.ErrNoRows) {
 		return 0, ErrRecipeNotFound
@@ -500,10 +415,7 @@ func (s *RecipeServiceV1) Search(query string, tagFilters []string, maxTime int)
 			continue
 		}
 		seenTags[tag] = struct{}{}
-		conditions = append(conditions, `EXISTS (
-			SELECT 1 FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id
-			WHERE rt.recipe_id = r.id AND t.name = ?
-		)`)
+		conditions = SearchByTag(conditions)
 		args = append(args, tag)
 	}
 	if maxTime > 0 {
@@ -511,16 +423,7 @@ func (s *RecipeServiceV1) Search(query string, tagFilters []string, maxTime int)
 		args = append(args, maxTime)
 	}
 
-	conditions = append(conditions, `(r.title LIKE ? OR r.description LIKE ? OR EXISTS (
-		SELECT 1 FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id
-		WHERE rt.recipe_id = r.id AND t.name LIKE ?
-	) OR EXISTS (
-		SELECT 1 FROM ingredientsV1 i
-		JOIN recipe_versionsV1 rv ON rv.id = i.recipe_version_id
-		WHERE rv.recipe_id = r.id
-		  AND rv.version_number = (SELECT MAX(version_number) FROM recipe_versionsV1 WHERE recipe_id = r.id)
-		  AND i.name LIKE ?
-	))`)
+	conditions = SearchByTitleAndDescription(conditions)
 	args = append(args, "%"+query+"%", "%"+query+"%", "%"+strings.ToLower(query)+"%", "%"+query+"%", "%"+query+"%")
 
 	searchQuery := `SELECT r.id, r.user_id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
@@ -632,10 +535,7 @@ func (s *RecipeServiceV1) GetRecipeForView(primaryName, variantName, creatorID s
 	}
 
 	var tagString string
-	if err := s.DB.QueryRow( //TODO: Fix this database call and put it into its own service to interface into
-		`SELECT COALESCE(GROUP_CONCAT(t.name, ','), '') FROM tagsV1 t
-		 JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = ?`, primaryName, variantName, creatorID,
-	).Scan(&tagString); err != nil {
+	if err := GetTagString(s, tagString, primaryName, variantName, creatorID).Scan(&tagString); err != nil {
 		return nil, "", err
 	}
 

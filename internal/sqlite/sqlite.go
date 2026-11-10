@@ -8,6 +8,10 @@ import (
 	_ "modernc.org/sqlite"
 )
 
+type RecipeServiceV1 struct {
+	DB *sqlx.DB
+}
+
 func New(path string) (*sqlx.DB, error) {
 	db, err := sqlx.Open("sqlite", path)
 	if err != nil {
