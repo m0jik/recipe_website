@@ -424,15 +424,8 @@ func (s *RecipeServiceV1) Search(query string, tagFilters []string, maxTime int)
 	}
 
 	conditions = SearchByTitleAndDescription(conditions)
-	args = append(args, "%"+query+"%", "%"+query+"%", "%"+strings.ToLower(query)+"%", "%"+query+"%", "%"+query+"%")
 
-	searchQuery := `SELECT r.id, r.user_id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
-		COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
-	 FROM recipesV1 r WHERE ` + strings.Join(conditions, " AND ") +
-		` ORDER BY CASE WHEN LOWER(r.title) LIKE LOWER(?) THEN 0 ELSE 1 END, r.created_at DESC`
-	args = append(args, "%"+query+"%")
-
-	rows, err := s.DB.Query(searchQuery, args...)
+	rows, err := CallSearchQuery(s, args, conditions, query)
 	if err != nil {
 		return nil, err
 	}

@@ -1,6 +1,9 @@
 package services
 
-import "database/sql"
+import (
+	"database/sql"
+	"strings"
+)
 
 var version string = "V1"
 
@@ -256,4 +259,15 @@ func SearchByTitleAndDescription(conditions []string) []string {
 		))
 		`,
 	)
+}
+
+func CallSearchQuery(s *RecipeServiceV1, args []any, conditions []string, query string) (*sql.Rows, error) {
+	args = append(args, "%"+query+"%", "%"+query+"%", "%"+strings.ToLower(query)+"%", "%"+query+"%", "%"+query+"%")
+
+	searchQuery := `SELECT r.id, r.user_id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
+		COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
+	 FROM recipesV1 r WHERE ` + strings.Join(conditions, " AND ") +
+		` ORDER BY CASE WHEN LOWER(r.title) LIKE LOWER(?) THEN 0 ELSE 1 END, r.created_at DESC`
+	args = append(args, "%"+query+"%")
+	return s.DB.Query(searchQuery, args...)
 }
