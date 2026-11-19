@@ -262,7 +262,7 @@ func (s *RecipeServiceV1) GetSteps(tx sqlExecutor, primaryName, variantName, cre
 
 	for rows.Next() {
 		var st RecipeStepV1
-		if err := rows.Scan(&st.Instruction, &st.StepIngredients); err != nil {
+		if err := rows.Scan(&st.Instruction); err != nil {
 			return nil, err
 		}
 		steps = append(steps, st)

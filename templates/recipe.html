@@ -67,7 +67,7 @@
             <h2>Ingredients</h2>
             <ul>
                 {{range .Ingredients}}
-                    <li>{{.Quantity}} {{.Unit}} {{.Name}}</li>
+                    <li>{{.Amount}} {{.Unit}} {{.Name}}</li>
                 {{else}}
                     <li>No ingredients added</li>
                 {{end}}
@@ -87,9 +87,6 @@
                                     <li>{{.Ingredient}}</li>
                                 {{end}}
                             </ul>
-                        {{end}}
-                        {{if .Notes}}
-                            <small>{{.Notes}}</small>
                         {{end}}
                     </li>
                 {{else}}
