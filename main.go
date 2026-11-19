@@ -102,7 +102,8 @@ type RecipePageData struct {
 type PageOneData struct {
 	PageData
 
-	Title       string
+	PrimaryName string
+	VariantName string
 	Description string
 	Servings    int
 	PrepTime    int
@@ -111,12 +112,13 @@ type PageOneData struct {
 type PageTwoData struct {
 	PageData
 
+	PrimaryName     string
+	VariantName     string
 	Image           string
-	Title           string
 	Description     string
 	Tags            []string
 	Servings        string
-	PrepTime        string
+	PrepTimeMinutes string
 	Ingredients     []services.IngredientV1
 	Steps           []services.RecipeStepV1
 	StepIngredients []services.RecipeStepIngredientV1
@@ -193,17 +195,17 @@ func main() {
 	mux.HandleFunc("/recipes/v1/", app.handleRecipe)
 
 	//Print Mode
-	mux.HandleFunc("/print-mode/v1/{id}", app.handlePrintMode)
+	mux.HandleFunc("/print-mode/v1/", app.handlePrintMode)
 
 	//Recipe Edit
-	mux.HandleFunc("POST /recipes/v1/delete-recipe/{id}", app.handleDeleteRecipe)
+	mux.HandleFunc("POST /recipes/v1/delete-recipe/", app.handleDeleteRecipe)
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}", app.handleEditRecipe)
 	mux.HandleFunc("GET /recipes/v1/edit-recipe/{id}/version", app.handleRecipeVersion)
 	mux.HandleFunc("POST /recipes/v1/save-recipe/{id}", app.handleSaveRecipe)
 	mux.HandleFunc("POST /recipes/v1/image-preview", app.handleImagePreview)
 
 	//Shopping List
-	mux.HandleFunc("GET /shopping-list/v1", app.handleShoppingList)
+	mux.HandleFunc("GET /shopping-list/v1/", app.handleShoppingList)
 	mux.HandleFunc("POST /shopping-list/v1/add", app.handleShoppingListAdd)
 	mux.HandleFunc("DELETE /shopping-list/v1/remove-recipe", app.handleShoppingListRemoveRecipe)
 	mux.HandleFunc("POST /shopping-list/v1/check", app.handleShoppingListCheck)
@@ -577,7 +579,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		}
 		email := normalizeEmail(r.FormValue("email"))
 		pass := r.FormValue("password")
-		var id int
+		var id string
 		var hash string
 		// row := a.DB.QueryRow("SELECT id, password_hash FROM usersV1 WHERE username = ?", username)
 
@@ -939,12 +941,13 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 			PresetTagGroups: services.PresetTagGroups,
 		},
 
-		Title:       r.FormValue("title"),
-		Description: r.FormValue("description"),
-		Image:       imagePath,
-		Tags:        r.Form["tags"],
-		Servings:    r.FormValue("servings"),
-		PrepTime:    r.FormValue("prep_time_minutes"),
+		PrimaryName:     r.FormValue("primary_name"),
+		VariantName:     r.FormValue("variant_name"),
+		Description:     r.FormValue("description"),
+		Image:           imagePath,
+		Tags:            r.Form["tags"],
+		Servings:        r.FormValue("servings"),
+		PrepTimeMinutes: r.FormValue("prep_time_minutes"),
 	}
 
 	err = tpl.ExecuteTemplate(w, "pageTwo.html", pageData)
@@ -958,9 +961,9 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
 	err := tpl.ExecuteTemplate(w, "ingredient-row", services.IngredientV1{
-		Name:    r.URL.Query().Get("qty"),
+		Name:    r.URL.Query().Get("name"),
 		Aliases: r.URL.Query()["aliases"],
-		Amount:  r.URL.Query().Get("name"),
+		Amount:  r.URL.Query().Get("qty"),
 		Unit:    r.URL.Query().Get("unit"),
 	})
 	if err != nil {
@@ -1030,29 +1033,29 @@ func (a *App) handleSubmit(w http.ResponseWriter, r *http.Request) {
 
 		// needs to be fixed becasue
 		// - bachSaveIngredients and BatchSaveSteps commits the instant it runs (no transaction wrapping any of this)
-		err := a.Recipes.CreateRecipe(userID, r.FormValue("title"), r.FormValue("image"), r.FormValue("primaryName"), r.FormValue("variantName"), r.FormValue("creatorID"), r.FormValue("description"), servings, prepTimeMinutes)
+		err := a.Recipes.CreateRecipe(r.FormValue("image"), r.FormValue("primary_name"), r.FormValue("variant_name"), userID, r.FormValue("description"), servings, prepTimeMinutes)
 		if err != nil {
 			http.Error(w, "could not create recipe", http.StatusInternalServerError)
 			return
 		}
-		if err := a.Recipes.SaveTags(a.Recipes.DB, r.FormValue("primaryName"), r.FormValue("variantName"), r.FormValue("creatorID"), r.Form["tags"]); err != nil {
+		if err := a.Recipes.SaveTags(a.Recipes.DB, r.FormValue("primary_name"), r.FormValue("variant_name"), userID, r.Form["tags"]); err != nil {
 			http.Error(w, "could not save tags", http.StatusInternalServerError)
 			return
 		}
 
-		versionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, r.FormValue("primaryName"), r.FormValue("variantName"), r.FormValue("creatorID"))
+		versionID, err := a.Recipes.GetLatestVersionID(a.Recipes.DB, r.FormValue("primary_name"), r.FormValue("variant_name"), userID)
 		if err != nil {
 			http.Error(w, "could not get version", http.StatusInternalServerError)
 			return
 		}
 
 		// fails partway through ( some ingredients row may already be commited)
-		if err := a.Recipes.BatchSaveIngredients(versionID, r.Form["ingredient_name"], r.Form["ingredient_qty"], r.Form["ingredient_unit"]); err != nil {
+		if err := a.Recipes.BatchSaveIngredients(versionID, r.Form["ingredient_name"], r.Form["ingredient_qty"], r.Form["ingredient_unit"], r.FormValue("primary_name"), r.FormValue("variant_name"), userID); err != nil {
 			http.Error(w, "could not save ingredients", http.StatusInternalServerError)
 			return
 		}
 
-		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"], r.Form["step_ingredients"]); err != nil {
+		if err := a.Recipes.BatchSaveSteps(versionID, r.Form["step_instruction"], r.Form["step_note"], r.Form["step_ingredients"], r.FormValue("primary_name"), r.FormValue("variant_name"), userID); err != nil {
 			http.Error(w, "could not save steps", http.StatusInternalServerError)
 			return
 		}
@@ -1096,8 +1099,8 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -1176,8 +1179,8 @@ func (a *App) handlePrintMode(w http.ResponseWriter, r *http.Request) {
 		}
 	}
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -1341,8 +1344,8 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -1356,7 +1359,7 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ingredients, err := a.Recipes.GetIngredients(a.Recipes.DB, versionID)
+	ingredients, err := a.Recipes.GetIngredients(a.Recipes.DB, primaryName, variantName, creatorID)
 	if err != nil {
 		log.Printf("Error loading ingredients for recipe %s - %s by %s: %v", primaryName, variantName, creatorID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1707,8 +1710,8 @@ func (a *App) handleDeleteRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -1750,8 +1753,8 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -1820,14 +1823,14 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		pageData.Ingredients, err = a.Recipes.GetIngredients(a.Recipes.DB, versionID)
+		pageData.Ingredients, err = a.Recipes.GetIngredients(a.Recipes.DB, primaryName, variantName, creatorID)
 		if err != nil {
 			log.Printf("Error loading ingredients for version %d: %v", versionID, err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
 			return
 		}
 
-		pageData.Steps, err = a.Recipes.GetSteps(a.Recipes.DB, versionID)
+		pageData.Steps, err = a.Recipes.GetSteps(a.Recipes.DB, primaryName, variantName, creatorID)
 		if err != nil {
 			log.Printf("Error loading steps for version %d: %v", versionID, err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1862,8 +1865,8 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -1895,14 +1898,14 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	ingredients, err := a.Recipes.GetIngredients(a.Recipes.DB, versionID)
+	ingredients, err := a.Recipes.GetIngredients(a.Recipes.DB, primaryName, variantName, creatorID)
 	if err != nil {
 		log.Printf("Error loading ingredients for version %d: %v", versionID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
 	}
 
-	steps, err := a.Recipes.GetSteps(a.Recipes.DB, versionID)
+	steps, err := a.Recipes.GetSteps(a.Recipes.DB, primaryName, variantName, creatorID)
 	if err != nil {
 		log.Printf("Error loading steps for version %d: %v", versionID, err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1934,8 +1937,8 @@ func (a *App) handleSaveRecipe(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -2187,8 +2190,8 @@ func (a *App) handleCookBookAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -2219,8 +2222,8 @@ func (a *App) handleCookBookRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -2253,8 +2256,8 @@ func (a *App) handleCookingMode(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 	}
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {
@@ -2337,8 +2340,8 @@ func (a *App) handleCookingModeSteps(w http.ResponseWriter, r *http.Request) {
 	idStr := strings.TrimPrefix(r.URL.Path, "/cooking-mode/v1/")
 	idStr = strings.TrimSuffix(idStr, "/steps")
 
-	primaryName := r.URL.Query().Get("primaryName")
-	variantName := r.URL.Query().Get("variantName")
+	primaryName := r.URL.Query().Get("primary_name")
+	variantName := r.URL.Query().Get("variant_name")
 	creatorID := r.URL.Query().Get("creatorID")
 
 	if primaryName == "" || variantName == "" || creatorID == "" {

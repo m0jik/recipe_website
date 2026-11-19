@@ -17,7 +17,8 @@
              alt="Recipe image"
              class="recipe-preview-img">
 
-        <h2>{{ .Title }}</h2>
+        <h2>{{ .PrimaryName }}</h2>
+        <h3>{{ .VariantName }}</h3>
         <p>Add ingredients and steps, then submit when ready</p>
 
     </div>
@@ -25,12 +26,13 @@
     <form method="POST" action="/recipes/v1/submit">
         <button type="submit" disabled hidden aria-hidden="true"></button>
 
-        <input type="hidden" name="title" value="{{ .Title }}">
+        <input type="hidden" name="primary_name" value="{{ .PrimaryName }}">
+        <input type="hidden" name="variant_name" value="{{ .VariantName }}">
         <input type="hidden" name="description" value="{{ .Description }}">
         <input type="hidden" name="image" value="{{ .Image }}">
         {{range .Tags}}<input type="hidden" name="tags" value="{{ . }}">{{end}}
         <input type="hidden" name="servings" value="{{ .Servings }}">
-        <input type="hidden" name="prep_time_minutes" value="{{ .PrepTime }}">
+        <input type="hidden" name="prep_time_minutes" value="{{ .PrepTimeMinutes }}">
 
         <div class="card-body">
 
@@ -97,12 +99,6 @@
                     </div>
 
                     <div class="step-add-bottom">
-
-                        <input type="text"
-                            id="step-note"
-                            name="note"
-                            placeholder="Note (optional)"
-                            onkeydown="if(event.key==='Enter'){event.preventDefault();document.getElementById('step-add').click();}">
 
                         <button id="step-add" type="button"
                             hx-get="/recipes/v1/step-row"

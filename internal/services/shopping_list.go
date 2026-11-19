@@ -66,16 +66,7 @@ func (s *ShoppingListService) GetItems(userID string) ([]ShoppingListItemV1, err
 }
 
 func (s *ShoppingListService) getItems(q sqlExecutor, userID string) ([]ShoppingListItemV1, error) {
-	rows, err := q.Query(
-		`SELECT sl.name, sl.unit, sl.quantity,
-		        COALESCE(r.id, 0), COALESCE(r.title, ''), COALESCE(r.image_url, '')
-		 FROM userShoppingListV2 sl
-		 LEFT JOIN recipe_versionsV1 rv ON rv.id = sl.source_recipe_version_id
-		 LEFT JOIN recipesV1 r ON r.id = rv.recipe_id
-		 WHERE sl.user_id = ?
-		 ORDER BY sl.name, sl.unit, r.title`,
-		userID,
-	)
+	rows, err := GetItemsFromShoppingListTable(q, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -150,9 +141,7 @@ func itemKey(name, unit string) [2]string {
 }
 
 func (s *ShoppingListService) pantryAmounts(q sqlExecutor, userID string) (map[[2]string]string, error) {
-	rows, err := q.Query(
-		"SELECT name, unit, quantity FROM userPantryV1 WHERE user_id = ?", userID,
-	)
+	rows, err := GetPantryAmountsFromUserPantryTable(q, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -183,9 +172,7 @@ func (s *ShoppingListService) pantryAmounts(q sqlExecutor, userID string) (map[[
 }
 
 func (s *ShoppingListService) itemState(q sqlExecutor, userID string) (map[[2]string]lineState, error) {
-	rows, err := q.Query(
-		"SELECT name, unit, checked, bought_qty, bought_unit FROM userShoppingStateV1 WHERE user_id = ?", userID,
-	)
+	rows, err := GetItemShoppingStateFromUserShoppingStateTable(q, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -223,20 +210,15 @@ func remainingToBuy(need, inPantry string) string {
 }
 
 // SetChecked ticks a line off in the aisle, or puts it back.
-func (s *ShoppingListService) SetChecked(userID string, name, unit string, checked bool) error {
-	_, err := s.DB.Exec(
-		`INSERT INTO userShoppingStateV1 (user_id, name, unit, checked)
-		 VALUES (?, ?, ?, ?)
-		 ON CONFLICT(user_id, name, unit) DO UPDATE SET checked = excluded.checked`,
-		userID, name, unit, checked,
-	)
+func (s *ShoppingListService) SetChecked(userID, name, unit string, checked bool) error {
+	_, err := InsertIntoUserShoppingStateTable(s, userID, name, unit, checked)
 	return err
 }
 
 // SetAllChecked ticks off every line currently on the list, or clears them all, for the select all box in the table header.
 func (s *ShoppingListService) SetAllChecked(userID string, checked bool) error {
 	if !checked {
-		_, err := s.DB.Exec("UPDATE userShoppingStateV1 SET checked = 0 WHERE user_id = ?", userID)
+		_, err := UpdateUserShoppingStateTable(s, userID)
 		return err
 	}
 
@@ -257,14 +239,7 @@ func (s *ShoppingListService) SetBought(userID string, name, unit, qty, qtyUnit 
 	if _, err := ParseQuantity(qty); err != nil {
 		return fmt.Errorf("%w: %q", ErrInvalidQuantity, qty)
 	}
-	_, err := s.DB.Exec(
-		`INSERT INTO userShoppingStateV1 (user_id, name, unit, bought_qty, bought_unit)
-		 VALUES (?, ?, ?, ?, ?)
-		 ON CONFLICT(user_id, name, unit) DO UPDATE SET
-		     bought_qty = excluded.bought_qty,
-		     bought_unit = excluded.bought_unit`,
-		userID, name, unit, qty, qtyUnit,
-	)
+	_, err := InsertIntoUserShoppingStateTableForBought(s, userID, name, unit, qty, qtyUnit)
 	return err
 }
 
@@ -311,15 +286,7 @@ func (s *ShoppingListService) AddCheckedToPantry(userID string, pantry *PantrySe
 
 // GetRecipes returns the recipes feeding the list, one row per recipe even when ingredients from more than one of its versions are on there.
 func (s *ShoppingListService) GetRecipes(userID string) ([]ShoppingListRecipe, error) {
-	rows, err := s.DB.Query(
-		`SELECT DISTINCT r.id, r.title, COALESCE(r.image_url, ''), COALESCE(r.servings, 0)
-		 FROM userShoppingListV2 sl
-		 JOIN recipe_versionsV1 rv ON rv.id = sl.source_recipe_version_id
-		 JOIN recipesV1 r ON r.id = rv.recipe_id
-		 WHERE sl.user_id = ?
-		 ORDER BY r.title`,
-		userID,
-	)
+	rows, err := GetRecipesFromShoppingListTable(s, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -344,14 +311,7 @@ func (s *ShoppingListService) GetRecipes(userID string) ([]ShoppingListRecipe, e
 }
 
 func (s *ShoppingListService) OutdatedRecipes(userID string, recipeService *RecipeServiceV1) (map[RecipeKeyV1]bool, error) {
-	rows, err := s.DB.Query(
-		`SELECT rv.recipe_id, MAX(sl.source_recipe_version_id)
-		 FROM userShoppingListV2 sl
-		 JOIN recipe_versionsV1 rv ON rv.id = sl.source_recipe_version_id
-		 WHERE sl.user_id = ?
-		 GROUP BY rv.recipe_id`,
-		userID,
-	)
+	rows, err := GetOutdatedRecipes(s, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -384,11 +344,11 @@ func (s *ShoppingListService) OutdatedRecipes(userID string, recipeService *Reci
 			continue
 		}
 
-		saved, err := recipeService.GetIngredients(s.DB, savedID)
+		saved, err := recipeService.GetIngredients(s.DB, recipeKey.PrimaryName, recipeKey.VariantName, recipeKey.CreatorID)
 		if err != nil {
 			return nil, err
 		}
-		latest, err := recipeService.GetIngredients(s.DB, latestID)
+		latest, err := recipeService.GetIngredients(s.DB, recipeKey.PrimaryName, recipeKey.VariantName, recipeKey.CreatorID)
 		if err != nil {
 			return nil, err
 		}
@@ -401,14 +361,7 @@ func (s *ShoppingListService) OutdatedRecipes(userID string, recipeService *Reci
 
 func (s *ShoppingListService) HasRecipe(userID, primaryName, variantName, creatorID string) (bool, error) {
 	var exists bool
-	err := s.DB.QueryRow(
-		`SELECT EXISTS (
-		     SELECT 1 FROM userShoppingListV2 sl
-		     JOIN recipe_versionsV1 rv ON rv.id = sl.source_recipe_version_id
-		     WHERE sl.user_id = ? AND rv.recipe_id = ?
-		 )`,
-		userID, primaryName, variantName, creatorID,
-	).Scan(&exists)
+	err := SelectExistsFromShoppingListTable(s, userID, primaryName, variantName, creatorID).Scan(&exists)
 	return exists, err
 }
 
@@ -423,27 +376,13 @@ func (s *ShoppingListService) AddRecipeIngredients(userID string, versionID int6
 		}
 	}()
 
-	_, err = tx.Exec(
-		`DELETE FROM userShoppingListV2
-		 WHERE user_id = ?
-		   AND source_recipe_version_id IN (
-		       SELECT id FROM recipe_versionsV1
-		       WHERE recipe_id = (SELECT recipe_id FROM recipe_versionsV1 WHERE id = ?)
-		   )`,
-		userID, versionID,
-	)
+	_, err = DeleteFromUserShoppingListWhenAddingIngredient(tx, userID, versionID)
 	if err != nil {
 		return err
 	}
 
 	for _, ing := range mergeIngredients(ingredients) {
-		_, err := tx.Exec(
-			`INSERT INTO userShoppingListV2 (user_id, name, quantity, unit, source_recipe_version_id)
-			 VALUES (?, ?, ?, ?, ?)
-			 ON CONFLICT(user_id, name, unit, source_recipe_version_id)
-			 DO UPDATE SET quantity = excluded.quantity`,
-			userID, ing.Name, ing.Amount, ing.Unit, versionID,
-		)
+		_, err := InsertIntoUserShoppingListTable(tx, ing, userID, versionID)
 		if err != nil {
 			return err
 		}
@@ -478,47 +417,24 @@ func mergeIngredients(ingredients []IngredientV1) []IngredientV1 {
 	return merged
 }
 
-func (s *ShoppingListService) removeItem(q sqlExecutor, userID string, name, unit string) error {
-	_, err := q.Exec(
-		"DELETE FROM userShoppingListV2 WHERE user_id = ? AND name = ? AND unit = ?",
-		userID, name, unit,
-	)
+func (s *ShoppingListService) removeItem(q sqlExecutor, userID, name, unit string) error {
+	_, err := DeleteFromShoppingListWhenRemovingItem(q, userID, name, unit)
 	if err != nil {
 		return err
 	}
-	_, err = q.Exec(
-		"DELETE FROM userShoppingStateV1 WHERE user_id = ? AND name = ? AND unit = ?",
-		userID, name, unit,
-	)
+	_, err = DeleteFromShoppingStateWhenRemovingItem(q, userID, name, unit)
 	return err
 }
 
 func (s *ShoppingListService) removeUnusedState(q sqlExecutor, userID string) error {
-	_, err := q.Exec(
-		`DELETE FROM userShoppingStateV1
-		 WHERE user_id = ?
-		   AND NOT EXISTS (
-		       SELECT 1 FROM userShoppingListV2 sl
-		       WHERE sl.user_id = userShoppingStateV1.user_id
-		         AND LOWER(TRIM(sl.name)) = LOWER(TRIM(userShoppingStateV1.name))
-		         AND LOWER(TRIM(sl.unit)) = LOWER(TRIM(userShoppingStateV1.unit))
-		   )`,
-		userID,
-	)
+	_, err := DeleteFromShoppingStateWhenRemovingUnusedState(q, userID)
 	return err
 }
 
 // RemoveRecipe drops every ingredient that came from any version of a recipe.
 func (s *ShoppingListService) RemoveRecipe(userID string, recipeID int64) error {
 	return withTx(s.DB, func(tx sqlExecutor) error {
-		_, err := tx.Exec(
-			`DELETE FROM userShoppingListV2
-			 WHERE user_id = ?
-			   AND source_recipe_version_id IN (
-			       SELECT id FROM recipe_versionsV1 WHERE recipe_id = ?
-			   )`,
-			userID, recipeID,
-		)
+		_, err := DeleteFromShoppingListWhenRemovingRecipe(tx, userID, recipeID)
 		if err != nil {
 			return err
 		}

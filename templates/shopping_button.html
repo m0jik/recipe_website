@@ -3,7 +3,7 @@
 <button class="shopping-btn shopping-btn-added" type="button"
         title="Remove from shopping list"
         aria-label="Remove all ingredients from shopping list"
-        hx-delete="/shopping-list/v1/remove-recipe?recipe_id={{ .RecipeID }}&render=button"
+        hx-delete="/shopping-list/v1/remove-recipe?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}&render=button"
         hx-target="this"
         hx-swap="outerHTML">
     <img src="/static/icon/grocery-cart-add.png" alt="">
@@ -13,7 +13,7 @@
         title="Add all ingredients to shopping list"
         aria-label="Add all ingredients to shopping list"
         hx-post="/shopping-list/v1/add"
-        hx-vals='{"recipe_id": "{{ .RecipeID }}"}'
+        hx-vals='{"primary_name": "{{ .PrimaryName }}", "variant_name": "{{.VariantName}}", "creatorID": "{{.CreatorID}}"}'
         hx-target="this"
         hx-swap="outerHTML">
     <img src="/static/icon/grocery-cart.png" alt="">

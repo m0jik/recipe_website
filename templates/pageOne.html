@@ -1,3 +1,5 @@
+<!--TODO: Combine both forms into one big form.-->
+
 <!doctype html>
 <html lang="en">
 <head>
@@ -19,9 +21,15 @@
         <div class="card-body">
 
             <div class="field">
-                <label for="title">Title</label>
-                <input type="text" id="title" name="title" required
-                       placeholder="e.g Chicken Pasta" value="{{ .Title }}">
+                <label for="primary_name">Title</label>
+                <input type="text" id="primary_name" name="primary_name" required
+                       placeholder="e.g Chicken Pasta" value="{{ .PrimaryName }}">
+            </div>
+
+            <div class="field">
+                <label for="variant_name">Subtitle</label>
+                <input type="text" id="variant_name" name="variant_name" required
+                       placeholder="e.g Our award-winning recipe" value="{{ .VariantName }}">
             </div>
 
             <div class="field">

@@ -18,6 +18,7 @@ type RecipeV1 struct {
 	PrimaryName     string
 	VariantName     string
 	VersionID       int64
+	CreatedAt       time.Time
 	Description     string
 	ImageURL        string
 	CreatorID       string
@@ -40,16 +41,16 @@ type RecipeStepV1 struct {
 }
 
 type RecipeStepIngredientV1 struct {
-	RecipeID int64
-	StepID   int64
-	Name     string
-	Aliases  []string
-	Amount   string
-	Unit     string
+	Name    string
+	Aliases []string
+	Amount  string
+	Unit    string
 }
 
 type RecipeVersionV1 struct {
-	RecipeID      int64
+	PrimaryName   string
+	VariantName   string
+	CreatorID     string
 	VersionNumber int
 	CreatedAt     time.Time
 }
@@ -106,9 +107,9 @@ func NewRecipeService(db *sqlx.DB) *RecipeServiceV1 {
 	return &RecipeServiceV1{DB: db}
 }
 
-func (s *RecipeServiceV1) CreateRecipe(userID string, title, imageURL string, primaryName, variantName, creatorID, description string, servings int, prepTimeMinutes int) error {
+func (s *RecipeServiceV1) CreateRecipe(imageURL, primaryName, variantName, creatorID, description string, servings, prepTimeMinutes int) error {
 
-	_, err := InsertRecipeIntoRecipesTable(s, userID, title, imageURL, primaryName, variantName, creatorID, description, servings, prepTimeMinutes)
+	_, err := InsertRecipeIntoRecipesTable(s, imageURL, primaryName, variantName, creatorID, description, servings, prepTimeMinutes)
 	if err != nil {
 		return err
 	}
@@ -146,16 +147,12 @@ func (s *RecipeServiceV1) SaveTags(tx sqlExecutor, primaryName, variantName, cre
 			return err
 		}
 
-		var tagID int64
-		if err := tx.QueryRow(`
-			SELECT id 
-			FROM tagsV1 WHERE name = ?`,
-			tag,
-		).Scan(&tagID); err != nil {
+		var tagName string
+		if err := GetTagFromTagsTable(tx, tag).Scan(&tagName); err != nil {
 			return err
 		}
 
-		if _, err := InsertRecipeIntoRecipeTagsTable(tx, primaryName, variantName, creatorID, tagID); err != nil {
+		if _, err := InsertRecipeIntoRecipeTagsTable(tx, primaryName, variantName, creatorID, tagName); err != nil {
 			return err
 		}
 	}
@@ -169,7 +166,7 @@ func splitTags(value string) []string {
 	return strings.Split(value, ",")
 }
 
-func (s *RecipeServiceV1) BatchSaveIngredients(versionID int64, names, quantities, units []string) error {
+func (s *RecipeServiceV1) BatchSaveIngredients(versionID int64, names, quantities, units []string, primaryName, variantName, creatorID string) error {
 	for i, name := range names {
 		name = strings.TrimSpace(name)
 		if name == "" {
@@ -183,7 +180,7 @@ func (s *RecipeServiceV1) BatchSaveIngredients(versionID int64, names, quantitie
 		if i < len(units) {
 			unit = units[i]
 		}
-		_, err := InsertIntoIngredientsTable(s, versionID, name, qty, unit)
+		_, err := InsertIntoIngredientsTable(s, versionID, name, qty, unit, primaryName, variantName, creatorID)
 		if err != nil {
 			return err
 		}
@@ -191,16 +188,12 @@ func (s *RecipeServiceV1) BatchSaveIngredients(versionID int64, names, quantitie
 	return nil
 }
 
-func (s *RecipeServiceV1) BatchSaveSteps(versionID int64, instructions, notes, step_ingredients []string) error {
+func (s *RecipeServiceV1) BatchSaveSteps(versionID int64, instructions, notes, step_ingredients []string, primaryName, variantName, creatorID string) error {
 	for i, instruction := range instructions {
 		if instruction == "" {
 			continue
 		}
-		note := ""
-		if i < len(notes) {
-			note = notes[i]
-		}
-		_, err := InsertIntoInstructionsTable(s, versionID, i, instruction, note)
+		_, err := InsertIntoInstructionsTable(s, versionID, i, instruction, primaryName, variantName, creatorID)
 		if err != nil {
 			return err
 		}
@@ -231,9 +224,9 @@ func (s *RecipeServiceV1) NewVersion(tx sqlExecutor, primaryName, variantName, c
 	return result.LastInsertId()
 }
 
-func (s *RecipeServiceV1) GetIngredients(q sqlExecutor, recipeVersionID int64) ([]IngredientV1, error) {
+func (s *RecipeServiceV1) GetIngredients(q sqlExecutor, primaryName, variantName, creatorID string) ([]IngredientV1, error) {
 	var ingredients []IngredientV1
-	rows, err := GetIngredientsFromIngredientsTable(q, recipeVersionID)
+	rows, err := GetIngredientsFromIngredientsTable(q, primaryName, variantName, creatorID)
 	if err != nil {
 		return nil, err
 	}
@@ -246,7 +239,7 @@ func (s *RecipeServiceV1) GetIngredients(q sqlExecutor, recipeVersionID int64) (
 
 	for rows.Next() {
 		var i IngredientV1
-		if err := rows.Scan(&i.Name, &i.Aliases, &i.Amount, &i.Unit); err != nil {
+		if err := rows.Scan(&i.Name, &i.Amount, &i.Unit); err != nil {
 			return nil, err
 		}
 		ingredients = append(ingredients, i)
@@ -254,9 +247,9 @@ func (s *RecipeServiceV1) GetIngredients(q sqlExecutor, recipeVersionID int64) (
 	return ingredients, rows.Err()
 }
 
-func (s *RecipeServiceV1) GetSteps(tx sqlExecutor, recipeVersionID int64) ([]RecipeStepV1, error) {
+func (s *RecipeServiceV1) GetSteps(tx sqlExecutor, primaryName, variantName, creatorID string) ([]RecipeStepV1, error) {
 	var steps []RecipeStepV1
-	rows, err := GetStepsFromInstructionsTable(tx, recipeVersionID)
+	rows, err := GetStepsFromInstructionsTable(tx, primaryName, variantName, creatorID)
 	if err != nil {
 		return nil, err
 	}
@@ -275,7 +268,7 @@ func (s *RecipeServiceV1) GetSteps(tx sqlExecutor, recipeVersionID int64) ([]Rec
 		steps = append(steps, st)
 	}
 
-	StepIngredients, err := s.GetStepIngredients(recipeVersionID)
+	StepIngredients, err := s.GetStepIngredients(primaryName, variantName, creatorID)
 	if err != nil {
 		return nil, err
 	}
@@ -303,7 +296,7 @@ func (s *RecipeServiceV1) GetVersions(primaryName, variantName, creatorID string
 
 	for rows.Next() {
 		var v RecipeVersionV1
-		if err := rows.Scan(&v.RecipeID, &v.VersionNumber, &v.CreatedAt); err != nil {
+		if err := rows.Scan(primaryName, variantName, creatorID, &v.VersionNumber, &v.CreatedAt); err != nil {
 			return nil, err
 		}
 		versions = append(versions, v)
@@ -314,16 +307,16 @@ func (s *RecipeServiceV1) GetVersions(primaryName, variantName, creatorID string
 // GetVersion returns one version of a recipe, only if the recipe belongs to userID.
 func (s *RecipeServiceV1) GetVersion(userID, primaryName, variantName, creatorID string, versionID int64) (RecipeVersionV1, error) {
 	var v RecipeVersionV1
-	err := GetVersionBelongingToUserID(s, versionID, primaryName, variantName, creatorID, userID).Scan(&v.RecipeID, &v.VersionNumber, &v.CreatedAt)
+	err := GetVersionBelongingToUserID(s, versionID, primaryName, variantName, creatorID, userID).Scan(primaryName, variantName, creatorID, &v.VersionNumber, &v.CreatedAt)
 	if errors.Is(err, sql.ErrNoRows) {
 		return v, ErrRecipeNotFound
 	}
 	return v, err
 }
 
-func (s *RecipeServiceV1) GetStepIngredients(recipeVersionID int64) ([]RecipeStepIngredientV1, error) {
+func (s *RecipeServiceV1) GetStepIngredients(primaryName, variantName, creatorID string) ([]RecipeStepIngredientV1, error) {
 	var stepIngredients []RecipeStepIngredientV1
-	rows, err := GetStepIngredientsFromStepIngredientsTable(s, recipeVersionID)
+	rows, err := GetStepIngredientsFromStepIngredientsTable(s, primaryName, variantName, creatorID)
 	if err != nil {
 		return nil, err
 	}
@@ -336,7 +329,7 @@ func (s *RecipeServiceV1) GetStepIngredients(recipeVersionID int64) ([]RecipeSte
 
 	for rows.Next() {
 		var si RecipeStepIngredientV1
-		if err := rows.Scan(&si.RecipeID, &si.StepID, &si.Name, &si.Aliases, &si.Amount, &si.Unit); err != nil {
+		if err := rows.Scan(primaryName, variantName, creatorID, &si.Name, &si.Aliases, &si.Amount, &si.Unit); err != nil {
 			return nil, err
 		}
 		stepIngredients = append(stepIngredients, si)
@@ -364,7 +357,7 @@ func (s *RecipeServiceV1) GetRecipesByUser(userID string) ([]RecipeV1, error) {
 		// if err := rows.Scan(&ri.ID, &ri.Title, &ri.VersionID); err != nil {
 		// 	return nil, err
 		// }
-		if err := rows.Scan(&r.PrimaryName, &r.VariantName, &r.CreatorID, &r.Description, &r.ImageURL, &tags); err != nil {
+		if err := rows.Scan(&r.PrimaryName, &r.VariantName, &r.CreatorID, &r.VersionID, &r.Description, &r.ImageURL, &tags); err != nil {
 			return nil, err
 		}
 		r.Tags = splitTags(tags)
@@ -458,11 +451,7 @@ func (s *RecipeServiceV1) Search(query string, tagFilters []string, maxTime int)
 }
 
 func (s *RecipeServiceV1) GetAllRecipes() ([]RecipeV1, error) {
-	rows, err := s.DB.Query(
-		`SELECT r.id, r.user_id, r.title, COALESCE(r.description, ''), COALESCE(r.image_url, ''),
-			COALESCE((SELECT GROUP_CONCAT(t.name, ',') FROM tagsV1 t JOIN recipeTagsV1 rt ON rt.tag_id = t.id WHERE rt.recipe_id = r.id), '')
-		 FROM recipesV1 r ORDER BY r.created_at DESC`,
-	)
+	rows, err := GetAllRecipesFromRecipesTable(s)
 	if err != nil {
 		return nil, err
 	}
@@ -499,10 +488,7 @@ func (s *RecipeServiceV1) GetRecipeForView(primaryName, variantName, creatorID s
 	var servings int
 	var prepTime time.Duration
 
-	err := s.DB.QueryRow(
-		"SELECT title, user_id, COALESCE(description, ''), COALESCE(image_url, ''), COALESCE(servings, 0), COALESCE(prep_time_minutes, 0) FROM recipesV1 WHERE id = ?",
-		primaryName, variantName, creatorID, //TODO: Fix this database call and put it into its own service to interface into
-	).Scan(&primaryName, &variantName, &creatorID, &description, &imageURL, &servings, &prepTime)
+	err := GetRecipeFromRecipeTable(s, primaryName, variantName, creatorID).Scan(&primaryName, &variantName, &creatorID, &description, &imageURL, &servings, &prepTime)
 	if err != nil {
 		return nil, "", err
 	}
@@ -512,23 +498,23 @@ func (s *RecipeServiceV1) GetRecipeForView(primaryName, variantName, creatorID s
 		return nil, "", err
 	}
 
-	ingredients, err := s.GetIngredients(s.DB, versionID)
+	ingredients, err := s.GetIngredients(s.DB, primaryName, variantName, creatorID)
 	if err != nil {
 		return nil, "", err
 	}
 
-	steps, err := s.GetSteps(s.DB, versionID)
+	steps, err := s.GetSteps(s.DB, primaryName, variantName, creatorID)
 	if err != nil {
 		return nil, "", err
 	}
 
-	stepIngredients, err := s.GetStepIngredients(versionID)
+	stepIngredients, err := s.GetStepIngredients(primaryName, variantName, creatorID)
 	if err != nil {
 		return nil, "", err
 	}
 
 	var tagString string
-	if err := GetTagString(s, tagString, primaryName, variantName, creatorID).Scan(&tagString); err != nil {
+	if err := GetTagString(s, primaryName, variantName, creatorID).Scan(&tagString); err != nil {
 		return nil, "", err
 	}
 
@@ -552,81 +538,35 @@ func (s *RecipeServiceV1) GetRecipeForView(primaryName, variantName, creatorID s
 func (s *RecipeServiceV1) DeleteRecipe(primaryName, variantName, creatorID string) error {
 	return withTx(s.DB, func(tx sqlExecutor) error {
 
-		if _, err := tx.Exec(`
-			DELETE FROM userShoppingListV2
-			WHERE source_recipe_version_id IN (
-				SELECT id
-				FROM recipe_versionsV1
-				WHERE recipe_id = ?
-			)
-		`, primaryName, variantName, creatorID); err != nil {
+		if _, err := DeleteFromUserShoppingListTable(tx, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
-		if _, err := tx.Exec(`
-    		DELETE FROM userShoppingStateV1
-    		WHERE NOT EXISTS (
-        		SELECT 1
-        		FROM userShoppingListV2
-        		WHERE userShoppingListV2.user_id = userShoppingStateV1.user_id
-          			AND userShoppingListV2.name = userShoppingStateV1.name
-          			AND userShoppingListV2.unit = userShoppingStateV1.unit
-    		)
-		`); err != nil {
+		if _, err := DeleteFromUserShoppingStateTable(tx); err != nil {
 			return err
 		}
 
-		if _, err := tx.Exec(`
-			DELETE FROM ingredientsV1
-			WHERE recipe_version_id IN (
-				SELECT id 
-				FROM recipe_versionsV1
-				WHERE recipe_id = ?
-			)
-		`, primaryName, variantName, creatorID); err != nil {
+		if _, err := DeleteFromIngredientsTable(tx, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
-		if _, err := tx.Exec(`
-			DELETE FROM step_ingredientsV1
-			WHERE recipe_id IN (
-				SELECT id
-				FROM recipe_versionsV1
-				WHERE recipe_id = ?
-			)
-		`, primaryName, variantName, creatorID); err != nil {
+		if _, err := DeleteFromStepIngredientsTable(tx, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
-		if _, err := tx.Exec(`
-			DELETE FROM instructionsV1
-			WHERE recipe_version_id IN (
-				SELECT id 
-				FROM recipe_versionsV1
-				WHERE recipe_id = ?
-			)
-		`, primaryName, variantName, creatorID); err != nil {
+		if _, err := DeleteFromInstructionsTable(tx, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
-		if _, err := tx.Exec(`
-			DELETE FROM recipe_versionsV1
-			WHERE recipe_id = ?
-		`, primaryName, variantName, creatorID); err != nil {
+		if _, err := DeleteFromRecipeVersionsTable(tx, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
-		if _, err := tx.Exec(`
-			DELETE FROM recipeTagsV1
-			WHERE recipe_id = ?
-		`, primaryName, variantName, creatorID); err != nil {
+		if _, err := DeleteFromRecipeTagsTable(tx, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
-		if _, err := tx.Exec(`
-			DELETE FROM recipesV1
-			WHERE id = ?
-		`, primaryName, variantName, creatorID); err != nil {
+		if _, err := DeleteFromRecipesTable(tx, primaryName, variantName, creatorID); err != nil {
 			return err
 		}
 
@@ -635,19 +575,12 @@ func (s *RecipeServiceV1) DeleteRecipe(primaryName, variantName, creatorID strin
 }
 
 func (s *RecipeServiceV1) UpdateRecipeDetails(tx sqlExecutor, primaryName, variantName, creatorID string, data RecipeUpdateV1) error {
-	_, err := tx.Exec(`
-		UPDATE recipesV1
-		SET title = ?, description = ?, image_url = COALESCE(NULLIF(?, ''), image_url), servings = ?, prep_time_minutes = ?
-		WHERE id = ?
-	`, data.Title, data.Description, data.ImageURL, data.Servings, data.PrepTimeMinutes, primaryName, variantName, creatorID)
+	_, err := UpdateRecipeDetailsToRecipeTable(tx, data, primaryName, variantName, creatorID)
 	return err
 }
 
 func (s *RecipeServiceV1) UpdateRecipeTags(tx sqlExecutor, primaryName, variantName, creatorID string, tags []string) error {
-	_, err := tx.Exec(`
-        DELETE FROM recipeTagsV1
-        WHERE recipe_id = ?
-    `, primaryName, variantName, creatorID)
+	_, err := DeleteFromRecipeTagsTable(tx, primaryName, variantName, creatorID)
 
 	if err != nil {
 		return err
@@ -658,18 +591,14 @@ func (s *RecipeServiceV1) UpdateRecipeTags(tx sqlExecutor, primaryName, variantN
 
 func (s *RecipeServiceV1) InsertStepAndNotes(tx sqlExecutor, primaryName, variantName, creatorID string, steps []RecipeStepV1) error {
 	for _, step := range steps { //TODO: More database stuff.
-		_, err := tx.Exec(` 
-			INSERT INTO instructionsV1 (recipe_version_id, step_number, instruction, notes) VALUES (?, ?, ?, ?)
-		`, primaryName, variantName, creatorID, step.Instruction)
+		_, err := InsertIntoInstructionTableWithTx(tx, step, primaryName, variantName, creatorID)
 
 		if err != nil {
 			return fmt.Errorf("failed to insert steps: %w", err)
 		}
 
 		for _, si := range step.StepIngredients {
-			_, err := tx.Exec(`
-				INSERT INTO step_ingredientsV1 (recipe_id, step_id, step_ingredient) VALUES (?, ?, ?)
-			`, primaryName, variantName, creatorID, si.Name, si.Aliases, si.Amount, si.Unit)
+			_, err := InsertIntoStepIngredientsTableWithTx(tx, si, primaryName, variantName, creatorID)
 
 			if err != nil {
 				return fmt.Errorf("failed to insert step ingredients: %w", err)
@@ -683,9 +612,7 @@ func (s *RecipeServiceV1) InsertStepAndNotes(tx sqlExecutor, primaryName, varian
 func (s *RecipeServiceV1) InsertVersionIngredients(tx sqlExecutor, primaryName, variantName, creatorID string, ingredients []IngredientV1) error {
 
 	for _, ing := range ingredients {
-		_, err := tx.Exec(`
-            INSERT INTO ingredientsV1 (recipe_version_id, name, quantity, unit) VALUES (?, ?, ?, ?)
-        `, primaryName, variantName, creatorID, ing.Name, ing.Amount, ing.Unit)
+		_, err := InsertIntoIngredientsTableWithTx(tx, ing, primaryName, variantName, creatorID)
 
 		if err != nil {
 			return fmt.Errorf("failed to insert ingredient: %w", err)
@@ -701,11 +628,7 @@ func (s *RecipeServiceV1) UpdateRecipe(userID, primaryName, variantName, creator
 		var exists int
 
 		//TODO: More database stuff.
-		err := tx.QueryRow(`
-			SELECT user_id
-			FROM recipesV1
-			WHERE id = ? AND user_id = ? 
-		`, primaryName, variantName, creatorID, userID).Scan(&exists)
+		err := GetUserForUpdateRecipe(tx, primaryName, variantName, creatorID, userID).Scan(&exists)
 
 		if errors.Is(err, sql.ErrNoRows) {
 			return ErrRecipeNotFound
@@ -715,19 +638,21 @@ func (s *RecipeServiceV1) UpdateRecipe(userID, primaryName, variantName, creator
 			return fmt.Errorf("failed to verify recipe ownership: %w", err)
 		}
 
-		currentVersionID, err := s.GetLatestVersionID(
-			tx, primaryName, variantName, creatorID,
-		)
+		// currentVersionID, err := s.GetLatestVersionID(
+		// 	tx, primaryName, variantName, creatorID,
+		// )
+		// if err != nil {
+		// 	return err
+		// }
+
+		// TODO: Silvia, can you translate the new DB structure into the recipe management system?
+
+		currentIngredients, err := s.GetIngredients(tx, primaryName, variantName, creatorID)
 		if err != nil {
 			return err
 		}
 
-		currentIngredients, err := s.GetIngredients(tx, currentVersionID)
-		if err != nil {
-			return err
-		}
-
-		currentSteps, err := s.GetSteps(tx, currentVersionID)
+		currentSteps, err := s.GetSteps(tx, primaryName, variantName, creatorID)
 		if err != nil {
 			return err
 		}
@@ -782,29 +707,7 @@ func stepsEqual(old, updated []RecipeStepV1) bool {
 }
 
 func (s *RecipeServiceV1) GetCookBookRecipes(userID string) ([]RecipeV1, error) {
-	rows, err := s.DB.Query(`
-		SELECT 
-			r.id, 
-			r.user_id, 
-			r.title, 
-			COALESCE(r.description, ''), 
-			COALESCE(r.image_url, ''), 
-			COALESCE(
-				(
-					SELECT GROUP_CONCAT(t.name, ',') 
-					FROM tagsV1 t 
-					JOIN recipeTagsV1 rt ON rt.tag_id = t.id 
-					WHERE rt.recipe_id = r.id
-				), 
-				''
-			), 
-			COALESCE(r.servings,0), 
-			COALESCE(r.prep_time_minutes, 0) 
-		FROM cookBookV1 cb 
-		JOIN recipesV1 r on r.id = cb.recipe_id 
-		WHERE cb.user_id = ? 
-		ORDER BY cb.id DESC
-	`, userID)
+	rows, err := GetCookBookRecipesFromCookBookTable(s, userID)
 
 	if err != nil {
 		return nil, err

@@ -1,6 +1,6 @@
 {{ define "cooking-mode-btn" }}
     <a style="margin-top: 0px" class="print-btn"
-    href="/cooking-mode/v1/{{ .RecipeID }}"
+    href="/cooking-mode/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}"
     title="Enter cooking mode">
         <img src="/static/icon/CookingMode.png" alt="">
     </a>
@@ -8,28 +8,28 @@
 
 {{ define "cooking-mode-recipe-btn" }}
     <a class="cooking-mode-recipe-btn cooking-mode-active"
-       href="/cooking-mode/v1/{{ .RecipeID }}">
+       href="/cooking-mode/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}">
         <span>Recipe</span>
     </a>
 {{ end }}
 
 {{ define "cooking-mode-steps-btn" }}
     <a class="cooking-mode-steps-btn"
-       href="/cooking-mode/v1/{{ .RecipeID }}/steps">
+       href="/cooking-mode/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}/steps">
         <span>Step-by-Step</span>
     </a>
 {{ end }}
 
 {{ define "cooking-mode-recipe-btn-inactive" }}
     <a class="cooking-mode-recipe-btn"
-       href="/cooking-mode/v1/{{ .RecipeID }}">
+       href="/cooking-mode/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}">
         <span>Recipe</span>
     </a>
 {{ end }}
 
 {{ define "cooking-mode-steps-btn-active" }}
     <a class="cooking-mode-steps-btn cooking-mode-active"
-       href="/cooking-mode/v1/{{ .RecipeID }}/steps">
+       href="/cooking-mode/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}/steps">
         <span>Step-by-Step</span>
     </a>
 {{ end }}

@@ -26,10 +26,7 @@ func NewPantryService(db *sqlx.DB) *PantryService {
 }
 
 func (s *PantryService) GetPantryItems(userID string) ([]PantryIngredient, error) {
-	rows, err := s.DB.Query(
-		"SELECT rowid, name, quantity, unit FROM userPantryV1 WHERE user_id = ? ORDER BY name, unit",
-		userID,
-	)
+	rows, err := GetItemsFromUserPantryTable(s, userID)
 	if err != nil {
 		return nil, err
 	}
@@ -62,10 +59,7 @@ func (s *PantryService) addPantryItem(q sqlExecutor, userID string, name, quanti
 	if _, err := ParseQuantity(quantity); err != nil {
 		return fmt.Errorf("%w: %q", ErrInvalidQuantity, quantity)
 	}
-	rows, err := q.Query(
-		"SELECT name, quantity, unit FROM userPantryV1 WHERE user_id = ? AND name = ? COLLATE NOCASE",
-		userID, name,
-	)
+	rows, err := GetPantryItemsWhenAddingItem(q, userID, name)
 	if err != nil {
 		return err
 	}
@@ -89,22 +83,15 @@ func (s *PantryService) addPantryItem(q sqlExecutor, userID string, name, quanti
 		if !ok {
 			continue
 		}
-		_, err = q.Exec(
-			"UPDATE userPantryV1 SET quantity = ?, unit = ? WHERE user_id = ? AND name = ? AND unit = ?",
-			combinedQty, combinedUnit, userID, e.name, e.unit,
-		)
+		_, err = UpdateUserPantryTable(q, e.name, e.unit, combinedQty, combinedUnit, userID)
 		return err
 	}
 
-	_, err = q.Exec(
-		`INSERT INTO userPantryV1 (user_id, name, quantity, unit) VALUES (?, ?, ?, ?)
-		 ON CONFLICT(user_id, name, unit) DO UPDATE SET quantity = excluded.quantity`,
-		userID, name, quantity, unit,
-	)
+	_, err = InsertIntoUserPantryTable(q, userID, name, quantity, unit)
 	return err
 }
 
 func (s *PantryService) RemovePantryItem(userID string, name, unit string) error {
-	_, err := s.DB.Exec("DELETE FROM userPantryV1 WHERE user_id = ? AND name = ? AND unit = ?", userID, name, unit)
+	_, err := DeleteFromUserPantryTable(s, userID, name, unit)
 	return err
 }

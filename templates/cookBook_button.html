@@ -15,7 +15,7 @@
             title="Add to cookbook"
             aria-label="Add recipe to cookbook"
             hx-post="/cookbook/v1/add"
-            hx-vals='{"recipe_id": "{{ .RecipeID }}"}'
+            hx-vals='{"primary_name": "{{ .PrimaryName }}", "variant_name": "{{.VariantName}}", "creatorID": "{{.CreatorID}}"}'
             hx-target="this"
             hx-swap="outerHTML">
         <img src="/static/icon/unselected_bookmark.png" alt="">

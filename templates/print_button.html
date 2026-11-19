@@ -1,6 +1,6 @@
 {{ define "print-btn" }}
     <a style="margin-top: 0px" class="print-btn"
-    href="/print-mode/v1/{{ .RecipeID }}"
+    href="/print-mode/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}"
     title="Enter printing mode">
         <img src="/static/icon/printer.png" alt="">
     </a>
