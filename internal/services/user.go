@@ -52,6 +52,9 @@ func (s *UserServiceV1) GetUserCredentials(email string) (string, string, error)
 	return id, hash, nil
 }
 
+// TODO: This code is extraneous, since the ID is now just the username.
+// This needs to be removed and everything that references it just needs to
+// pull from the "id" (which is just the username now).
 func (s *UserServiceV1) GetUsernameByID(id string) (string, error) {
 	var username string
 
