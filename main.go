@@ -235,8 +235,8 @@ func main() {
 	mux.HandleFunc("DELETE /cookbook/v1/remove", app.handleCookBookRemove)
 
 	//Cooking Mode
-	mux.HandleFunc("/cooking-mode/v1/{id}", app.handleCookingMode)
-	mux.HandleFunc("/cooking-mode/v1/{id}/steps", app.handleCookingModeSteps)
+	mux.HandleFunc("/cooking-mode/v1/", app.handleCookingMode)
+	mux.HandleFunc("/cooking-mode/steps/v1/", app.handleCookingModeSteps)
 
 	// Multiple recipe planning and sessions
 	// mux.HandleFunc("/cooking-mode/multiple", app.handleMultipleCookingMode)

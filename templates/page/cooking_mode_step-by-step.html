@@ -19,30 +19,26 @@
                 <p class="cooking-mode-instruction">
                     {{.Instruction}}
                 </p>
-                {{if .Notes}}
-                    <div class="cooking-mode-step-notes">
-                        <strong>Notes</strong>
-                        <p>{{.Notes}}</p>
-                    </div>
-                {{end}}
             </div>
         {{end}}
         {{if .HasPrevious}}
+        <!--TODO: The step navigation system needs to be reworked to fit out back-end redesign.
+        I could probably figure it out (and did try to) but I need to give Kyle something to do lol-->
             <a class="cooking-mode-tap-zone cooking-mode-tap-previous"
-            href="/cooking-mode/v1/{{.RecipeID}}/steps?step={{.PreviousStep}}"
+            href="/cooking-mode/steps?step={{.PreviousStep}}/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}"
             aria-label="Previous step">
                 <span aria-hidden="true">‹</span>
             </a>
         {{end}}
         {{if .HasNext}}
             <a class="cooking-mode-tap-zone cooking-mode-tap-next"
-            href="/cooking-mode/v1/{{.RecipeID}}/steps?step={{.NextStep}}"
+            href="/cooking-mode/steps?step={{.NextStep}}/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}"
             aria-label="Next step">
                 <span aria-hidden="true">›</span>
             </a>
         {{else}}
             <a class="cooking-mode-tap-zone cooking-mode-tap-next"
-            href="/cooking-mode/v1/{{.RecipeID}}"
+            href="/cooking-mode/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}"
             aria-label="Finish cooking steps">
                 <span aria-hidden="true">✓</span>
             </a>
@@ -51,7 +47,7 @@
     <nav class="cooking-mode-step-navigation" aria-label="Step navigation">
         {{if .HasPrevious}}
             <a class="cooking-mode-step-button"
-            href="/cooking-mode/v1/{{.RecipeID}}/steps?step={{.PreviousStep}}">
+            href="/cooking-mode/steps?step={{.PreviousStep}}/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}">
                 ← Previous
             </a>
         {{else}}
@@ -61,12 +57,12 @@
         {{end}}
         {{if .HasNext}}
             <a class="cooking-mode-step-button cooking-mode-step-primary"
-            href="/cooking-mode/v1/{{.RecipeID}}/steps?step={{.NextStep}}">
+            href="/cooking-mode/steps?step={{.NextStep}}/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}">
                 Next →
             </a>
         {{else}}
             <a class="cooking-mode-step-button cooking-mode-step-primary"
-            href="/cooking-mode/v1/{{.RecipeID}}">
+            href="/cooking-mode/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}">
                 Finish ✓
             </a>
         {{end}}

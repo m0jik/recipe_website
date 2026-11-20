@@ -22,7 +22,7 @@
                         onerror="this.onerror=null; this.src='/static/placeholder.svg'">
                 </div>
                 <div class="cooking-mode-recipe-info">
-                    <h1>{{.Title}}</h1>
+                    <h1>{{.PrimaryName}}</h1>
                     <p class="cooking-mode-author">
                         Created by: {{.CreatorUsername}}
                     </p>
@@ -53,7 +53,7 @@
                     {{end}}
                 </div>
             </article>
-            <a href="/recipes/v1/{{.RecipeID}}" class="return-btn">Return to standard view</a>
+            <a href="/recipes/v1?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}" class="return-btn">Return to standard view</a>
         </aside>
         <section class="cooking-mode-section cooking-mode-steps">
             <div class="cooking-mode-section-heading">
@@ -77,11 +77,6 @@
                                     </ul>
                                 </div>
                             {{end}}
-                            {{if .Notes}}
-                                <p class="cooking-mode-step-notes">
-                                    <strong>Note:</strong> {{.Notes}}
-                                </p>
-                            {{end}}
                         </div>
                     </li>
                 {{else}}
@@ -103,7 +98,7 @@
                             {{.Name}}
                         </span>
                         <span class="cooking-mode-ingredient-quantity">
-                            {{.Quantity}} {{.Unit}}
+                            {{.Amount}} {{.Unit}}
                         </span>
                     </li>
                 {{else}}
