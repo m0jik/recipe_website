@@ -1,0 +1,93 @@
+{{define "title"}} Recipe {{end}}
+{{define "css"}}<link rel="stylesheet" href="/static/recipe-options.css"> {{end}}
+{{define "main"}}
+<main>
+    <div class="recipe-page">
+
+        <div class="recipe-header">
+            {{ if and .UserID (eq .UserID .CreatorID) }}
+                <details class="recipe-actions">
+                    <summary class="recipe-actions-button">
+                        <img src="/static/icon/more.png" alt="Recipe options">
+                    </summary>
+
+                    <div class="recipe-actions-options">
+                        <form method="GET" action="/recipes/v1/edit-recipe?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}">
+                            <button style="color: black;" type="submit" onclick="this.closest('details').open = false;">Edit</button>
+                        </form>
+                        <form
+                            method="POST"
+                            action="/recipes/v1/delete-recipe?primary_name={{.PrimaryName}}&variant_name={{.VariantName}}&creatorID={{.CreatorID}}"
+                            hx-boost="true"
+                            hx-confirm="Delete &quot;{{ .PrimaryName }}&quot;? This cannot be undone."
+                        >
+                            <button type="submit">Delete</button>
+                        </form>
+                    </div>
+                </details>
+            {{ end }}
+            <img class="recipe-image" src="{{if .ImageURL}}{{.ImageURL}}{{else}}../../static/placeholder.svg{{end}}" alt="Recipe Image" onerror="this.onerror=null; this.src='/static/placeholder.svg'">
+
+            <div class="recipe-info">
+                <h1>{{.PrimaryName}}</h1>
+                <p class="recipe-author">Created by: {{.CreatorID}}</p>
+
+                <p class="recipe-description">{{.Description}}</p>
+
+                <p class="recipe-meta">
+                    {{if .Servings}}<span class="recipe-servings">Servings: {{.Servings}}</span>{{end}}
+                    {{if .PrepTimeMinutes}}<span class="recipe-prep-time">Prep time: {{.PrepTimeMinutes}} min</span>{{end}}
+                </p>
+
+                <div class="recipe-button-group">
+                    {{ template "shopping-btn" . }}  
+                    {{ template "cookbook-btn" . }}
+                    {{ template "cooking-mode-btn" . }}
+                    {{ template "print-btn" . }}
+                </div>
+
+                {{if .Tags}}
+                    <p class="recipe-tags">{{range .Tags}}<a class="tag-chip" href="{{tagurl . nil ""}}">{{.}}</a> {{end}}</p>
+                {{end}}
+            </div>
+        </div>
+
+        <div class="recipe-content">
+
+            <section class="recipe-section">
+                <h2>Ingredients</h2>
+                <ul>
+                    {{range .Ingredients}}
+                        <li>{{.Amount}} {{.Unit}} {{.Name}}</li>
+                    {{else}}
+                        <li>No ingredients added</li>
+                    {{end}}
+                </ul>
+            </section>
+
+            <section class="recipe-section">
+                <h2>Steps</h2>
+                <ol>
+                    {{range .Steps}}
+                        <li>
+                            <p>{{.Instruction}}</p>
+                            {{if .StepIngredients}}
+                                <i>Ingredients Used</i><br>
+                                <ul>
+                                    {{range .StepIngredients}}
+                                        <li>{{.Ingredient}}</li>
+                                    {{end}}
+                                </ul>
+                            {{end}}
+                        </li>
+                    {{else}}
+                        <li>No steps added</li>
+                    {{end}}
+                </ol>
+            </section>
+
+        </div>
+
+    </div>
+</main>
+{{end}}

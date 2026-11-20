@@ -1,20 +1,10 @@
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta charset="utf-8">
-        <title>Shopping List</title>
-        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
-        <link rel="stylesheet" href="/static/shopping_list.css">
-    </head>
-    <body>
-        {{template "nav" .}}
-        <main class="container">
-            {{template "shopping-list-section" .}}
-        </main>
-    </body>
-</html>
+{{define "title"}} Shopping List {{end}}
+{{define "css"}}<link rel="stylesheet" href="/static/shopping_list.css"> {{end}}
+{{define "main"}}
+    <main class="container">
+        {{template "shopping-list-section" .}}
+    </main>
+{{end}}
 {{ define "shopping-list-section" }}
 <section class="shopping-panel" id="shopping-list-section">
 

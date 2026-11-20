@@ -1,17 +1,5 @@
-<!--TODO: Combine both forms into one big form.-->
-
-<!doctype html>
-<html lang="en">
-<head>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta charset="UTF-8">
-    <title>New Recipe</title>
-    <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-    <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
-</head>
-<body>
-    {{ template "nav" .}}
-
+{{define "title"}} PageOne {{end}}
+{{define "main"}}
 <div class="card">
     <div class="card-header">
         <h2>New Recipe</h2>
@@ -89,6 +77,4 @@
         </div>
     </form>
 </div>
-
-</body>
-</html>
+{{end}}

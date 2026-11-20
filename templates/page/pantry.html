@@ -1,20 +1,10 @@
-<!doctype html>
-<html lang="en">
-    <head>
-        <meta name="viewport" content="width=device-width, initial-scale=1">
-        <meta charset="utf-8">
-        <title>Pantry</title>
-        <script src="https://unpkg.com/htmx.org@1.9.12"></script>
-        <link rel="stylesheet" href="/static/style.css?v=max-time-filter-1v=responsive-2">
-        <link rel="stylesheet" href="/static/pantry.css">
-    </head>
-    <body>
-        {{template "nav" .}}
-        <main class="container">
-            {{template "pantry-section" .}}
-        </main>
-    </body>
-</html>
+{{define "title"}} Pantry {{end}}
+{{define "css"}} <link rel="stylesheet" href="/static/pantry.css"> {{end}}
+{{define "main"}} 
+<main class="container">
+    {{template "pantry-section" .}}
+</main>
+{{end}}
 {{ define "pantry-section" }}
 <section class="pantry-panel" id="pantry-section">
     <h2>Pantry</h2>

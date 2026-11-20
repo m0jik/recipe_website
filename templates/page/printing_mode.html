@@ -1,14 +1,20 @@
+{{define "title"}} Print Mode {{end}}
 <!doctype html>
 <html>
 <head>
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta charset="utf-8">
-    <title>{{.Title}}</title>
+    <title>{{template "title" .}}</title>
     <link rel="stylesheet" href="/static/print_mode.css?v=recipe-layout-3">
     <script src="https://unpkg.com/htmx.org@1.9.12"></script>
 </head>
-
 <body>
+    {{template "main" .}}
+</body>
+</html>
+
+{{define "main"}}
+<main>
     <div class="recipe-page">
         <div class="recipe-info" style="display: flex;">
             <h1 style="flex: 1;">{{.Title}}</h1>
@@ -67,6 +73,5 @@
         <button class="no-print" onclick="window.print()">Print this recipe</button>
         <a href="/recipes/v1/{{.RecipeID}}" class="no-print">Return to standard view</a>
     </div>
-
-</body>
-</html>
+</main>
+{{end}}

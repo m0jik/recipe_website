@@ -28,24 +28,19 @@ import (
 	"golang.org/x/crypto/argon2"
 )
 
-var tpl = template.Must(template.New("templates").Funcs(template.FuncMap{
-	"urlquery": url.QueryEscape,
-	"tagurl":   tagURL,
-	"hastag":   hasTag,
-}).ParseGlob("templates/*.html"))
-
 const cookieName = "session_id"
 
 type App struct {
-	DB       *sqlx.DB
-	Cfg      *config.Config
-	Users    *services.UserServiceV1
-	Recipes  *services.RecipeServiceV1
-	Email    services.EmailSender
-	Images   *services.ImageService
-	Shopping *services.ShoppingListService
-	Pantry   *services.PantryService
-	CookBook *services.CookBookService
+	DB        *sqlx.DB
+	Cfg       *config.Config
+	Users     *services.UserServiceV1
+	Recipes   *services.RecipeServiceV1
+	Email     services.EmailSender
+	Images    *services.ImageService
+	Shopping  *services.ShoppingListService
+	Pantry    *services.PantryService
+	CookBook  *services.CookBookService
+	Templates map[string]*template.Template
 }
 
 type PageData struct {
@@ -162,16 +157,24 @@ func main() {
 		return
 	}
 
+	log.Println("Loading templates...")
+	templates, err := newTemplateCache()
+	if err != nil {
+		log.Printf("template error: %v", err)
+		return
+	}
+
 	app := &App{
-		DB:       db,
-		Cfg:      cfg,
-		Users:    services.NewUserService(db),
-		Recipes:  services.NewRecipeService(db),
-		Email:    emailSender,
-		Images:   services.NewImageService(&services.LocalStore{Dir: "uploads"}),
-		Shopping: services.NewShoppingListService(db),
-		Pantry:   services.NewPantryService(db),
-		CookBook: services.NewCookBookService(db),
+		DB:        db,
+		Cfg:       cfg,
+		Users:     services.NewUserService(db),
+		Recipes:   services.NewRecipeService(db),
+		Email:     emailSender,
+		Images:    services.NewImageService(&services.LocalStore{Dir: "uploads"}),
+		Shopping:  services.NewShoppingListService(db),
+		Pantry:    services.NewPantryService(db),
+		CookBook:  services.NewCookBookService(db),
+		Templates: templates,
 	}
 
 	log.Println("Setting up handlers...")
@@ -408,7 +411,7 @@ func (a *App) handleIndex(w http.ResponseWriter, r *http.Request) {
 		PresetTagGroups: services.PresetTagGroups,
 	}
 
-	err = tpl.ExecuteTemplate(w, "index.html", data)
+	err = a.Templates["home.html"].ExecuteTemplate(w, "index", data)
 
 	if err != nil {
 		log.Printf("Error rendering index template: %v", err)
@@ -472,7 +475,7 @@ func (a *App) handleRegister(w http.ResponseWriter, r *http.Request) {
 		PageData := PageData{
 			PresetTagGroups: services.PresetTagGroups,
 		}
-		err := tpl.ExecuteTemplate(w, "register.html", PageData)
+		err := a.Templates["register.html"].ExecuteTemplate(w, "index", PageData)
 		if err != nil {
 			log.Printf("Error rendering register template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -565,7 +568,7 @@ func (a *App) handleLogin(w http.ResponseWriter, r *http.Request) {
 		PageData := PageData{
 			PresetTagGroups: services.PresetTagGroups,
 		}
-		err := tpl.ExecuteTemplate(w, "login.html", PageData)
+		err := a.Templates["login.html"].ExecuteTemplate(w, "index", PageData)
 		if err != nil {
 			log.Printf("Error rendering login template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -663,7 +666,7 @@ func (a *App) handleRequestReset(w http.ResponseWriter, r *http.Request) {
 		PageData := PageData{
 			PresetTagGroups: services.PresetTagGroups,
 		}
-		err := tpl.ExecuteTemplate(w, "request_reset.html", PageData)
+		err := a.Templates["request_reset.html"].ExecuteTemplate(w, "index", PageData)
 		if err != nil {
 			log.Printf("Error rendering request_reset template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -726,7 +729,7 @@ func (a *App) handleReset(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
 		token := r.URL.Query().Get("token")
-		err := tpl.ExecuteTemplate(w, "reset.html", map[string]string{"Token": token})
+		err := a.Templates["reset.html"].ExecuteTemplate(w, "index", map[string]string{"Token": token})
 		if err != nil {
 			log.Printf("Error rendering reset template: %v", err)
 			http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -868,7 +871,7 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 		PresetTagGroups: services.PresetTagGroups,
 	}
 
-	err = tpl.ExecuteTemplate(w, "myRecipes.html", data)
+	err = a.Templates["myRecipes.html"].ExecuteTemplate(w, "index", data)
 
 	if err != nil {
 		log.Printf("Error rendering template: %v", err)
@@ -880,7 +883,8 @@ func (a *App) handleMyRecipes(w http.ResponseWriter, r *http.Request) {
 func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
 	case http.MethodGet:
-		if uid, ok := a.getUserIDFromSession(r); ok {
+		uid, ok := a.getUserIDFromSession(r)
+		if ok {
 			_, err := a.Users.GetUsernameByID(uid)
 			if err != nil {
 				http.Error(w, "Invalid session", http.StatusInternalServerError)
@@ -890,11 +894,12 @@ func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 
 		data := PageOneData{
 			PageData: PageData{
+				UserID:          string(uid),
 				PresetTagGroups: services.PresetTagGroups,
 			},
 		}
 
-		err := tpl.ExecuteTemplate(w, "pageOne.html", data)
+		err := a.Templates["pageOne.html"].ExecuteTemplate(w, "index", data)
 
 		if err != nil {
 			log.Printf("Error rendering pageOne template: %v", err)
@@ -907,7 +912,8 @@ func (a *App) createNewRecipe(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
-	if uid, ok := a.getUserIDFromSession(r); ok {
+	uid, ok := a.getUserIDFromSession(r)
+	if ok {
 		_, err := a.Users.GetUsernameByID(uid)
 		if err != nil {
 			http.Error(w, "Invalid session", http.StatusInternalServerError)
@@ -938,6 +944,7 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 
 	pageData := PageTwoData{
 		PageData: PageData{
+			UserID:          string(uid),
 			PresetTagGroups: services.PresetTagGroups,
 		},
 
@@ -950,7 +957,7 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 		PrepTimeMinutes: r.FormValue("prep_time_minutes"),
 	}
 
-	err = tpl.ExecuteTemplate(w, "pageTwo.html", pageData)
+	err = a.Templates["pageTwo.html"].ExecuteTemplate(w, "index", pageData)
 
 	if err != nil {
 		log.Printf("Error rendering pageTwo template: %v", err)
@@ -960,7 +967,7 @@ func (a *App) handleNewRecipePost(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
-	err := tpl.ExecuteTemplate(w, "ingredient-row", services.IngredientV1{
+	err := a.Templates["pageTwo.html"].ExecuteTemplate(w, "ingredient-row", services.IngredientV1{
 		Name:    r.URL.Query().Get("name"),
 		Aliases: r.URL.Query()["aliases"],
 		Amount:  r.URL.Query().Get("qty"),
@@ -974,7 +981,8 @@ func (a *App) handleIngredientRows(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleStepIngredientRows(w http.ResponseWriter, r *http.Request) {
-	err := tpl.ExecuteTemplate(w, "step-ingredient-row", map[string]string{
+
+	err := a.Templates["pageTwo.html"].ExecuteTemplate(w, "step-ingredient-row", map[string]string{
 		"Ingredient": r.URL.Query().Get("step_ingredient"),
 	})
 	if err != nil {
@@ -985,7 +993,8 @@ func (a *App) handleStepIngredientRows(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) handleStepRow(w http.ResponseWriter, r *http.Request) {
-	err := tpl.ExecuteTemplate(w, "step-row", map[string]any{
+
+	err := a.Templates["pageTwo.html"].ExecuteTemplate(w, "step-row", map[string]any{
 		"Instruction": r.URL.Query().Get("step"),
 		"Note":        r.URL.Query().Get("note"),
 		"Ingredients": strings.Split(r.URL.Query().Get("step_ingredients"), ","),
@@ -1001,7 +1010,8 @@ func (a *App) handleTagRows(w http.ResponseWriter, r *http.Request) {
 	tag := strings.ToLower(strings.TrimSpace(r.URL.Query().Get("tag")))
 	for _, presetTag := range services.PresetTags {
 		if tag == presetTag {
-			err := tpl.ExecuteTemplate(w, "tag-row", tag)
+			err := a.Templates["pageOne.html"].ExecuteTemplate(w, "tag-row", tag)
+
 			if err != nil {
 				log.Printf("Error rendering tag row: %v", err)
 				http.Error(w, "Error rendering tag row", http.StatusInternalServerError)
@@ -1160,7 +1170,7 @@ func (a *App) handleRecipe(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var buf bytes.Buffer
-	err = tpl.ExecuteTemplate(&buf, "recipe.html", pageData)
+	err = a.Templates["recipe.html"].ExecuteTemplate(&buf, "index", pageData)
 	if err != nil {
 		log.Printf("Error rendering recipe template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)
@@ -1220,7 +1230,7 @@ func (a *App) handlePrintMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var buf bytes.Buffer
-	err = tpl.ExecuteTemplate(&buf, "printing_mode.html", pageData)
+	err = a.Templates["printing_mode.html"].ExecuteTemplate(&buf, "printing_mode.html", pageData)
 	if err != nil {
 		log.Printf("Error rendering printing mode template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)
@@ -1324,7 +1334,8 @@ func (a *App) handleShoppingList(w http.ResponseWriter, r *http.Request) {
 	data := shoppingListData(items, recipes, needOnly)
 	data["Username"] = username
 	data["Outdated"] = outdated
-	err = tpl.ExecuteTemplate(w, "shoppingList.html", data)
+	data["UserID"] = userID
+	err = a.Templates["shoppingList.html"].ExecuteTemplate(w, "index", data)
 	if err != nil {
 		log.Printf("Error rendering shopping list template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1379,7 +1390,7 @@ func (a *App) handleShoppingListAdd(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Swap the button for a version of itself that confirms the add.
-	if err := tpl.ExecuteTemplate(w, "shopping-btn", map[string]any{
+	if err := a.Templates["recipe.html"].ExecuteTemplate(w, "shopping-btn", map[string]any{
 		"PrimaryName": primaryName,
 		"VariantName": variantName,
 		"CreatorID":   creatorID,
@@ -1413,7 +1424,7 @@ func (a *App) handleShoppingListRemoveRecipe(w http.ResponseWriter, r *http.Requ
 	// The recipe page toggles a single button, the shopping list page redraws the
 	// whole section it just deleted a recipe from.
 	if r.URL.Query().Get("render") == "button" {
-		if err := tpl.ExecuteTemplate(w, "shopping-btn", map[string]any{
+		if err := a.Templates["recipe.html"].ExecuteTemplate(w, "shopping-btn", map[string]any{
 			"RecipeID": recipeID,
 			"Added":    false,
 		}); err != nil {
@@ -1600,7 +1611,7 @@ func (a *App) renderShoppingListSection(w http.ResponseWriter, userID string, ne
 
 	data := shoppingListData(items, recipes, needOnly)
 	data["Outdated"] = outdated
-	if err := tpl.ExecuteTemplate(w, "shopping-list-section", data); err != nil {
+	if err := a.Templates["shoppingList.html"].ExecuteTemplate(w, "shopping-list-section", data); err != nil {
 		log.Printf("Error rendering shopping list section: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -1628,7 +1639,8 @@ func (a *App) handlePantry(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tpl.ExecuteTemplate(w, "pantry.html", map[string]any{
+	err = a.Templates["pantry.html"].ExecuteTemplate(w, "index", map[string]any{
+		"UserID":   userID,
 		"Username": username,
 		"Items":    items,
 	})
@@ -1692,7 +1704,7 @@ func (a *App) renderPantrySection(w http.ResponseWriter, userID string, errMsg s
 		return
 	}
 
-	if err := tpl.ExecuteTemplate(w, "pantry-section", map[string]any{
+	if err := a.Templates["pantry.html"].ExecuteTemplate(w, "pantry-section", map[string]any{
 		"Items": items,
 		"Error": errMsg,
 	}); err != nil {
@@ -1842,7 +1854,7 @@ func (a *App) handleEditRecipe(w http.ResponseWriter, r *http.Request) {
 
 	buf := new(bytes.Buffer)
 
-	err = tpl.ExecuteTemplate(buf, "edit_recipe.html", pageData)
+	err = a.Templates["edit_recipe.html"].ExecuteTemplate(buf, "index", pageData)
 	if err != nil {
 		log.Printf("Error rendering edit recipe template: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
@@ -1912,7 +1924,7 @@ func (a *App) handleRecipeVersion(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = tpl.ExecuteTemplate(w, "version-preview", map[string]any{
+	err = a.Templates["edit_recipe.html"].ExecuteTemplate(w, "version-preview", map[string]any{
 		"PrimaryName":   primaryName,
 		"VariantName":   variantName,
 		"CreatorID":     creatorID,
@@ -2102,7 +2114,7 @@ func (a *App) handleImagePreview(w http.ResponseWriter, r *http.Request) {
 	showError := func(msg string) {
 		w.Header().Set("HX-Retarget", "#image-field")
 		w.Header().Set("HX-Reswap", "outerHTML")
-		if err := tpl.ExecuteTemplate(w, "image-field", msg); err != nil {
+		if err := a.Templates["edit_recipe.html"].ExecuteTemplate(w, "image-field", msg); err != nil {
 			log.Printf("Error rendering image field: %v", err)
 		}
 	}
@@ -2133,7 +2145,7 @@ func (a *App) handleImagePreview(w http.ResponseWriter, r *http.Request) {
 	}
 
 	src := template.URL("data:" + mimeType + ";base64," + base64.StdEncoding.EncodeToString(data))
-	if err := tpl.ExecuteTemplate(w, "sidebar-image", src); err != nil {
+	if err := a.Templates["edit_recipe.html"].ExecuteTemplate(w, "sidebar-image", src); err != nil {
 		log.Printf("Error rendering sidebar image: %v", err)
 		http.Error(w, "Internal server error", http.StatusInternalServerError)
 		return
@@ -2172,7 +2184,7 @@ func (a *App) handleCookBook(w http.ResponseWriter, r *http.Request) {
 		"Recipes":  recipes,
 	}
 
-	if err := tpl.ExecuteTemplate(w, "cookBook.html", data); err != nil {
+	if err := a.Templates["cookBook.html"].ExecuteTemplate(w, "index", data); err != nil {
 		log.Printf("Error rendering cookbook: %v", err)
 	}
 
@@ -2205,7 +2217,7 @@ func (a *App) handleCookBookAdd(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := tpl.ExecuteTemplate(w, "cookbook-btn", map[string]any{
+	if err := a.Templates["recipe.html"].ExecuteTemplate(w, "cookbook-btn", map[string]any{
 		"PrimaryName": primaryName,
 		"VariantName": variantName,
 		"CreatorID":   creatorID,
@@ -2237,7 +2249,7 @@ func (a *App) handleCookBookRemove(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := tpl.ExecuteTemplate(w, "cookbook-btn", map[string]any{
+	if err := a.Templates["recipe.html"].ExecuteTemplate(w, "cookbook-btn", map[string]any{
 		"PrimaryName": primaryName,
 		"VariantName": variantName,
 		"CreatorID":   creatorID,
@@ -2316,7 +2328,7 @@ func (a *App) handleCookingMode(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var buf bytes.Buffer
-	err = tpl.ExecuteTemplate(&buf, "cooking_mode_recipe.html", pageData)
+	err = a.Templates["cooking_mode_recipe.html"].ExecuteTemplate(&buf, "index", pageData)
 	if err != nil {
 		log.Printf("Error rendering recipe template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)
@@ -2428,7 +2440,7 @@ func (a *App) handleCookingModeSteps(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var buf bytes.Buffer
-	err = tpl.ExecuteTemplate(&buf, "cooking_mode_step-by-step.html", pageData)
+	err = a.Templates["cooking_mode_step-by-step.html"].ExecuteTemplate(&buf, "index", pageData)
 	if err != nil {
 		log.Printf("Error rendering cooking mode steps template: %v", err)
 		http.Error(w, "Template error", http.StatusInternalServerError)

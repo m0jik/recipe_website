@@ -1,0 +1,14 @@
+{{define "title"}}Request Reset {{end}}
+
+{{define "main"}}
+<div class="auth-page">
+    <div class="auth-container">
+        <h2>Forgot Password</h2>
+        <p>Enter your email to receive a password reset link.</p>
+        <form method="post">
+            <input name="email" type="email" placeholder="Email" required>
+            <button type="submit">Send Reset Link</button>
+        </form>
+    </div>
+</div>
+{{end}}
