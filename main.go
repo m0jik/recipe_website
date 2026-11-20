@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"syscall"
@@ -27,6 +28,12 @@ import (
 	"github.com/m0jik/recipe_website/internal/sqlite"
 	"golang.org/x/crypto/argon2"
 )
+
+var functions = template.FuncMap{
+	"urlquery": url.QueryEscape,
+	"tagurl":   tagURL,
+	"hastag":   hasTag,
+}
 
 const cookieName = "session_id"
 
@@ -271,6 +278,42 @@ func main() {
 	if err := srv.Shutdown(ctx); err != nil {
 		log.Printf("server shutdown error: %v", err)
 	}
+}
+
+func newTemplateCache() (map[string]*template.Template, error) {
+	cache := map[string]*template.Template{}
+
+	pages, err := filepath.Glob("./templates/page/*.html")
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pages) == 0 {
+		return nil, errors.New("no templates found in ./templates/page: run the server from the project folder")
+	}
+
+	for _, page := range pages {
+		name := filepath.Base(page)
+
+		ts, err := template.New(name).Funcs(functions).ParseFiles("./templates/index.html")
+
+		if err != nil {
+			return nil, err
+		}
+
+		ts, err = ts.ParseGlob("./templates/partials/*.html")
+		if err != nil {
+			return nil, err
+		}
+
+		ts, err = ts.ParseFiles(page)
+		if err != nil {
+			return nil, err
+		}
+
+		cache[name] = ts
+	}
+	return cache, nil
 }
 
 func buildEmailSender(cfg *config.Config) (services.EmailSender, error) {
