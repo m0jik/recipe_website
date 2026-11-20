@@ -23,7 +23,7 @@ type RecipeV1 struct {
 	ImageURL        string
 	CreatorID       string
 	Servings        int
-	PrepTimeMinutes time.Duration
+	PrepTimeMinutes int
 	Tags            []string
 	Steps           []RecipeStepV1
 }
@@ -486,7 +486,7 @@ func (s *RecipeServiceV1) GetRecipeForView(primaryName, variantName, creatorID s
 	var description string
 	var imageURL string
 	var servings int
-	var prepTime time.Duration
+	var prepTime int
 
 	err := GetRecipeFromRecipeTable(s, primaryName, variantName, creatorID).Scan(&primaryName, &variantName, &creatorID, &description, &imageURL, &servings, &prepTime)
 	if err != nil {

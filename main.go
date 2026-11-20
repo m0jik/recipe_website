@@ -1,4 +1,5 @@
 package main
+package template
 
 import (
 	"bytes"
@@ -76,7 +77,7 @@ type RecipePageData struct {
 	StepIngredients     []services.RecipeStepIngredientV1
 	CreatorUsername     string
 	Servings            int
-	PrepTimeMinutes     time.Duration
+	PrepTimeMinutes     int
 	Tags                []string
 	Versions            []services.RecipeVersionV1
 	RestoredVersion     int
